@@ -1,0 +1,425 @@
+se "test"
++    if values & {"instance_deletion"}:
++        return "delete"
++    if values & {"instance_creation", "script_creation", "ui_creation", "animation_generation", "world_building", "terrain_generation", "procedural_structure"}:
++        return "create"
++    return "modify"
++
++
++def _risk(task_classes: Iterable[str], operation: str) -> RiskLevel:
++    values = set(task_classes)
++    if "datastore_migration" in values:
++        return RiskLevel.R5
++    if values & {"security_review", "blender_job"}:
++        return RiskLevel.R4
++    if operation == "delete" or values & {"combat_choreography", "cinematic_creation", "digital_twin_execution", "release_validation", "asset_import", "world_building"}:
++        return RiskLevel.R3
++    if operation in {"create", "modify"} or values & {"runtime_debugging", "performance_review"}:
++        return RiskLevel.R2
++    if operation in {"test", "search"}:
++        return RiskLevel.R1
++    return RiskLevel.R0
++
++
++def _sandbox(task_classes: Iterable[str], risk: RiskLevel) -> SandboxLevel:
++    values = set(task_classes)
++    if "datastore_migration" in values:
++        return SandboxLevel.MIGRATION_LAB
++    if "blender_job" in values:
++        return SandboxLevel.EXTERNAL_SANDBOX
++    if values & {"digital_twin_execution", "combat_choreography", "cinematic_creation", "security_review", "multi_device_validation", "release_validation"}:
++        return SandboxLevel.DIGITAL_TWIN
++    if risk in {RiskLevel.R3, RiskLevel.R4, RiskLevel.R5}:
++        return SandboxLevel.SHADOW_PROJECT
++    if risk == RiskLevel.R2:
++        return SandboxLevel.PREVIEW
++    return SandboxLevel.NONE
++
++
++def classify_deterministic_task(text: str, *, selected_instances: Iterable[str] = ()) -> bool:
++    selected = tuple(selected_instances)
++    return bool(selected) and any(pattern.search(text) for pattern in DETERMINISTIC_PATTERNS)
++
++
++def validate_deterministic_parameters(text: str, *, selected_instances: Iterable[str] = ()) -> tuple[bool, tuple[str, ...]]:
++    reasons: list[str] = []
++    if not tuple(selected_instances):
++        reasons.append("selected instance is required")
++    if not NUMERIC.search(text) and not re.search(r"\b(?:Metal|Plastic|Neon|true|false|red|blue|green)\b", text, re.I):
++        reasons.append("deterministic value is missing")
++    if AMBIGUOUS_REFERENCES.search(text) and not TARGET_HINTS.search(text) and not tuple(selected_instances):
++        reasons.append("target reference is ambiguous")
++    return not reasons, tuple(reasons)
++
++
++def encode_task(
++    objective: str,
++    *,
++    session_id: str,
++    project_id: str,
++    selected_instances: Iterable[str] = (),
++    resolved_targets: Iterable[str] = (),
++    reference_instances: Iterable[str] = (),
++    constraints: Mapping[str, Any] | None = None,
++    acceptance_criteria: Iterable[str] = (),
++) -> RobloxTaskState:
++    task_classes = _task_classes(objective)
++    operation = _operation(task_classes, objective)
++    selected = tuple(dict.fromkeys(map(str, selected_instances)))
++    resolved = tuple(dict.fromkeys(map(str, resolved_targets)))
++    references = tuple(dict.fromkeys(map(str, reference_instances)))
++    capabilities = tuple(dict.fromkeys(cap for task in task_classes for cap in CAPABILITIES_BY_TASK.get(task, ("ROBLOX_PROJECT_READ",))))
++    risk = _risk(task_classes, operation)
++    sandbox = _sandbox(task_classes, risk)
++    deterministic = classify_deterministic_task(objective, selected_instances=selected)
++    ambiguities: list[str] = []
++    if operation in {"create", "modify", "delete", "debug", "test"} and not (selected or resolved):
++        if AMBIGUOUS_REFERENCES.search(objective) or not TARGET_HINTS.search(objective):
++            ambiguities.append("target_unresolved")
++    if "spatial_placement" in task_classes and not (references or NUMERIC.search(objective)):
++        ambiguities.append("spatial_reference_unresolved")
++    if task_classes == ("animation_repair",) and not acceptance_criteria:
++        ambiguities.append("animation_success_criteria_missing")
++    execution_allowed = deterministic and not ambiguities
++    cloud_need = "NONE" if deterministic else "REQUIRED" if risk in {RiskLevel.R4, RiskLevel.R5} else "LIKELY" if risk == RiskLevel.R3 else "UNLIKELY"
++    complexity = min(1.0, 0.08 * len(task_classes) + 0.04 * len(capabilities) + 0.12 * int(risk.value[1:]))
++    digest = hashlib.sha256((objective.strip() + "\0" + project_id + "\0" + session_id).encode("utf-8")).hexdigest()[:24]
++    return RobloxTaskState(
++        domain="roblox_studio",
++        task_id=f"rbx-{digest}",
++        session_id=session_id,
++        project_id=project_id,
++        user_objective=objective.strip(),
++        task_classes=task_classes,
++        operation_class=operation,
++        execution_mode="DETERMINISTIC" if deterministic else "ORCHESTRATED",
++        selected_instances=selected,
++        resolved_targets=resolved,
++        reference_instances=references,
++        required_capabilities=capabilities,
++        constraints=dict(constraints or {}),
++        acceptance_criteria=tuple(dict.fromkeys(map(str, acceptance_criteria))),
++        required_evidence=tuple(dict.fromkeys(_required_evidence(task_classes))),
++        ambiguities=tuple(dict.fromkeys(ambiguities)),
++        risk_level=risk,
++        sandbox_level=sandbox,
++        estimated_complexity=complexity,
++        estimated_cloud_need=cloud_need,
++        execution_allowed=execution_allowed,
++    )
++
++
++def _required_evidence(task_classes: Iterable[str]) -> list[str]:
++    output = ["PROJECT_INSTANCE"]
++    values = set(task_classes)
++    if any(item.startswith("script_") for item in values) or values & {"gameplay_system", "runtime_debugging", "security_review"}:
++        output.extend(("PROJECT_SCRIPT", "SCRIPT_INTERFACE", "REQUIRE_GRAPH"))
++    if values & {"creator_store_search", "asset_selection", "asset_import", "asset_sanitization", "asset_adaptation"}:
++        output.extend(("ASSET_METADATA", "ASSET_SECURITY_REPORT"))
++    if values & {"animation_generation", "animation_retargeting", "animation_repair", "custom_rig_mapping", "creature_animation", "facial_animation", "combat_choreography"}:
++        output.extend(("RIG_MAPPING", "ANIMATION_METRICS"))
++    if values & {"cinematic_creation", "ui_validation", "multi_device_validation"}:
++        output.extend(("IMAGE_PREVIEW", "VIDEO_PREVIEW"))
++    if "datastore_migration" in values:
++        output.extend(("MIGRATION_RESULT", "USER_APPROVAL"))
++    return output
++
++
++def understanding_gate(
++    task: RobloxTaskState,
++    *,
++    capabilities_available: bool,
++    engines_available: bool,
++    evidence_available: bool,
++    model_certified: bool,
++    sandbox_available: bool,
++    budget_available: bool = True,
++) -> GateDecision:
++    reasons: list[str] = []
++    if task.ambiguities:
++        return GateDecision(GateStatus.BLOCKED_AMBIGUOUS, task.ambiguities, False)
++    if not capabilities_available:
++        return GateDecision(GateStatus.BLOCKED_UNSUPPORTED, ("required capability is unavailable",), False)
++    if not engines_available:
++        return GateDecision(GateStatus.BLOCKED_MISSING_ENGINE, ("certified engine is unavailable",), False)
++    if not evidence_available:
++        return GateDecision(GateStatus.BLOCKED_MISSING_EVIDENCE, ("required evidence is unavailable",), False)
++    if not sandbox_available or not model_certified:
++        reasons.append("risk/certification policy requires review")
++        return GateDecision(GateStatus.BLOCKED_POLICY, tuple(reasons), False)
++    if not budget_available:
++        return GateDecision(GateStatus.BLOCKED_BUDGET, ("task budget is exhausted",), False)
++    if task.risk_level in {RiskLevel.R3, RiskLevel.R4, RiskLevel.R5}:
++        return GateDecision(GateStatus.SUPPORTED_WITH_REVIEW, ("human approval required",), True)
++    return GateDecision(GateStatus.SUPPORTED, (), True)
++
++
++def with_execution(task: RobloxTaskState, allowed: bool) -> RobloxTaskState:
++    return replace(task, execution_allowed=allowed)
+diff --git a/skills/signal-core/profiles/roblox_studio/types.py b/skills/signal-core/profiles/roblox_studio/types.py
+new file mode 100644
+index 0000000..32d79da
+--- /dev/null
++++ b/skills/signal-core/profiles/roblox_studio/types.py
+@@ -0,0 +1,322 @@
++from __future__ import annotations
++
++from dataclasses import asdict, dataclass, field
++from enum import Enum
++from typing import Any, Mapping
++
++
++class RiskLevel(str, Enum):
++    R0 = "R0"
++    R1 = "R1"
++    R2 = "R2"
++    R3 = "R3"
++    R4 = "R4"
++    R5 = "R5"
++
++
++class SandboxLevel(str, Enum):
++    NONE = "NONE"
++    PREVIEW = "PREVIEW"
++    SHADOW_PROJECT = "SHADOW_PROJECT"
++    DIGITAL_TWIN = "DIGITAL_TWIN"
++    MIGRATION_LAB = "MIGRATION_LAB"
++    EXTERNAL_SANDBOX = "EXTERNAL_SANDBOX"
++
++
++class CertificationLevel(str, Enum):
++    UNTESTED = "UNTESTED"
++    EXPERIMENTAL = "EXPERIMENTAL"
++    BETA = "BETA"
++    VERIFIED = "VERIFIED"
++    CERTIFIED = "CERTIFIED"
++    REJECTED = "REJECTED"
++
++    @property
++    def authority(self) -> int:
++        return {
++            self.REJECTED: -1,
++            self.UNTESTED: 0,
++            self.EXPERIMENTAL: 1,
++            self.BETA: 2,
++            self.VERIFIED: 3,
++            self.CERTIFIED: 4,
++        }[self]
++
++
++class GateStatus(str, Enum):
++    SUPPORTED = "SUPPORTED"
++    SUPPORTED_WITH_REVIEW = "SUPPORTED_WITH_REVIEW"
++    BLOCKED_AMBIGUOUS = "BLOCKED_AMBIGUOUS"
++    BLOCKED_UNSUPPORTED = "BLOCKED_UNSUPPORTED"
++    BLOCKED_MISSING_ENGINE = "BLOCKED_MISSING_ENGINE"
++    BLOCKED_MISSING_EVIDENCE = "BLOCKED_MISSING_EVIDENCE"
++    BLOCKED_POLICY = "BLOCKED_POLICY"
++    BLOCKED_BUDGET = "BLOCKED_BUDGET"
++
++
++class FinalStatus(str, Enum):
++    COMPLETED_VERIFIED = "COMPLETED_VERIFIED"
++    COMPLETED_WITH_WARNINGS = "COMPLETED_WITH_WARNINGS"
++    BLOCKED_AMBIGUOUS = "BLOCKED_AMBIGUOUS"
++    BLOCKED_UNSUPPORTED = "BLOCKED_UNSUPPORTED"
++    BLOCKED_POLICY = "BLOCKED_POLICY"
++    BLOCKED_BUDGET = "BLOCKED_BUDGET"
++    FAILED_VALIDATION = "FAILED_VALIDATION"
++    FAILED_ROLLED_BACK = "FAILED_ROLLED_BACK"
++    FAILED_ENGINE = "FAILED_ENGINE"
++    FAILED_MODEL = "FAILED_MODEL"
++    FAILED_CHECKPOINT_INVALID = "FAILED_CHECKPOINT_INVALID"
++
++
++@dataclass(frozen=True)
++class RobloxTaskState:
++    domain: str
++    task_id: str
++    session_id: str
++    project_id: str
++    user_objective: str
++    task_classes: tuple[str, ...]
++    operation_class: str
++    execution_mode: str
++    selected_instances: tuple[str, ...] = ()
++    resolved_targets: tuple[str, ...] = ()
++    reference_instances: tuple[str, ...] = ()
++    required_capabilities: tuple[str, ...] = ()
++    required_engines: tuple[str, ...] = ()
++    required_models: tuple[str, ...] = ()
++    constraints: Mapping[str, Any] = field(default_factory=dict)
++    style_constraints: Mapping[str, Any] = field(default_factory=dict)
++    security_constraints: Mapping[str, Any] = field(default_factory=dict)
++    performance_constraints: Mapping[str, Any] = field(default_factory=dict)
++    device_constraints: Mapping[str, Any] = field(default_factory=dict)
++    acceptance_criteria: tuple[str, ...] = ()
++    required_evidence: tuple[str, ...] = ()
++    ambiguities: tuple[str, ...] = ()
++    assumptions: tuple[str, ...] = ()
++    risk_level: RiskLevel = RiskLevel.R0
++    sandbox_level: SandboxLevel = SandboxLevel.NONE
++    estimated_complexity: float = 0.0
++    estimated_cloud_need: str = "NONE"
++    execution_allowed: bool = False
++
++    def to_dict(self) -> dict[str, Any]:
++        value = asdict(self)
++        value["risk_level"] = self.risk_level.value
++        value["sandbox_level"] = self.sandbox_level.value
++        return value
++
++
++@dataclass(frozen=True)
++class CapabilitySpec:
++    capability_id: str
++    version: str
++    description: str
++    dependencies: tuple[str, ...] = ()
++    conflicts: tuple[str, ...] = ()
++    risk_level: RiskLevel = RiskLevel.R0
++    required_evidence: tuple[str, ...] = ()
++    required_validators: tuple[str, ...] = ()
++    compatible_engines: tuple[str, ...] = ()
++    sandbox_requirement: SandboxLevel = SandboxLevel.NONE
++    certification_requirement: CertificationLevel = CertificationLevel.VERIFIED
++
++
++@dataclass(frozen=True)
++class EngineSpec:
++    engine_id: str
++    engine_type: str
++    version: str
++    provider: str
++    endpoint: str
++    capabilities: frozenset[str]
++    input_schemas: tuple[str, ...] = ()
++    output_schemas: tuple[str, ...] = ()
++    risk_class: RiskLevel = RiskLevel.R0
++    sandbox_support: frozenset[SandboxLevel] = frozenset({SandboxLevel.NONE})
++    certification_status: CertificationLevel = CertificationLevel.UNTESTED
++    latency_ms: float = 0.0
++    gpu_mb: int = 0
++    enabled: bool = True
++
++
++@dataclass(frozen=True)
++class ModelSpec:
++    model_id: str
++    display_name: str
++    provider: str
++    model_path: str
++    context_limit: int
++    supports_vision: bool = False
++    supports_audio: bool = False
++    supports_video: bool = False
++    supports_tool_calling: bool = False
++    supports_structured_output: bool = False
++    supports_code: bool = False
++    quantization: str = ""
++    benchmark_scores: Mapping[str, float] = field(default_factory=dict)
++    role_certifications: Mapping[str, CertificationLevel] = field(default_factory=dict)
++    latency_ms: float = 0.0
++    memory_mb: int = 0
++    input_cost_per_million: float = 0.0
++    output_cost_per_million: float = 0.0
++    enabled: bool = True
++
++
++@dataclass(frozen=True)
++class EvidenceRecord:
++    evidence_id: str
++    evidence_type: str
++    source: str
++    source_path: str
++    source_hash: str
++    dependency_hashes: tuple[str, ...]
++    created_at: float
++    freshness_policy: str
++    confidence: float
++    security_class: str
++    estimated_token_cost: int
++    estimated_transfer_cost: int
++    payload_reference: str
++    summary_reference: str
++    task_relevance: float = 0.0
++    failure_impact: float = 0.0
++    freshness: float = 1.0
++    dependency_importance: float = 0.0
++    security_relevance: float = 0.0
++    visual_relevance: float = 0.0
++    reuse_probability: float = 0.0
++
++
++@dataclass(frozen=True)
++class ContextCapsule:
++    task: Mapping[str, Any]
++    project_summary: Mapping[str, Any]
++    evidence: tuple[EvidenceRecord, ...]
++    recipes: tuple[str, ...]
++    api_facts: tuple[str, ...]
++    acceptance_criteria: tuple[str, ...]
++    tool_definitions: tuple[str, ...]
++    total_tokens: int
++    total_transfer_cost: int
++
++
++@dataclass(frozen=True)
++class WorkflowNode:
++    node_id: str
++    task_class: str
++    required_capabilities: tuple[str, ...]
++    selected_engine: str
++    selected_model: str
++    dependencies: tuple[str, ...]
++    inputs: tuple[str, ...]
++    outputs: tuple[str, ...]
++    acceptance_tests: tuple[str, ...]
++    risk_level: RiskLevel
++    sandbox_level: SandboxLevel
++    token_budget: Mapping[str, int]
++    resource_budget: Mapping[str, int]
++    retry_policy: Mapping[str, Any]
++    rollback_policy: Mapping[str, Any]
++    human_approval: bool = False
++
++
++@dataclass(frozen=True)
++class WorkflowDAG:
++    workflow_id: str
++    task_id: str
++    nodes: tuple[WorkflowNode, ...]
++    created_at: float
++    schema_version: int
++
++
++@dataclass(frozen=True)
++class WorkflowCheckpoint:
++    workflow_id: str
++    completed_nodes: tuple[str, ...]
++    pending_nodes: tuple[str, ...]
++    failed_nodes: tuple[str, ...]
++    evidence_snapshot: tuple[str, ...]
++    engine_versions: Mapping[str, str]
++    model_versions: Mapping[str, str]
++    project_snapshot_hash: str
++    budget_state: Mapping[str, Any]
++    created_artifacts: tuple[str, ...]
++    rollback_state: Mapping[str, Any]
++    capability_graph_version: str
++    profile_schema_version: int
++
++
++@dataclass(frozen=True)
++class GateDecision:
++    status: GateStatus
++    reasons: tuple[str, ...]
++    execution_allowed: bool
++
++
++@dataclass(frozen=True)
++class RoutePlan:
++    deterministic: bool
++    model_id: str
++    engine_ids: tuple[str, ...]
++    
