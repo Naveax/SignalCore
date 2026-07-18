@@ -1,0 +1,38 @@
+{
+  "benchmark": "signalcore-runtime-optimizer-controlled",
+  "scope": "controlled generated terminal outputs and policy matrices; not provider-agent quality",
+  "cases": 400,
+  "mean_reduction": 0.8601746691293619,
+  "marker_preservation": 1.0,
+  "p95_latency_ms": 1.8997509996552253,
+  "families": {
+    "git": {
+      "cases": 100,
+      "mean_reduction": 0.7546218487394958,
+      "marker_preservation": 1.0,
+      "p95_latency_ms": 0.4583469999488443
+    },
+    "json": {
+      "cases": 100,
+      "mean_reduction": 0.9932717595491547,
+      "marker_preservation": 1.0,
+      "p95_latency_ms": 1.9484849999571452
+    },
+    "log": {
+      "cases": 100,
+      "mean_reduction": 0.9658047246385426,
+      "marker_preservation": 1.0,
+      "p95_latency_ms": 1.5049339999677613
+    },
+    "pytest": {
+      "cases": 100,
+      "mean_reduction": 0.7270003435902544,
+      "marker_preservation": 1.0,
+      "p95_latency_ms": 1.5170989991020178
+    }
+  },
+  "model_route_accuracy": 1.0,
+  "budget_decision_accuracy": 1.0,
+  "hook_result_replacement_accuracy": 1.0,
+  "passed": true
+}
