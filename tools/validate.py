@@ -25,7 +25,7 @@ def main() -> int:
     platforms = json.loads((SKILL / "data" / "platforms.json").read_text(encoding="utf-8"))
     ids = [item["id"] for item in platforms["platforms"]]
     checks.append(("platform_registry", len(ids) >= 20 and len(ids) == len(set(ids))))
-    checks.append(("native_core", {"codex", "claude-code", "gemini-cli", "antigravity", "windsurf", "opencode", "vscode-copilot"}.issubset(ids)))
+    checks.append(("native_core", {"codex", "claude-code", "gemini-cli", "antigravity", "antigravity-cli", "windsurf", "opencode", "vscode-copilot"}.issubset(ids)))
     try:
         for path in sorted((SKILL / "scripts").glob("*.py")):
             py_compile.compile(str(path), doraise=True)
