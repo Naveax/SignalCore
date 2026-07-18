@@ -1,0 +1,6 @@
+{
+  "name": "signalcore",
+  "version": "0.0.1",
+  "description": "Cross-platform success-first context, evidence, state, telemetry, and token/cost routing for coding agents",
+  "contextFileName": "GEMINI.md"
+}
