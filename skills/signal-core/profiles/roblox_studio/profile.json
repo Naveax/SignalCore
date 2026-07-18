@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "profile_id": "roblox_studio",
+  "profile_version": "0.0.1",
+  "display_name": "Roblox Studio Mode",
+  "enabled": true,
+  "discoverable": false,
+  "direct_invocation": false,
+  "activation": {
+    "mode": "signed_studio_session",
+    "allowed_hosts": ["roblox_studio"],
+    "allowed_transports": ["roblox_studio_bridge"],
+    "allow_cli": false,
+    "allow_ide": false,
+    "require_process_attestation": true,
+    "accepted_process_names": [
+      "RobloxStudioBeta.exe",
+      "RobloxStudioBeta",
+      "RobloxStudio"
+    ],
+    "require_project_identity": true,
+    "single_use_nonce": true,
+    "maximum_session_ttl_seconds": 120,
+    "clock_skew_seconds": 5
+  },
+  "allowed_capabilities": [
+    "inspect_project",
+    "inspect_selection",
+    "read_script_ranges",
+    "prepare_tool_arguments",
+    "route_models",
+    "select_evidence",
+    "validate_orchestration",
+    "record_telemetry"
+  ],
+  "forbidden_activation_sources": [
+    "cli",
+    "codex",
+    "claude_code",
+    "cursor",
+    "vscode",
+    "windsurf",
+    "opencode",
+    "gemini_cli",
+    "antigravity_ide"
+  ],
+  "notes": "This profile is hidden and fail-closed. It can only be activated by a short-lived signed envelope from an authorized Roblox Studio bridge."
+}
