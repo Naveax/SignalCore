@@ -51,9 +51,11 @@ Combined local processing p95: **1.90 ms**.
 
 ### Package gates
 
-- **1,200 / 1,200 tests PASS**
+- Core suite: **1,200 / 1,200 tests PASS**
+- Roblox Studio profile suite: **149 / 149 tests PASS**
 - **19 / 19 release-validator gates PASS**
 - **103 manifest entries verified**
+- Roblox capability coverage: **33 / 33**
 - Python compilation: **PASS**
 - secret scan: **PASS**
 - locked Roblox Studio activation gate: **PASS**
@@ -148,19 +150,62 @@ Task understanding
 
 See [COMPATIBILITY.md](COMPATIBILITY.md) for exact support levels, installation paths, invocation syntax, and limitations.
 
-## Locked Roblox Studio domain profile
+## Locked Roblox Studio orchestration profile
 
-SignalCore includes a hidden `roblox_studio` profile foundation that cannot be activated from a normal CLI, IDE prompt, or Agent Skill invocation.
+SignalCore includes a full fail-closed `roblox_studio` orchestration profile candidate. It is not a Roblox plugin, MCP server, Luau compiler, animation engine, Blender worker, playtest environment, Digital Twin, or DataStore migration implementation.
+
+The profile converts an authorized Roblox Studio request into a minimal, budgeted, resumable, and independently verifiable workflow for external engines.
+
+### Profile systems
+
+| Layer | Implemented behavior |
+|---|---|
+| Task understanding | typed compound RobloxTaskState V2 and evidence-based ambiguity gate |
+| Capability planning | 33-capability versioned dependency/conflict graph |
+| Routing | deterministic zero-model path plus certified local/cloud model selection |
+| Engine control | pinned engine registry, capability certification, sandbox requirements |
+| Context | Evidence Ledger V3, project delta cache, typed artifact caches, Context Knapsack V2 |
+| Execution | workflow DAGs, checkpoints, one-round-trip contracts, bounded repair and rollback |
+| Governance | token/request/transfer/GPU/wall-time budgets, privacy firewall and risk gates |
+| Verification | strict response schemas, artifact hashes and cross-engine validators |
+| Observability | Telemetry V2, trace/replay and locked adaptive-policy gate |
+
+### Activation boundary
+
+The profile cannot be activated from a normal CLI, IDE prompt, Codex session, Claude Code session, Cursor rule, Gemini CLI request, or ordinary Agent Skill invocation.
 
 Activation requires:
 
-- a short-lived signed envelope from an authorized Roblox Studio bridge
-- live Studio process attestation
-- project identity
-- an explicit capability subset
-- a single-use nonce
+- a short-lived HMAC-SHA256 signed envelope from an authorized Roblox Studio bridge
+- live Roblox Studio process attestation
+- Place/project identity and project fingerprint
+- an explicit allowed capability subset
+- issue and expiry timestamps
+- a single-use nonce with replay protection
 
-See [ROBLOX_STUDIO_MODE.md](ROBLOX_STUDIO_MODE.md).
+A model response claiming that a task is complete is not sufficient. High-impact workflows remain blocked until required independent validator evidence is recorded.
+
+### Controlled Roblox profile results
+
+| Metric | Result |
+|---|---:|
+| Profile tests | **149 / 149 PASS** |
+| Capability coverage | **33 / 33** |
+| Controlled route-bucket accuracy | **500 / 500** |
+| Deterministic latency, 2,000 cases | **p50 5.41 ms / p95 11.60 ms** |
+| Deterministic model and cloud calls | **0 / 0** |
+| Controlled full-profile orchestration | **500 / 500 verified** |
+| Unsafe execution in controlled suite | **0** |
+
+> **Benchmark boundary:** Roblox Studio, Gemini, Creator Store, Luau validation, Blender, playtest, Digital Twin, migration, device, and visual-review engines are simulated in this controlled suite. These measurements do not prove real provider billing savings, production DataStore safety, external-engine quality, or competitor superiority.
+
+Documentation:
+
+- [Roblox Studio mode and activation boundary](ROBLOX_STUDIO_MODE.md)
+- [Profile architecture](skills/signal-core/profiles/roblox_studio/ARCHITECTURE.md)
+- [Controlled benchmark results](skills/signal-core/profiles/roblox_studio/BENCHMARK_RESULTS.md)
+- [Completion and dependency report](skills/signal-core/profiles/roblox_studio/COMPLETION_REPORT.md)
+- [Migration notes](skills/signal-core/profiles/roblox_studio/MIGRATION.md)
 
 ## Install
 
@@ -242,6 +287,8 @@ python -m unittest discover -s tests -q
 python -m compileall -q skills/signal-core/scripts skills/signal-core/profiles tools
 python skills/signal-core/scripts/routing.py \
   "Find the exact root cause, callers, impact boundary, and narrow verifier"
+python benchmarks/roblox_profile_benchmark.py \
+  --cases 500 --output roblox-profile-500.json
 ```
 
 ## Search and machine discovery
@@ -271,9 +318,10 @@ SignalCore includes:
 ## Status
 
 - Version: **0.0.1**
-- Stage: **pre-release / Context Intelligence Runtime candidate**
+- Stage: **pre-release / Context Intelligence Runtime + Roblox Studio profile candidate**
 - Runtime: Python 3.11+ standard library
 - External engines: optional; not vendored
+- Roblox Studio activation: **locked / bridge-authorized only**
 - Public provider superiority: **not yet established**
 - Independent reproduction: **pending**
 - Repository: `Naveax/SignalCore`
