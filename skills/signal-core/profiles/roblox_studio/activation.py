@@ -8,6 +8,7 @@ import os
 import secrets
 import sqlite3
 import subprocess
+import threading
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -82,6 +83,7 @@ class ReplayStore:
     def __init__(self, path: Path) -> None:
         self.path = Path(path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
+        self._lock = threading.Lock()
         connection = sqlite3.connect(self.path, timeout=15, isolation_level=None)
         try:
             connection.execute("PRAGMA journal_mode=WAL")
@@ -92,21 +94,22 @@ class ReplayStore:
 
     def consume(self, nonce: str, session_id: str, expires_at: int, now: int) -> None:
         nonce_hash = hashlib.sha256(nonce.encode("utf-8")).hexdigest()
-        connection = sqlite3.connect(self.path, timeout=15, isolation_level=None)
-        try:
-            connection.execute("PRAGMA busy_timeout=15000")
-            connection.execute("BEGIN IMMEDIATE")
-            connection.execute("DELETE FROM nonces WHERE expires_at < ?", (now - 300,))
+        with self._lock:
+            connection = sqlite3.connect(self.path, timeout=15, isolation_level=None)
             try:
-                connection.execute("INSERT INTO nonces VALUES(?,?,?,?)", (nonce_hash, session_id, expires_at, now))
-            except sqlite3.IntegrityError as exc:
-                connection.execute("ROLLBACK")
-                raise ReplayDetected("activation nonce was already consumed") from exc
-            connection.execute("COMMIT")
-        finally:
-            if connection.in_transaction:
-                connection.execute("ROLLBACK")
-            connection.close()
+                connection.execute("PRAGMA busy_timeout=15000")
+                connection.execute("BEGIN IMMEDIATE")
+                connection.execute("DELETE FROM nonces WHERE expires_at < ?", (now - 300,))
+                try:
+                    connection.execute("INSERT INTO nonces VALUES(?,?,?,?)", (nonce_hash, session_id, expires_at, now))
+                except sqlite3.IntegrityError as exc:
+                    connection.execute("ROLLBACK")
+                    raise ReplayDetected("activation nonce was already consumed") from exc
+                connection.execute("COMMIT")
+            finally:
+                if connection.in_transaction:
+                    connection.execute("ROLLBACK")
+                connection.close()
 
 
 def mint_envelope(
