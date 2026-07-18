@@ -1,0 +1,440 @@
+st.v2"
++      ],
++      "supportedOutputSchemas": [
++        "signalcore.roblox.engine-result.v2"
++      ],
++      "riskClass": "R4",
++      "sandboxSupport": [
++        "NONE",
++        "PREVIEW",
++        "SHADOW_PROJECT",
++        "DIGITAL_TWIN",
++        "MIGRATION_LAB",
++        "EXTERNAL_SANDBOX"
++      ],
++      "certificationStatus": "VERIFIED",
++      "latencyProfile": {
++        "p50Ms": 0
++      },
++      "resourceProfile": {
++        "gpuMb": 0
++      },
++      "enabled": true
++    },
++    {
++      "engineId": "spatial_service",
++      "engineType": "spatial_solver",
++      "version": "1.0.0",
++      "provider": "external",
++      "endpoint": "local://spatial-service",
++      "capabilities": [
++        "SPATIAL_SOLVER"
++      ],
++      "supportedInputSchemas": [
++        "signalcore.roblox.engine-request.v2"
++      ],
++      "supportedOutputSchemas": [
++        "signalcore.roblox.engine-result.v2"
++      ],
++      "riskClass": "R0",
++      "sandboxSupport": [
++        "NONE",
++        "PREVIEW",
++        "SHADOW_PROJECT",
++        "DIGITAL_TWIN",
++        "MIGRATION_LAB",
++        "EXTERNAL_SANDBOX"
++      ],
++      "certificationStatus": "VERIFIED",
++      "latencyProfile": {
++        "p50Ms": 0
++      },
++      "resourceProfile": {
++        "gpuMb": 0
++      },
++      "enabled": true
++    },
++    {
++      "engineId": "studio_bridge",
++      "engineType": "roblox_studio_plugin_bridge",
++      "version": "1.0.0",
++      "provider": "external",
++      "endpoint": "local://studio-bridge",
++      "capabilities": [
++        "ASSET_IMPORT",
++        "LUAU_READ",
++        "ROBLOX_PROJECT_READ",
++        "ROBLOX_PROJECT_WRITE"
++      ],
++      "supportedInputSchemas": [
++        "signalcore.roblox.engine-request.v2"
++      ],
++      "supportedOutputSchemas": [
++        "signalcore.roblox.engine-result.v2"
++      ],
++      "riskClass": "R3",
++      "sandboxSupport": [
++        "NONE",
++        "PREVIEW",
++        "SHADOW_PROJECT",
++        "DIGITAL_TWIN",
++        "MIGRATION_LAB",
++        "EXTERNAL_SANDBOX"
++      ],
++      "certificationStatus": "VERIFIED",
++      "latencyProfile": {
++        "p50Ms": 0
++      },
++      "resourceProfile": {
++        "gpuMb": 0
++      },
++      "enabled": true
++    },
++    {
++      "engineId": "terrain_service",
++      "engineType": "terrain_engine",
++      "version": "1.0.0",
++      "provider": "external",
++      "endpoint": "local://terrain-service",
++      "capabilities": [
++        "TERRAIN_ENGINE"
++      ],
++      "supportedInputSchemas": [
++        "signalcore.roblox.engine-request.v2"
++      ],
++      "supportedOutputSchemas": [
++        "signalcore.roblox.engine-result.v2"
++      ],
++      "riskClass": "R3",
++      "sandboxSupport": [
++        "NONE",
++        "PREVIEW",
++        "SHADOW_PROJECT",
++        "DIGITAL_TWIN",
++        "MIGRATION_LAB",
++        "EXTERNAL_SANDBOX"
++      ],
++      "certificationStatus": "VERIFIED",
++      "latencyProfile": {
++        "p50Ms": 0
++      },
++      "resourceProfile": {
++        "gpuMb": 0
++      },
++      "enabled": true
++    },
++    {
++      "engineId": "ui_service",
++      "engineType": "ui_engine",
++      "version": "1.0.0",
++      "provider": "external",
++      "endpoint": "local://ui-service",
++      "capabilities": [
++        "UI_ENGINE"
++      ],
++      "supportedInputSchemas": [
++        "signalcore.roblox.engine-request.v2"
++      ],
++      "supportedOutputSchemas": [
++        "signalcore.roblox.engine-result.v2"
++      ],
++      "riskClass": "R2",
++      "sandboxSupport": [
++        "NONE",
++        "PREVIEW",
++        "SHADOW_PROJECT",
++        "DIGITAL_TWIN",
++        "MIGRATION_LAB",
++        "EXTERNAL_SANDBOX"
++      ],
++      "certificationStatus": "VERIFIED",
++      "latencyProfile": {
++        "p50Ms": 0
++      },
++      "resourceProfile": {
++        "gpuMb": 0
++      },
++      "enabled": true
++    },
++    {
++      "engineId": "visual_review_service",
++      "engineType": "visual_review_engine",
++      "version": "1.0.0",
++      "provider": "external",
++      "endpoint": "local://visual-review-service",
++      "capabilities": [
++        "VISUAL_REVIEW_ENGINE"
++      ],
++      "supportedInputSchemas": [
++        "signalcore.roblox.engine-request.v2"
++      ],
++      "supportedOutputSchemas": [
++        "signalcore.roblox.engine-result.v2"
++      ],
++      "riskClass": "R0",
++      "sandboxSupport": [
++        "NONE",
++        "PREVIEW",
++        "SHADOW_PROJECT",
++        "DIGITAL_TWIN",
++        "MIGRATION_LAB",
++        "EXTERNAL_SANDBOX"
++      ],
++      "certificationStatus": "VERIFIED",
++      "latencyProfile": {
++        "p50Ms": 0
++      },
++      "resourceProfile": {
++        "gpuMb": 0
++      },
++      "enabled": true
++    }
++  ]
++}
+diff --git a/skills/signal-core/profiles/roblox_studio/errors.py b/skills/signal-core/profiles/roblox_studio/errors.py
+new file mode 100644
+index 0000000..40d365a
+--- /dev/null
++++ b/skills/signal-core/profiles/roblox_studio/errors.py
+@@ -0,0 +1,37 @@
++from __future__ import annotations
++
++
++class RobloxProfileError(RuntimeError):
++    code = "ROBLOX_PROFILE_ERROR"
++
++
++class SchemaValidationError(RobloxProfileError):
++    code = "ROBLOX_SCHEMA_INVALID"
++
++
++class CapabilityResolutionError(RobloxProfileError):
++    code = "ROBLOX_CAPABILITY_RESOLUTION_FAILED"
++
++
++class EngineSelectionError(RobloxProfileError):
++    code = "ROBLOX_ENGINE_SELECTION_FAILED"
++
++
++class ModelSelectionError(RobloxProfileError):
++    code = "ROBLOX_MODEL_SELECTION_FAILED"
++
++
++class PolicyBlockedError(RobloxProfileError):
++    code = "ROBLOX_POLICY_BLOCKED"
++
++
++class BudgetExceededError(RobloxProfileError):
++    code = "ROBLOX_BUDGET_EXCEEDED"
++
++
++class CheckpointInvalidError(RobloxProfileError):
++    code = "ROBLOX_CHECKPOINT_INVALID"
++
++
++class ValidationFailedError(RobloxProfileError):
++    code = "ROBLOX_VALIDATION_FAILED"
+diff --git a/skills/signal-core/profiles/roblox_studio/evidence.py b/skills/signal-core/profiles/roblox_studio/evidence.py
+new file mode 100644
+index 0000000..a4406f2
+--- /dev/null
++++ b/skills/signal-core/profiles/roblox_studio/evidence.py
+@@ -0,0 +1,425 @@
++from __future__ import annotations
++
++from contextlib import closing
++import hashlib
++import json
++import os
++import sqlite3
++import time
++from dataclasses import asdict, replace
++from pathlib import Path
++from typing import Iterable, Mapping, Sequence
++
++from .errors import SchemaValidationError
++from .types import ContextCapsule, EvidenceRecord, RobloxTaskState
++
++
++EVIDENCE_TYPES = frozenset({
++    "PROJECT_INSTANCE", "PROJECT_SCRIPT", "SCRIPT_INTERFACE", "REQUIRE_GRAPH", "REMOTE_GRAPH",
++    "API_DOCUMENTATION", "RECIPE", "ASSET_METADATA", "ASSET_SECURITY_REPORT", "ASSET_GEOMETRY_REPORT",
++    "RIG_MAPPING", "ANIMATION_PREVIEW", "ANIMATION_METRICS", "IMAGE_PREVIEW", "VIDEO_PREVIEW",
++    "AUDIO_ANALYSIS", "PLAYTEST_RESULT", "SECURITY_TEST_RESULT", "PERFORMANCE_RESULT", "DEVICE_TEST_RESULT",
++    "MIGRATION_RESULT", "BLENDER_RESULT", "USER_APPROVAL",
++})
++
++
++class EvidenceLedger:
++    def __init__(self, path: str | Path) -> None:
++        self.path = Path(path).expanduser().resolve(strict=False)
++        self.path.parent.mkdir(parents=True, exist_ok=True)
++        self._initialize()
++
++    def _connect(self) -> sqlite3.Connection:
++        connection = sqlite3.connect(self.path, timeout=15)
++        connection.row_factory = sqlite3.Row
++        connection.execute("PRAGMA journal_mode=WAL")
++        connection.execute("PRAGMA synchronous=NORMAL")
++        connection.execute("PRAGMA busy_timeout=15000")
++        return connection
++
++    def _initialize(self) -> None:
++        with closing(self._connect()) as connection:
++            connection.executescript(
++                """
++                CREATE TABLE IF NOT EXISTS evidence(
++                    evidence_id TEXT PRIMARY KEY,
++                    evidence_type TEXT NOT NULL,
++                    source TEXT NOT NULL,
++                    source_path TEXT NOT NULL,
++                    source_hash TEXT NOT NULL,
++                    dependency_hashes_json TEXT NOT NULL,
++                    created_at REAL NOT NULL,
++                    freshness_policy TEXT NOT NULL,
++                    confidence REAL NOT NULL,
++                    security_class TEXT NOT NULL,
++                    estimated_token_cost INTEGER NOT NULL,
++                    estimated_transfer_cost INTEGER NOT NULL,
++                    payload_reference TEXT NOT NULL,
++                    summary_reference TEXT NOT NULL,
++                    metrics_json TEXT NOT NULL,
++                    active INTEGER NOT NULL DEFAULT 1
++                );
++                CREATE INDEX IF NOT EXISTS evidence_source_idx ON evidence(source_path,source_hash,active);
++                CREATE TABLE IF NOT EXISTS source_state(
++                    source_path TEXT PRIMARY KEY,
++                    source_hash TEXT NOT NULL,
++                    dependency_hash TEXT NOT NULL,
++                    updated_at REAL NOT NULL
++                );
++                CREATE TABLE IF NOT EXISTS cache_entries(
++                    namespace TEXT NOT NULL,
++                    cache_key TEXT NOT NULL,
++                    content_hash TEXT NOT NULL,
++                    payload_reference TEXT NOT NULL,
++                    schema_version TEXT NOT NULL,
++                    created_at REAL NOT NULL,
++                    last_accessed REAL NOT NULL,
++                    hit_count INTEGER NOT NULL DEFAULT 0,
++                    PRIMARY KEY(namespace,cache_key)
++                );
++                """
++            )
++            connection.commit()
++
++    def put(self, record: EvidenceRecord) -> None:
++        if record.evidence_type not in EVIDENCE_TYPES:
++            raise SchemaValidationError(f"unsupported evidence type: {record.evidence_type}")
++        if not 0.0 <= record.confidence <= 1.0:
++            raise SchemaValidationError("evidence confidence must be in [0,1]")
++        metrics = {
++            "task_relevance": record.task_relevance,
++            "failure_impact": record.failure_impact,
++            "freshness": record.freshness,
++            "dependency_importance": record.dependency_importance,
++            "security_relevance": record.security_relevance,
++            "visual_relevance": record.visual_relevance,
++            "reuse_probability": record.reuse_probability,
++        }
++        with closing(self._connect()) as connection:
++            connection.execute(
++                """INSERT OR REPLACE INTO evidence VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,1)""",
++                (
++                    record.evidence_id, record.evidence_type, record.source, record.source_path, record.source_hash,
++                    json.dumps(record.dependency_hashes), record.created_at, record.freshness_policy,
++                    record.confidence, record.security_class, record.estimated_token_cost,
++                    record.estimated_transfer_cost, record.payload_reference, record.summary_reference,
++                    json.dumps(metrics, sort_keys=True),
++                ),
++            )
++            connection.commit()
++
++    def active(self, *, evidence_types: Iterable[str] = ()) -> tuple[EvidenceRecord, ...]:
++        requested = tuple(dict.fromkeys(map(str, evidence_types)))
++        query = "SELECT * FROM evidence WHERE active=1"
++        params: list[object] = []
++        if requested:
++            query += " AND evidence_type IN (%s)" % ",".join("?" for _ in requested)
++            params.extend(requested)
++        query += " ORDER BY created_at DESC,evidence_id"
++        with closing(self._connect()) as connection:
++            rows = connection.execute(query, params).fetchall()
++        return tuple(_row_to_record(row) for row in rows)
++
++    def invalidate_source(self, source_path: str, source_hash: str, dependency_hashes: Iterable[str] = ()) -> int:
++        dependency_hash = hashlib.sha256("\0".join(sorted(map(str, dependency_hashes))).encode()).hexdigest()
++        with closing(self._connect()) as connection:
++            previous = connection.execute("SELECT source_hash,dependency_hash FROM source_state WHERE source_path=?", (source_path,)).fetchone()
++            if previous and previous["source_hash"] == source_hash and previous["dependency_hash"] == dependency_hash:
++                return 0
++            cursor = connection.execute("UPDATE evidence SET active=0 WHERE source_path=? AND active=1", (source_path,))
++            connection.execute(
++                "INSERT OR REPLACE INTO source_state VALUES(?,?,?,?)",
++                (source_path, source_hash, dependency_hash, time.time()),
++            )
++            connection.commit()
++            return int(cursor.rowcount)
++
++    def cache_put(self, namespace: str, cache_key: str, content_hash: str, payload_reference: str, schema_version: str) -> None:
++        now = time.time()
++        with closing(self._connect()) as connection:
++            connection.execute(
++                "INSERT OR REPLACE INTO cache_entries VALUES(?,?,?,?,?,?,?,COALESCE((SELECT hit_count FROM cache_entries WHERE namespace=? AND cache_key=?),0))",
++                (namespace, cache_key, content_hash, payload_reference, schema_version, now, now, namespace, cache_key),
++            )
++            connection.commit()
++
++    def cache_get(self, namespace: str, cache_key: str, content_hash: str, schema_version: str) -> str | None:
++        with closing(self._connect()) as connection:
++            row = connection.execute(
++                "SELECT payload_reference FROM cache_entries WHERE namespace=? AND cache_key=? AND content_hash=? AND schema_version=?",
++                (namespace, cache_key, content_hash, schema_version),
++            ).fetchone()
++            if not row:
++                return None
++            connection.execute(
++                "UPDATE cache_entries SET last_accessed=?,hit_count=hit_count+1 WHERE namespace=? AND cache_key=?",
++                (time.time(), namespace, cache_key),
++            )
++            connection.commit()
++            return str(row["payload_reference"])
++
++
++class ProjectDeltaCache:
++    def __init__(self, ledger: EvidenceLedger, schema_version: str = "2") -> None:
++        self.ledger = ledger
++        self.schema_version = schema_version
++
++    @staticmethod
++    def source_hash(content: bytes | str) -> str:
++        data = content.encode("utf-8") if isinstance(content, str) else content
++        return hashlib.sha256(data).hexdigest()
++
++    def key(self, project_id: str, source_path: str, source_hash: str, namespace: str) -> str:
++        raw = f"{project_id}\0{source_path}\0{source_hash}\0{self.schema_version}\0{namespace}"
++        return hashlib.sha256(raw.encode("utf-8")).hexdigest()
++
++    def lookup(self, project_id: str, source_path: str, content: bytes | str, namespace: str) -> str | None:
++        digest = self.source_hash(content)
++        return self.ledger.cache_get(namespace, self.key(project_id, source_path, digest, namespace), digest, self.schema_version)
++
++    def store(self, project_id: str, source_path: str, content: bytes | str, namespace: str, payload_reference: str) -> str:
++        digest = self.source_hash(content)
++        cache_key = self.key(project_id, source_path, digest, namespace)
++        self.ledger.cache_put(namespace, cache_key, digest, payload_reference, self.schema_version)
++        return cache_key
++
++
++class ContentStore:
++    def __init__(self, root: str | Path) -> None:
++        self.root = Path(root).expanduser().resolve(strict=False)
++        self.root.mkdir(parents=True, exist_ok=True)
++
++    def put(self, content: bytes, suffix: str = ".bin") -> str:
++        digest = hashlib.sha256(content).hexdigest()
++        path = self.root / digest[:2] / f"{digest}{suffix}"
++        path.parent.mkdir(parents=True, exist_ok=True)
++        if not path.exists():
++            temp = path.with_suffix(path.suffix + f".{os.getpid()}.tmp")
++            temp.write_bytes(content
