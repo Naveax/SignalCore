@@ -1,0 +1,270 @@
+test_attestor_failure (test_activation.ActivationTests.test_attestor_failure) ... ok
+test_capability_escalation (test_activation.ActivationTests.test_capability_escalation) ... ok
+test_cross_profile_confusion (test_activation.ActivationTests.test_cross_profile_confusion) ... ok
+test_expired (test_activation.ActivationTests.test_expired) ... ok
+test_fingerprint_mismatch (test_activation.ActivationTests.test_fingerprint_mismatch) ... ok
+test_future_issued (test_activation.ActivationTests.test_future_issued) ... ok
+test_invalid_signature (test_activation.ActivationTests.test_invalid_signature) ... ok
+test_malformed_capability_set (test_activation.ActivationTests.test_malformed_capability_set) ... ok
+test_nonce_race_accepts_exactly_one (test_activation.ActivationTests.test_nonce_race_accepts_exactly_one) ... ok
+test_oversized_payload (test_activation.ActivationTests.test_oversized_payload) ... ok
+test_replay (test_activation.ActivationTests.test_replay) ... ok
+test_transport_mismatch (test_activation.ActivationTests.test_transport_mismatch) ... ok
+test_unsigned_rejected (test_activation.ActivationTests.test_unsigned_rejected) ... ok
+test_valid_envelope (test_activation.ActivationTests.test_valid_envelope) ... ok
+test_wrong_place (test_activation.ActivationTests.test_wrong_place) ... ok
+test_wrong_process (test_activation.ActivationTests.test_wrong_process) ... ok
+test_wrong_project (test_activation.ActivationTests.test_wrong_project) ... ok
+test_live_disabled (test_runtime.AdapterTests.test_live_disabled) ... ok
+test_simulated_is_labeled (test_runtime.AdapterTests.test_simulated_is_labeled) ... ok
+test_transcript_order_validation (test_runtime.AdapterTests.test_transcript_order_validation) ... ok
+test_transcript_response (test_runtime.AdapterTests.test_transcript_response) ... ok
+test_budget_pressure_fails_closed (test_runtime.ContextTests.test_budget_pressure_fails_closed) ... ok
+test_mandatory_roles_selected (test_runtime.ContextTests.test_mandatory_roles_selected) ... ok
+test_missing_role_fails (test_runtime.ContextTests.test_missing_role_fails) ... ok
+test_stale_noise_loses (test_runtime.ContextTests.test_stale_noise_loses) ... ok
+test_append_recover_and_chain (test_runtime.EvidenceTests.test_append_recover_and_chain) ... ERROR
+test_branch_isolation (test_runtime.EvidenceTests.test_branch_isolation) ... ERROR
+test_contradiction_detection (test_runtime.EvidenceTests.test_contradiction_detection) ... ERROR
+test_datastore_finding (test_runtime.LuauTests.test_datastore_finding) ... ok
+test_loop_finding (test_runtime.LuauTests.test_loop_finding) ... ok
+test_remote_validation_finding (test_runtime.LuauTests.test_remote_validation_finding) ... ok
+test_require_graph (test_runtime.LuauTests.test_require_graph) ... ok
+test_memory_project_branch_commit_isolation (test_runtime.OutputMemoryTests.test_memory_project_branch_commit_isolation) ... ERROR
+test_output_preserves_marker_and_raw (test_runtime.OutputMemoryTests.test_output_preserves_marker_and_raw) ... ok
+test_signed_activation_to_verified_simulated_workflow_components (test_runtime.VerticalSliceTests.test_signed_activation_to_verified_simulated_workflow_components) ... ERROR
+test_circuit_breaker (test_scheduler_registry.SchedulerTests.test_circuit_breaker) ... ok
+test_deterministic_path (test_scheduler_registry.SchedulerTests.test_deterministic_path) ... ok
+test_health_adjusted_selection (test_scheduler_registry.SchedulerTests.test_health_adjusted_selection) ... ok
+test_local_only (test_scheduler_registry.SchedulerTests.test_local_only) ... ok
+test_multimodal_requirement (test_scheduler_registry.SchedulerTests.test_multimodal_requirement) ... ok
+test_stale_pricing (test_scheduler_registry.SchedulerTests.test_stale_pricing) ... ok
+test_animation_analysis_negative (test_task_capabilities.CapabilityCoverageTests.test_animation_analysis_negative) ... ok
+test_animation_analysis_positive (test_task_capabilities.CapabilityCoverageTests.test_animation_analysis_positive) ... ok
+test_animation_generation_negative (test_task_capabilities.CapabilityCoverageTests.test_animation_generation_negative) ... ok
+test_animation_generation_positive (test_task_capabilities.CapabilityCoverageTests.test_animation_generation_positive) ... ok
+test_animation_retarget_negative (test_task_capabilities.CapabilityCoverageTests.test_animation_retarget_negative) ... ok
+test_animation_retarget_positive (test_task_capabilities.CapabilityCoverageTests.test_animation_retarget_positive) ... ok
+test_asset_analysis_negative (test_task_capabilities.CapabilityCoverageTests.test_asset_analysis_negative) ... ok
+test_asset_analysis_positive (test_task_capabilities.CapabilityCoverageTests.test_asset_analysis_positive) ... ok
+test_asset_import_negative (test_task_capabilities.CapabilityCoverageTests.test_asset_import_negative) ... ok
+test_asset_import_positive (test_task_capabilities.CapabilityCoverageTests.test_asset_import_positive) ... ok
+test_asset_sanitization_negative (test_task_capabilities.CapabilityCoverageTests.test_asset_sanitization_negative) ... ok
+test_asset_sanitization_positive (test_task_capabilities.CapabilityCoverageTests.test_asset_sanitization_positive) ... ok
+test_blender_job_negative (test_task_capabilities.CapabilityCoverageTests.test_blender_job_negative) ... ok
+test_blender_job_positive (test_task_capabilities.CapabilityCoverageTests.test_blender_job_positive) ... ok
+test_capture_viewport_negative (test_task_capabilities.CapabilityCoverageTests.test_capture_viewport_negative) ... ok
+test_capture_viewport_positive (test_task_capabilities.CapabilityCoverageTests.test_capture_viewport_positive) ... ok
+test_context_selection_negative (test_task_capabilities.CapabilityCoverageTests.test_context_selection_negative) ... ok
+test_context_selection_positive (test_task_capabilities.CapabilityCoverageTests.test_context_selection_positive) ... ok
+test_creator_store_search_negative (test_task_capabilities.CapabilityCoverageTests.test_creator_store_search_negative) ... ok
+test_creator_store_search_positive (test_task_capabilities.CapabilityCoverageTests.test_creator_store_search_positive) ... ok
+test_datamodel_graph_negative (test_task_capabilities.CapabilityCoverageTests.test_datamodel_graph_negative) ... ok
+test_datamodel_graph_positive (test_task_capabilities.CapabilityCoverageTests.test_datamodel_graph_positive) ... ok
+test_datastore_migration_execute_negative (test_task_capabilities.CapabilityCoverageTests.test_datastore_migration_execute_negative) ... ok
+test_datastore_migration_execute_positive (test_task_capabilities.CapabilityCoverageTests.test_datastore_migration_execute_positive) ... ok
+test_datastore_migration_plan_negative (test_task_capabilities.CapabilityCoverageTests.test_datastore_migration_plan_negative) ... ok
+test_datastore_migration_plan_positive (test_task_capabilities.CapabilityCoverageTests.test_datastore_migration_plan_positive) ... ok
+test_datastore_schema_negative (test_task_capabilities.CapabilityCoverageTests.test_datastore_schema_negative) ... ok
+test_datastore_schema_positive (test_task_capabilities.CapabilityCoverageTests.test_datastore_schema_positive) ... ok
+test_device_simulation_negative (test_task_capabilities.CapabilityCoverageTests.test_device_simulation_negative) ... ok
+test_device_simulation_positive (test_task_capabilities.CapabilityCoverageTests.test_device_simulation_positive) ... ok
+test_execute_luau_negative (test_task_capabilities.CapabilityCoverageTests.test_execute_luau_negative) ... ok
+test_execute_luau_positive (test_task_capabilities.CapabilityCoverageTests.test_execute_luau_positive) ... ok
+test_inspect_project_negative (test_task_capabilities.CapabilityCoverageTests.test_inspect_project_negative) ... ok
+test_inspect_project_positive (test_task_capabilities.CapabilityCoverageTests.test_inspect_project_positive) ... ok
+test_inspect_selection_negative (test_task_capabilities.CapabilityCoverageTests.test_inspect_selection_negative) ... ok
+test_inspect_selection_positive (test_task_capabilities.CapabilityCoverageTests.test_inspect_selection_positive) ... ok
+test_model_routing_negative (test_task_capabilities.CapabilityCoverageTests.test_model_routing_negative) ... ok
+test_model_routing_positive (test_task_capabilities.CapabilityCoverageTests.test_model_routing_positive) ... ok
+test_performance_review_negative (test_task_capabilities.CapabilityCoverageTests.test_performance_review_negative) ... ok
+test_performance_review_positive (test_task_capabilities.CapabilityCoverageTests.test_performance_review_positive) ... ok
+test_project_delta_negative (test_task_capabilities.CapabilityCoverageTests.test_project_delta_negative) ... ok
+test_project_delta_positive (test_task_capabilities.CapabilityCoverageTests.test_project_delta_positive) ... ok
+test_read_client_logs_negative (test_task_capabilities.CapabilityCoverageTests.test_read_client_logs_negative) ... ok
+test_read_client_logs_positive (test_task_capabilities.CapabilityCoverageTests.test_read_client_logs_positive) ... ok
+test_read_script_negative (test_task_capabilities.CapabilityCoverageTests.test_read_script_negative) ... ok
+test_read_script_positive (test_task_capabilities.CapabilityCoverageTests.test_read_script_positive) ... ok
+test_read_server_logs_negative (test_task_capabilities.CapabilityCoverageTests.test_read_server_logs_negative) ... ok
+test_read_server_logs_positive (test_task_capabilities.CapabilityCoverageTests.test_read_server_logs_positive) ... ok
+test_remote_security_review_negative (test_task_capabilities.CapabilityCoverageTests.test_remote_security_review_negative) ... ok
+test_remote_security_review_positive (test_task_capabilities.CapabilityCoverageTests.test_remote_security_review_positive) ... ok
+test_require_graph_negative (test_task_capabilities.CapabilityCoverageTests.test_require_graph_negative) ... ok
+test_require_graph_positive (test_task_capabilities.CapabilityCoverageTests.test_require_graph_positive) ... ok
+test_start_playtest_negative (test_task_capabilities.CapabilityCoverageTests.test_start_playtest_negative) ... ok
+test_start_playtest_positive (test_task_capabilities.CapabilityCoverageTests.test_start_playtest_positive) ... ok
+test_stop_playtest_negative (test_task_capabilities.CapabilityCoverageTests.test_stop_playtest_negative) ... ok
+test_stop_playtest_positive (test_task_capabilities.CapabilityCoverageTests.test_stop_playtest_positive) ... ok
+test_telemetry_replay_negative (test_task_capabilities.CapabilityCoverageTests.test_telemetry_replay_negative) ... ok
+test_telemetry_replay_positive (test_task_capabilities.CapabilityCoverageTests.test_telemetry_replay_positive) ... ok
+test_ui_analysis_negative (test_task_capabilities.CapabilityCoverageTests.test_ui_analysis_negative) ... ok
+test_ui_analysis_positive (test_task_capabilities.CapabilityCoverageTests.test_ui_analysis_positive) ... ok
+test_ui_edit_negative (test_task_capabilities.CapabilityCoverageTests.test_ui_edit_negative) ... ok
+test_ui_edit_positive (test_task_capabilities.CapabilityCoverageTests.test_ui_edit_positive) ... ok
+test_workflow_execution_negative (test_task_capabilities.CapabilityCoverageTests.test_workflow_execution_negative) ... ok
+test_workflow_execution_positive (test_task_capabilities.CapabilityCoverageTests.test_workflow_execution_positive) ... ok
+test_write_script_negative (test_task_capabilities.CapabilityCoverageTests.test_write_script_negative) ... ok
+test_write_script_positive (test_task_capabilities.CapabilityCoverageTests.test_write_script_positive) ... ok
+test_cycle_detected (test_task_capabilities.CapabilityGraphTests.test_cycle_detected) ... ok
+test_exactly_33_capabilities (test_task_capabilities.CapabilityGraphTests.test_exactly_33_capabilities) ... ok
+test_plan_includes_dependencies (test_task_capabilities.CapabilityGraphTests.test_plan_includes_dependencies) ... ok
+test_transitive_authorization_violation (test_task_capabilities.CapabilityGraphTests.test_transitive_authorization_violation) ... ok
+test_unknown_capability (test_task_capabilities.CapabilityGraphTests.test_unknown_capability) ... ok
+test_unknown_validator_detected (test_task_capabilities.CapabilityGraphTests.test_unknown_validator_detected) ... ok
+test_migrate_v1 (test_task_capabilities.TaskStateTests.test_migrate_v1) ... ok
+test_negative_budget (test_task_capabilities.TaskStateTests.test_negative_budget) ... ok
+test_oversized_intent (test_task_capabilities.TaskStateTests.test_oversized_intent) ... ok
+test_requested_must_be_authorized (test_task_capabilities.TaskStateTests.test_requested_must_be_authorized) ... ok
+test_round_trip_and_hash (test_task_capabilities.TaskStateTests.test_round_trip_and_hash) ... ok
+test_unknown_field_rejected (test_task_capabilities.TaskStateTests.test_unknown_field_rejected) ... ok
+
+======================================================================
+ERROR: test_append_recover_and_chain (test_runtime.EvidenceTests.test_append_recover_and_chain)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\hostedtoolcache\windows\Python\3.12.10\x64\Lib\shutil.py", line 633, in _rmtree_unsafe
+    os.unlink(fullname)
+PermissionError: [WinError 32] The process cannot access the file because it is being used by another process: 'C:\\Users\\RUNNER~1\\AppData\\Local\\Temp\\tmpiba8ywnc\\e.db'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "D:\a\SignalCore\SignalCore\tests\roblox_profile\test_runtime.py", line 43, in test_append_recover_and_chain
+    with TemporaryDirectory() as temp:
+         ^^^^^^^^^^^^^^^^^^^^
+  File "C:\hostedtoolcache\windows\Python\3.12.10\x64\Lib\tempfile.py", line 950, in __exit__
+    self.cleanup()
+  File "C:\hostedtoolcache\windows\Python\3.12.10\x64\Lib\tempfile.py", line 954, in cleanup
+    self._rmtree(self.name, ignore_errors=self._ignore_cleanup_errors)
+  File "C:\hostedtoolcache\windows\Python\3.12.10\x64\Lib\tempfile.py", line 934, in _rmtree
+    _shutil.rmtree(name, onexc=onexc)
+  File "C:\hostedtoolcache\windows\Python\3.12.10\x64\Lib\shutil.py", line 781, in rmtree
+    return _rmtree_unsafe(path, onexc)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\hostedtoolcache\windows\Python\3.12.10\x64\Lib\shutil.py", line 635, in _rmtree_unsafe
+    onexc(os.unlink, fullname, err)
+  File "C:\hostedtoolcache\windows\Python\3.12.10\x64\Lib\tempfile.py", line 909, in onexc
+    _os.unlink(path)
+PermissionError: [WinError 32] The process cannot access the file because it is being used by another process: 'C:\\Users\\RUNNER~1\\AppData\\Local\\Temp\\tmpiba8ywnc\\e.db'
+
+======================================================================
+ERROR: test_branch_isolation (test_runtime.EvidenceTests.test_branch_isolation)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\hostedtoolcache\windows\Python\3.12.10\x64\Lib\shutil.py", line 633, in _rmtree_unsafe
+    os.unlink(fullname)
+PermissionError: [WinError 32] The process cannot access the file because it is being used by another process: 'C:\\Users\\RUNNER~1\\AppData\\Local\\Temp\\tmphuhrvkry\\e.db'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "D:\a\SignalCore\SignalCore\tests\roblox_profile\test_runtime.py", line 47, in test_branch_isolation
+    with TemporaryDirectory() as temp:
+         ^^^^^^^^^^^^^^^^^^^^
+  File "C:\hostedtoolcache\windows\Python\3.12.10\x64\Lib\tempfile.py", line 950, in __exit__
+    self.cleanup()
+  File "C:\hostedtoolcache\windows\Python\3.12.10\x64\Lib\tempfile.py", line 954, in cleanup
+    self._rmtree(self.name, ignore_errors=self._ignore_cleanup_errors)
+  File "C:\hostedtoolcache\windows\Python\3.12.10\x64\Lib\tempfile.py", line 934, in _rmtree
+    _shutil.rmtree(name, onexc=onexc)
+  File "C:\hostedtoolcache\windows\Python\3.12.10\x64\Lib\shutil.py", line 781, in rmtree
+    return _rmtree_unsafe(path, onexc)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\hostedtoolcache\windows\Python\3.12.10\x64\Lib\shutil.py", line 635, in _rmtree_unsafe
+    onexc(os.unlink, fullname, err)
+  File "C:\hostedtoolcache\windows\Python\3.12.10\x64\Lib\tempfile.py", line 909, in onexc
+    _os.unlink(path)
+PermissionError: [WinError 32] The process cannot access the file because it is being used by another process: 'C:\\Users\\RUNNER~1\\AppData\\Local\\Temp\\tmphuhrvkry\\e.db'
+
+======================================================================
+ERROR: test_contradiction_detection (test_runtime.EvidenceTests.test_contradiction_detection)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\hostedtoolcache\windows\Python\3.12.10\x64\Lib\shutil.py", line 633, in _rmtree_unsafe
+    os.unlink(fullname)
+PermissionError: [WinError 32] The process cannot access the file because it is being used by another process: 'C:\\Users\\RUNNER~1\\AppData\\Local\\Temp\\tmpkb8go_ju\\e.db'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "D:\a\SignalCore\SignalCore\tests\roblox_profile\test_runtime.py", line 51, in test_contradiction_detection
+    with TemporaryDirectory() as temp:
+         ^^^^^^^^^^^^^^^^^^^^
+  File "C:\hostedtoolcache\windows\Python\3.12.10\x64\Lib\tempfile.py", line 950, in __exit__
+    self.cleanup()
+  File "C:\hostedtoolcache\windows\Python\3.12.10\x64\Lib\tempfile.py", line 954, in cleanup
+    self._rmtree(self.name, ignore_errors=self._ignore_cleanup_errors)
+  File "C:\hostedtoolcache\windows\Python\3.12.10\x64\Lib\tempfile.py", line 934, in _rmtree
+    _shutil.rmtree(name, onexc=onexc)
+  File "C:\hostedtoolcache\windows\Python\3.12.10\x64\Lib\shutil.py", line 781, in rmtree
+    return _rmtree_unsafe(path, onexc)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\hostedtoolcache\windows\Python\3.12.10\x64\Lib\shutil.py", line 635, in _rmtree_unsafe
+    onexc(os.unlink, fullname, err)
+  File "C:\hostedtoolcache\windows\Python\3.12.10\x64\Lib\tempfile.py", line 909, in onexc
+    _os.unlink(path)
+PermissionError: [WinError 32] The process cannot access the file because it is being used by another process: 'C:\\Users\\RUNNER~1\\AppData\\Local\\Temp\\tmpkb8go_ju\\e.db'
+
+======================================================================
+ERROR: test_memory_project_branch_commit_isolation (test_runtime.OutputMemoryTests.test_memory_project_branch_commit_isolation)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\hostedtoolcache\windows\Python\3.12.10\x64\Lib\shutil.py", line 633, in _rmtree_unsafe
+    os.unlink(fullname)
+PermissionError: [WinError 32] The process cannot access the file because it is being used by another process: 'C:\\Users\\RUNNER~1\\AppData\\Local\\Temp\\tmpc9599x5n\\m.db'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "D:\a\SignalCore\SignalCore\tests\roblox_profile\test_runtime.py", line 91, in test_memory_project_branch_commit_isolation
+    with TemporaryDirectory() as temp:
+         ^^^^^^^^^^^^^^^^^^^^
+  File "C:\hostedtoolcache\windows\Python\3.12.10\x64\Lib\tempfile.py", line 950, in __exit__
+    self.cleanup()
+  File "C:\hostedtoolcache\windows\Python\3.12.10\x64\Lib\tempfile.py", line 954, in cleanup
+    self._rmtree(self.name, ignore_errors=self._ignore_cleanup_errors)
+  File "C:\hostedtoolcache\windows\Python\3.12.10\x64\Lib\tempfile.py", line 934, in _rmtree
+    _shutil.rmtree(name, onexc=onexc)
+  File "C:\hostedtoolcache\windows\Python\3.12.10\x64\Lib\shutil.py", line 781, in rmtree
+    return _rmtree_unsafe(path, onexc)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\hostedtoolcache\windows\Python\3.12.10\x64\Lib\shutil.py", line 635, in _rmtree_unsafe
+    onexc(os.unlink, fullname, err)
+  File "C:\hostedtoolcache\windows\Python\3.12.10\x64\Lib\tempfile.py", line 909, in onexc
+    _os.unlink(path)
+PermissionError: [WinError 32] The process cannot access the file because it is being used by another process: 'C:\\Users\\RUNNER~1\\AppData\\Local\\Temp\\tmpc9599x5n\\m.db'
+
+======================================================================
+ERROR: test_signed_activation_to_verified_simulated_workflow_components (test_runtime.VerticalSliceTests.test_signed_activation_to_verified_simulated_workflow_components)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\hostedtoolcache\windows\Python\3.12.10\x64\Lib\shutil.py", line 633, in _rmtree_unsafe
+    os.unlink(fullname)
+PermissionError: [WinError 32] The process cannot access the file because it is being used by another process: 'C:\\Users\\RUNNER~1\\AppData\\Local\\Temp\\tmpeco2j4kg\\evidence.db'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "D:\a\SignalCore\SignalCore\tests\roblox_profile\test_runtime.py", line 101, in test_signed_activation_to_verified_simulated_workflow_components
+    with TemporaryDirectory() as temp:
+         ^^^^^^^^^^^^^^^^^^^^
+  File "C:\hostedtoolcache\windows\Python\3.12.10\x64\Lib\tempfile.py", line 950, in __exit__
+    self.cleanup()
+  File "C:\hostedtoolcache\windows\Python\3.12.10\x64\Lib\tempfile.py", line 954, in cleanup
+    self._rmtree(self.name, ignore_errors=self._ignore_cleanup_errors)
+  File "C:\hostedtoolcache\windows\Python\3.12.10\x64\Lib\tempfile.py", line 934, in _rmtree
+    _shutil.rmtree(name, onexc=onexc)
+  File "C:\hostedtoolcache\windows\Python\3.12.10\x64\Lib\shutil.py", line 781, in rmtree
+    return _rmtree_unsafe(path, onexc)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\hostedtoolcache\windows\Python\3.12.10\x64\Lib\shutil.py", line 635, in _rmtree_unsafe
+    onexc(os.unlink, fullname, err)
+  File "C:\hostedtoolcache\windows\Python\3.12.10\x64\Lib\tempfile.py", line 909, in onexc
+    _os.unlink(path)
+PermissionError: [WinError 32] The process cannot access the file because it is being used by another process: 'C:\\Users\\RUNNER~1\\AppData\\Local\\Temp\\tmpeco2j4kg\\evidence.db'
+
+----------------------------------------------------------------------
+Ran 119 tests in 6.863s
+
+FAILED (errors=5)
+exit_code=1
