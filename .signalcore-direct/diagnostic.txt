@@ -1,0 +1,63 @@
+payload files:
+c850ac287f77c98ca6e3e9ee051a8c1f5920e58407d8c91246b1afbdce1dfa3e  .signalcore-direct/payload-00.b64
+cc9161ad9eeb5159d99149e20163ed5d9cdcc4ee09550f5f58fd26f1d3d6a71e  .signalcore-direct/payload-01.b64
+fe21cafdc0cd69f486f692025c9721781d3294dc77c46a17749b3e39765a1777  .signalcore-direct/payload-02.b64
+034c8a62f2bb66f256d0df4e14fd01c4ecb7b7a03e6f44e28f1f7487b6a4a510  .signalcore-direct/payload-03.b64
+a2a613b3c057ac7e773f0a0e03a3f7125ecbd3d019959dbe30ee4e0d755d93ee  .signalcore-direct/payload-04.b64
+338f6dbe3e447cfa222fa2651a45339eb4d6c4c57bafb1cf1f0d579aa6fcf0dd  .signalcore-direct/payload-05.b64
+ca1679dec660051bf129f55c7eb00be8a55ea6390b0db8a8884bf37ad0ecd6f1  .signalcore-direct/payload-06.b64
+b0d9433bb418cb1df9acbe1ea02252e3ae7b9ebe38b9ad9b10797a669a1da61b  .signalcore-direct/payload-07.b64
+c0090f7f6c6d45c41c97018c701b410d90bb1662f618c3fdf0c37ba4e396e2ce  .signalcore-direct/payload-08.b64
+ce534fcfc5c539d32e0afd28b7643876128ef32ee62502994ef6fd706055a48c  .signalcore-direct/payload-09.b64
+8b2521d57bd95c70554ffe2f39e6f45a99d5a82f3edf017d9b62e98a97ed6350  .signalcore-direct/payload-10.b64
+f13588dc5ea886fc796f3c20b5fdb9f20ea229376c805918dfc9f020797f6cf4  .signalcore-direct/payload-11a.b64
+d27c7ff7134383e45f048830470a6de2e4c78c795234cd853e4ffde8f18cc555  .signalcore-direct/payload-11b.b64
+6410cfcbdbc32ee4cba1b7be1eae273e9e60f3d74f31fa4b328f71f414e0e86d  .signalcore-direct/payload-12a.b64
+9b39838e1fadd6fef36393cbbce3101eb744887ca5fd0c8531bf29ce2cdbc06a  .signalcore-direct/payload-12b.b64
+908ef9e6e8ef5333839fcdf59e555377eed77128fa38320401ce04c01137629b  .signalcore-direct/payload-13a.b64
+dae95da190a766c76ef4a3d016c14bc146e117020d960ee607ea1fc9da4d155f  .signalcore-direct/payload-13b.b64
+b7f35f43ed91f118129ccaa361405b1962399fe1ca290bf2cf215316d7402b86  .signalcore-direct/payload-14a.b64
+1602f36d38304e36af14d108b11470c6155c0c50ea4be91da37916c9cf95db65  .signalcore-direct/payload-14b.b64
+4d2afddcd191420a36fb8b6fee7ba19afe63172a4a6bf72538eb593c919b9dec  .signalcore-direct/payload-15a.b64
+e4272fd02ce8153f74ca6d6cb1306eeebc8901e2283c999832d511fd3138d16e  .signalcore-direct/payload-15b.b64
+8f27e1aa8c7e395bca069a3ada10dd4c31e18e7fbc6f849b8f3a8d901d91941a  .signalcore-direct/payload-16a.b64
+996493b5cf04419ab8e4e44a0e91deb354ba4ac8ef135b6297bc6b3e77548980  .signalcore-direct/payload-16b.b64
+
+sizes:
+ 4000 .signalcore-direct/payload-00.b64
+ 4000 .signalcore-direct/payload-01.b64
+ 4000 .signalcore-direct/payload-02.b64
+ 4000 .signalcore-direct/payload-03.b64
+ 4000 .signalcore-direct/payload-04.b64
+ 4000 .signalcore-direct/payload-05.b64
+ 4000 .signalcore-direct/payload-06.b64
+ 4000 .signalcore-direct/payload-07.b64
+ 4000 .signalcore-direct/payload-08.b64
+ 4000 .signalcore-direct/payload-09.b64
+ 4000 .signalcore-direct/payload-10.b64
+ 2000 .signalcore-direct/payload-11a.b64
+ 2000 .signalcore-direct/payload-11b.b64
+ 2000 .signalcore-direct/payload-12a.b64
+ 2000 .signalcore-direct/payload-12b.b64
+ 2000 .signalcore-direct/payload-13a.b64
+ 2000 .signalcore-direct/payload-13b.b64
+ 2000 .signalcore-direct/payload-14a.b64
+ 2000 .signalcore-direct/payload-14b.b64
+ 2000 .signalcore-direct/payload-15a.b64
+ 2200 .signalcore-direct/payload-15b.b64
+ 1900 .signalcore-direct/payload-16a.b64
+ 4033 .signalcore-direct/payload-16b.b64
+70133 total
+
+combined base64 bytes: 70133
+combined base64 sha256: 174d2110ecb3d07c3d766cc175f2990c1ed686579a37f2f1c36a43b753d45675
+base64 exit: 1
+base64 stderr: base64: invalid input 
+xz bytes: 52595
+xz sha256: 078a66c8e84b58a1435fd4bfb07839d630513cd64696566ff03c6a20b06abba2
+xz test exit: 1
+xz stderr: xz: /tmp/payload.xz: Compressed data is corrupt 
+decompress exit: 1
+decompress stderr: xz: /tmp/payload.xz: Compressed data is corrupt 
+patch bytes: 264809
+patch sha256: 6ccca83c61ded44156ee0d09d5b54f7b9a237f2343af529799751e694c711f7d
