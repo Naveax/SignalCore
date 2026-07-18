@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "benchmark": "signalcore-semantic-multihop-no-exact-sharded",
+  "scope": "natural-language semantic multi-hop coding evidence; no exact markers, file names, or role metadata; not a model-market comparison; four isolated 30-case processes",
+  "cases": 120,
+  "shards": 4,
+  "arms": [
+    {
+      "name": "v1",
+      "complete_rate": 0.11666666666666667,
+      "role_recall": 0.7125,
+      "mean_tokens": 1586.2833333333333,
+      "reduction_vs_full": 0.6387186163822497,
+      "latency_ms": {
+        "p50": 10.942002249521465,
+        "p95_conservative_max_shard": 12.475362000259338,
+        "mean": 11.15367094166686
+      }
+    },
+    {
+      "name": "v2",
+      "complete_rate": 1.0,
+      "role_recall": 1.0,
+      "mean_tokens": 77,
+      "reduction_vs_full": 0.9824623072436613,
+      "latency_ms": {
+        "p50": 66.9358412501424,
+        "p95_conservative_max_shard": 86.25191600003745,
+        "mean": 68.50005653333635
+      }
+    }
+  ],
+  "v2_vs_v1": {
+    "complete_rate_absolute_gain": 0.8833333333333333,
+    "context_token_reduction": 0.9514588608592413
+  },
+  "all_shards_passed": true,
+  "passed": true,
+  "seeds": [
+    20260718,
+    20261727,
+    20262736,
+    20263745
+  ]
+}
