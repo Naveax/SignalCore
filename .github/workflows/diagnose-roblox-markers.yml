@@ -1,0 +1,71 @@
+name: Diagnose Roblox payload markers
+
+on:
+  push:
+    branches:
+      - agent/roblox-studio-profile-direct
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  markers:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Emit result markers
+        shell: bash
+        run: |
+          set +e
+          rm -f .signalcore-direct/result-*
+          cat \
+            .signalcore-direct/payload-00.b64 \
+            .signalcore-direct/payload-01.b64 \
+            .signalcore-direct/payload-02.b64 \
+            .signalcore-direct/payload-03.b64 \
+            .signalcore-direct/payload-04.b64 \
+            .signalcore-direct/payload-05.b64 \
+            .signalcore-direct/payload-06.b64 \
+            .signalcore-direct/payload-07.b64 \
+            .signalcore-direct/payload-08.b64 \
+            .signalcore-direct/payload-09.b64 \
+            .signalcore-direct/payload-10.b64 \
+            .signalcore-direct/payload-11a.b64 \
+            .signalcore-direct/payload-11b.b64 \
+            .signalcore-direct/payload-12a.b64 \
+            .signalcore-direct/payload-12b.b64 \
+            .signalcore-direct/payload-13a.b64 \
+            .signalcore-direct/payload-13b.b64 \
+            .signalcore-direct/payload-14a.b64 \
+            .signalcore-direct/payload-14b.b64 \
+            .signalcore-direct/payload-15a.b64 \
+            .signalcore-direct/payload-15b.b64 \
+            .signalcore-direct/payload-16a.b64 \
+            .signalcore-direct/payload-16b.b64 \
+            > /tmp/payload.b64
+          bytes=$(wc -c < /tmp/payload.b64)
+          touch ".signalcore-direct/result-base64-bytes-${bytes}"
+          base64 --decode /tmp/payload.b64 > /tmp/payload.xz
+          b64=$?
+          touch ".signalcore-direct/result-base64-exit-${b64}"
+          xzsha=$(sha256sum /tmp/payload.xz | cut -d' ' -f1)
+          touch ".signalcore-direct/result-xz-sha-${xzsha}"
+          xz -t /tmp/payload.xz
+          xzt=$?
+          touch ".signalcore-direct/result-xz-test-${xzt}"
+          xz -dc /tmp/payload.xz > /tmp/payload.patch
+          dc=$?
+          touch ".signalcore-direct/result-decompress-exit-${dc}"
+          patchbytes=$(wc -c < /tmp/payload.patch)
+          patchsha=$(sha256sum /tmp/payload.patch | cut -d' ' -f1)
+          touch ".signalcore-direct/result-patch-bytes-${patchbytes}"
+          touch ".signalcore-direct/result-patch-sha-${patchsha}"
+          git add .signalcore-direct/result-*
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Record Roblox payload result markers"
+          git push origin HEAD:agent/roblox-studio-profile-direct
