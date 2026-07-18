@@ -17,7 +17,8 @@ SignalCore uses one canonical `SKILL.md` and several delivery adapters. The core
 | OpenAI Codex | Native | `.codex/skills/signal-core` | `~/.codex/skills/signal-core` | `Use $signal-core` |
 | Claude Code | Native | `.claude/skills/signal-core` | `~/.claude/skills/signal-core` | Mention/install the skill or plugin |
 | Gemini CLI | Native | `.gemini/skills/signal-core` | `~/.gemini/skills/signal-core` | Ask Gemini to activate it |
-| Google Antigravity | Native | `.agent/skills/signal-core` | — | Mention/select the skill |
+| Google Antigravity IDE | Native | `.agents/skills/signal-core` | `~/.gemini/config/skills/signal-core` | Mention/select the skill |
+| Google Antigravity CLI | Native | `.agent/skills/signal-core` | `~/.gemini/antigravity-cli/skills/signal-core` | `/skills` / mention the skill |
 | Windsurf Cascade | Native | `.windsurf/skills/signal-core` | `~/.codeium/windsurf/skills/signal-core` | `@signal-core` |
 | OpenCode | Native | `.opencode/skills/signal-core` | `~/.config/opencode/skills/signal-core` | Native `skill` tool |
 | VS Code / GitHub Copilot | Native | `.github/skills/signal-core` | — | Mention the skill in Chat |
