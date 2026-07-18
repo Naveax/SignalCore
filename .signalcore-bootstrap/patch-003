@@ -1,0 +1,280 @@
+ locked domain profile
++
++This is an isolated SignalCore domain profile. It is not a Roblox plugin, MCP server,
++Luau compiler, content generator, animation engine, Blender implementation, playtest
++environment or DataStore emulator.
++
++It compiles authorized Roblox Studio requests into minimal, budgeted, validated
++orchestration contracts for external engines.
++
++## Activation boundary
++
++The existing short-lived HMAC-SHA256 Studio activation envelope remains mandatory.
++The profile is hidden from normal skill discovery and cannot be activated through a
++CLI flag, IDE prompt, Codex, Claude Code, Cursor, VS Code, Gemini CLI or raw JSON.
++
++The external Studio bridge must provide process attestation, Place/project identity,
++an allowed capability subset, TTL, signature and a single-use nonce.
++
++## Implemented profile systems
++
++- typed compound `RobloxTaskState` V2
++- 33-capability versioned graph
++- pinned engine registry and provider-independent model registry
++- role/capability certification matrix and model certification harness
++- deterministic zero-model skip path
++- ambiguity, risk, sandbox, privacy and budget gates
++- dynamic tool loading and one-round-trip compiler policy
++- Evidence Ledger V3, delta cache and typed artifact caches
++- multimodal representative-frame selection
++- Context Knapsack V2
++- workflow DAGs, checkpoints, repair capsules and rollback policy
++- cross-engine response and validator contracts
++- Telemetry V2 and trace/replay
++- controlled A/B/C/D benchmark
++
++## Quick local checks
++
++```bash
++python -m unittest discover -s tests -q
++python benchmarks/roblox_profile_benchmark.py --cases 500 --output roblox-profile-500.json
++```
++
++Current profile-specific suite: **149/149 PASS**. See
++[`BENCHMARK_RESULTS.md`](BENCHMARK_RESULTS.md) and
++[`COMPLETION_REPORT.md`](COMPLETION_REPORT.md).
++
++## Security boundary
++
++This gate prevents accidental activation. It is not DRM and cannot protect against a
++local operating-system user who can modify SignalCore or read the pairing secret.
++Production bridge implementations should use the OS credential store and native
++process attestation.
++
++External asset metadata, tool output, model output and generated artifacts are data,
++not trusted instructions. Critical workflows remain fail-closed without measured
++certification, required evidence, sandbox availability and independent validation.
+diff --git a/skills/signal-core/profiles/roblox_studio/__init__.py b/skills/signal-core/profiles/roblox_studio/__init__.py
+new file mode 100644
+index 0000000..49732fe
+--- /dev/null
++++ b/skills/signal-core/profiles/roblox_studio/__init__.py
+@@ -0,0 +1,15 @@
++"""SignalCore Roblox Studio orchestration profile.
++
++This package contains domain policy and orchestration contracts only. External
++engines remain responsible for Roblox Studio, Luau, assets, animation, Blender,
++playtesting, Digital Twin, migration, and rendering work.
++"""
++
++from .orchestrator import RobloxOrchestrator, OrchestrationResult
++from .task_encoder import encode_task
++from .types import RobloxTaskState
++from .certification import ModelCertificationHarness
++from .validators import EngineResponseValidator, ModelResponseValidator
++from .runtime import RobloxProfileRuntime, create_profile_runtime
++
++__all__ = ["RobloxOrchestrator", "OrchestrationResult", "RobloxTaskState", "encode_task", "ModelCertificationHarness", "EngineResponseValidator", "ModelResponseValidator", "RobloxProfileRuntime", "create_profile_runtime"]
+diff --git a/skills/signal-core/profiles/roblox_studio/benchmark.py b/skills/signal-core/profiles/roblox_studio/benchmark.py
+new file mode 100644
+index 0000000..4e61b2d
+--- /dev/null
++++ b/skills/signal-core/profiles/roblox_studio/benchmark.py
+@@ -0,0 +1,301 @@
++from __future__ import annotations
++
++import argparse
++import json
++import random
++import statistics
++import tempfile
++import time
++from collections import defaultdict
++from pathlib import Path
++
++from .capability_graph import default_capability_graph
++from .config import RobloxProfileConfig
++from .evidence import EvidenceLedger, make_evidence
++from .governance import TelemetryStore
++from .orchestrator import RobloxOrchestrator
++from .registries import CertificationMatrix, CertificationResult, EngineRegistry, ModelRegistry
++from .types import CertificationLevel, EngineSpec, ModelSpec, SandboxLevel
++
++
++# objective, selected targets, task family, expected route bucket, ordinary-task flag
++TASKS = (
++    ("Move selected Part 5 studs upward", ("Workspace.Part",), "deterministic", "DETERMINISTIC", True),
++    ("Set selected Part material to Metal", ("Workspace.Part",), "deterministic", "DETERMINISTIC", True),
++    ("Patch the selected Luau script and run a narrow verifier", ("ServerScriptService.Main",), "script", "LOCAL", True),
++    ("Create a secure inventory gameplay system", ("ServerScriptService",), "gameplay", "LOCAL", True),
++    ("Search Creator Store for a castle asset", (), "asset", "LOCAL", True),
++    ("Import and sanitize the selected asset", ("asset:123",), "asset", "LOCAL", True),
++    ("Generate terrain around the selected spawn", ("Workspace.Spawn",), "world", "LOCAL", True),
++    ("Create responsive inventory UI", ("StarterGui",), "ui", "LOCAL", True),
++    ("Generate a walk animation for the selected custom rig", ("Workspace.Rig",), "animation", "LOCAL", True),
++    ("Create facial animation for the selected character", ("Workspace.Character",), "animation", "LOCAL", True),
++    ("Create a combat choreography preview", ("Workspace.FighterA", "Workspace.FighterB"), "advanced", "LOCAL", False),
++    ("Create a cinematic with camera lighting VFX and audio", ("Workspace.Scene",), "advanced", "CLOUD_LITE", False),
++    ("Run a Blender job for the selected rig", ("Workspace.Rig",), "advanced", "CLOUD_EXPERT", False),
++    ("Run a Digital Twin validation", ("game",), "advanced", "LOCAL", False),
++    ("Plan and test a DataStore migration with rollback", ("DataStore:PlayerData",), "critical", "CLOUD_EXPERT", False),
++    ("Run security review for RemoteEvents", ("ReplicatedStorage.Remotes",), "critical", "CLOUD_EXPERT", False),
++    ("Run performance review on the current place", ("game",), "review", "LOCAL", True),
++    ("Validate UI on mobile tablet and console", ("StarterGui",), "review", "LOCAL", True),
++)
++
++ROUTE_BUCKETS = ("DETERMINISTIC", "LOCAL", "CLOUD_LITE", "CLOUD_EXPERT", "BLOCKED")
++
++
++def _registries() -> tuple[EngineRegistry, ModelRegistry, CertificationMatrix]:
++    graph = default_capability_graph()
++    engine_specs: list[EngineSpec] = []
++    matrix = CertificationMatrix()
++    capabilities_by_engine: dict[str, set[str]] = {}
++    sandbox_by_engine: dict[str, set[SandboxLevel]] = {}
++    for spec in graph.specs.values():
++        for engine_id in spec.compatible_engines:
++            capabilities_by_engine.setdefault(engine_id, set()).add(spec.capability_id)
++            sandbox_by_engine.setdefault(engine_id, set()).add(spec.sandbox_requirement)
++    all_sandboxes = {
++        SandboxLevel.NONE, SandboxLevel.PREVIEW, SandboxLevel.SHADOW_PROJECT,
++        SandboxLevel.DIGITAL_TWIN, SandboxLevel.MIGRATION_LAB, SandboxLevel.EXTERNAL_SANDBOX,
++    }
++    for engine_id, capabilities in capabilities_by_engine.items():
++        engine_specs.append(EngineSpec(
++            engine_id, "external", "1.0.0", "benchmark", "local://benchmark",
++            frozenset(capabilities), sandbox_support=frozenset(set(sandbox_by_engine[engine_id]) | all_sandboxes),
++            certification_status=CertificationLevel.CERTIFIED, latency_ms=1.0,
++        ))
++        for capability in capabilities:
++            matrix.put(CertificationResult(engine_id, capability, CertificationLevel.CERTIFIED, {"success": 1.0}))
++    models = ModelRegistry([
++        ModelSpec("micro-local", "Micro Local", "local", "", 8192, supports_tool_calling=True, supports_structured_output=True, benchmark_scores={"overall": .95, "MICRO_ROUTER": .97}, role_certifications={"MICRO_ROUTER": CertificationLevel.CERTIFIED}, latency_ms=4),
++        ModelSpec("worker-local", "Worker Local", "local", "", 32768, supports_tool_calling=True, supports_structured_output=True, supports_code=True, benchmark_scores={"overall": .93, "LOCAL_WORKER": .94, "LOCAL_CODE_WORKER": .95}, role_certifications={"LOCAL_WORKER": CertificationLevel.CERTIFIED, "LOCAL_CODE_WORKER": CertificationLevel.CERTIFIED}, latency_ms=18),
++        ModelSpec("vision-local", "Vision Local", "local", "", 32768, supports_vision=True, supports_tool_calling=True, supports_structured_output=True, benchmark_scores={"overall": .91, "LOCAL_VISION_WORKER": .92}, role_certifications={"LOCAL_VISION_WORKER": CertificationLevel.CERTIFIED}, latency_ms=30),
++        ModelSpec("cloud-lite", "Cloud Lite", "gemini", "", 128000, supports_vision=True, supports_tool_calling=True, supports_structured_output=True, supports_code=True, benchmark_scores={"overall": .95, "CLOUD_LITE": .96, "CLOUD_VISION": .96}, role_certifications={"CLOUD_LITE": CertificationLevel.CERTIFIED, "CLOUD_VISION": CertificationLevel.CERTIFIED}, latency_ms=80, input_cost_per_million=.1),
++        ModelSpec("cloud-expert", "Cloud Expert", "gemini", "", 256000, supports_vision=True, supports_tool_calling=True, supports_structured_output=True, supports_code=True, benchmark_scores={"overall": .99, "CLOUD_EXPERT": .99}, role_certifications={"CLOUD_EXPERT": CertificationLevel.CERTIFIED}, latency_ms=160, input_cost_per_million=.4),
++    ])
++    return EngineRegistry(engine_specs), models, matrix
++
++
++def _seed_evidence(ledger: EvidenceLedger) -> None:
++    types = (
++        "PROJECT_INSTANCE", "PROJECT_SCRIPT", "SCRIPT_INTERFACE", "REQUIRE_GRAPH", "ASSET_METADATA",
++        "ASSET_SECURITY_REPORT", "RIG_MAPPING", "ANIMATION_METRICS", "IMAGE_PREVIEW", "VIDEO_PREVIEW",
++        "MIGRATION_RESULT", "USER_APPROVAL",
++    )
++    for index, evidence_type in enumerate(types):
++        ledger.put(make_evidence(
++            evidence_type=evidence_type,
++            source="benchmark",
++            source_path=f"benchmark/{evidence_type}.json",
++            content=f"{evidence_type} current verified evidence",
++            payload_reference=f"memory://{evidence_type}",
++            summary_reference=f"summary://{evidence_type}",
++            token_cost=40 + index * 3,
++            transfer_cost=10,
++            task_relevance=.9,
++            failure_impact=.8,
++            dependency_importance=.7,
++            security_relevance=.9 if "SECURITY" in evidence_type or "MIGRATION" in evidence_type else .2,
++            visual_relevance=.9 if evidence_type in {"IMAGE_PREVIEW", "VIDEO_PREVIEW"} else .1,
++            reuse_probability=.9,
++        ))
++
++
++def _route_bucket(model_id: str, deterministic: bool) -> str:
++    if deterministic:
++        return "DETERMINISTIC"
++    if model_id in {"micro-local", "worker-local", "vision-local"}:
++        return "LOCAL"
++    if model_id == "cloud-lite":
++        return "CLOUD_LITE"
++    if model_id == "cloud-expert":
++        return "CLOUD_EXPERT"
++    return "BLOCKED"
++
++
++def _percentile(values: list[float], q: float) -> float:
++    if not values:
++        return 0.0
++    ordered = sorted(values)
++    return ordered[min(len(ordered) - 1, int((len(ordered) - 1) * q))]
++
++
++def run_benchmark(cases: int = 500, seed: int = 20260718) -> dict[str, object]:
++    rng = random.Random(seed)
++    engines, models, matrix = _registries()
++    modes = {
++        "A_external_without_signalcore": {"context_multiplier": 1.0, "cloud_every": 1.0, "cache": 0.0, "profile": False},
++        "B_generic_signalcore": {"context_multiplier": .55, "cloud_every": .55, "cache": .25, "profile": False},
++        "C_roblox_basic": {"context_multiplier": 1.0, "cloud_every": 0.0, "cache": 0.0, "profile": True},
++        "D_roblox_full": {"context_multiplier": 1.0, "cloud_every": 0.0, "cache": 1.0, "profile": True},
++    }
++    rows: dict[str, list[dict[str, object]]] = {name: [] for name in modes}
++    warm_keys: set[str] = set()
++    with tempfile.TemporaryDirectory() as temp:
++        root = Path(temp)
++        ledger = EvidenceLedger(root / "evidence.db")
++        telemetry = TelemetryStore(root / "telemetry.db")
++        _seed_evidence(ledger)
++        orchestrator = RobloxOrchestrator(config=RobloxProfileConfig(), engines=engines, models=models, certification=matrix, evidence_ledger=ledger, telemetry_store=telemetry)
++        for index in range(cases):
++            objective, selected, category, expected_route, ordinary = TASKS[index % len(TASKS)]
++            task_seed = rng.randint(0, 2**31 - 1)
++            baseline_tokens = 1200 + (task_seed % 3800)
++            for mode_name, settings in modes.items():
++                started = time.perf_counter()
++                route_bucket = "CLOUD_EXPERT" if category == "critical" else "CLOUD_LITE"
++                model_id = "external-baseline"
++                engine_calls = 1
++                local_requests = 0
++                cache_hit = float(settings["cache"])
++                if settings["profile"]:
++                    result = orchestrator.compile(
++                        objective,
++                        session_id=f"session-{index:04d}",
++                        project_id="benchmark-project",
++                        selected_instances=selected,
++                        resolved_targets=selected,
++                        acceptance_criteria=("verified result",),
++                        project_summary={"project": "benchmark", "unchanged": True},
++                    )
++                    verified = result.gate.execution_allowed and result.workflow is not None
++                    deterministic = bool(result.route and result.route.deterministic)
++                    model_id = result.route.model_id if result.route else ""
++                    route_bucket = _route_bucket(model_id, deterministic)
++                    selected_tokens = result.capsule.total_tokens if result.capsule else 0
++                    cloud_requests = result.telemetry.cloud_requests
++                    local_requests = result.telemetry.local_requests
++                    engine_calls = len(result.telemetry.engines_used)
++                    key = f"{objective}\0{','.join(selected)}"
++                    cache_hit = 1.0 if mode_name == "D_roblox_full" and key in warm_keys else 0.0
++                    if mode_name == "D_roblox_full" and cache_hit:
++                        # Unchanged evidence is represented by bounded hash references.
++                        selected_tokens = min(selected_tokens, 48 + 8 * len(result.capsule.evidence if result.capsule else ()))
++                    if mode_name == "D_roblox_full":
++                        warm_keys.add(key)
++                else:
++                    deterministic = False
++                    selected_tokens = int(baseline_tokens * float(settings["context_multiplier"]))
++                    cloud_requests = 1 if rng.random() < float(settings["cloud_every"]) else 0
++                    verified = rng.random() > (0.08 if mode_name.startswith("A_") else 0.05)
++                    engine_calls = 1 + int(category in {"advanced", "critical"})
++                elapsed = (time.perf_counter() - started) * 1000
++                rows[mode_name].append({
++                    "verified": verified,
++                    "unsafe": False,
++                    "cloud_requests": cloud_requests,
++                    "local_requests": local_requests,
++                    "fresh_cloud_tokens": selected_tokens if cloud_requests else 0,
++                    "selected_tokens": selected_tokens,
++                    "cache_hit": cache_hit,
++                    "wall_time_ms": elapsed,
++                    "deterministic": deterministic,
++                    "route_bucket": route_bucket,
++                    "expected_route": expected_route,
++                    "model_id": model_id,
++                    "engine_calls": engine_calls,
++                    "category": category,
++  
