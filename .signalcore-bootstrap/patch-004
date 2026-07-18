@@ -1,0 +1,452 @@
+                  "ordinary": ordinary,
++                })
++
++    summaries: dict[str, dict[str, object]] = {}
++    for name, values in rows.items():
++        summaries[name] = {
++            "cases": len(values),
++            "verified_success": statistics.mean(float(item["verified"]) for item in values),
++            "unsafe_execution": sum(int(item["unsafe"]) for item in values),
++            "cloud_requests": sum(int(item["cloud_requests"]) for item in values),
++            "local_requests": sum(int(item["local_requests"]) for item in values),
++            "engine_calls": sum(int(item["engine_calls"]) for item in values),
++            "fresh_cloud_tokens": sum(int(item["fresh_cloud_tokens"]) for item in values),
++            "average_selected_tokens": statistics.mean(float(item["selected_tokens"]) for item in values),
++            "cache_hit_rate": statistics.mean(float(item["cache_hit"]) for item in values),
++            "deterministic_rate": statistics.mean(float(item["deterministic"]) for item in values),
++            "p50_orchestration_ms": statistics.median(float(item["wall_time_ms"]) for item in values),
++            "p95_orchestration_ms": _percentile([float(item["wall_time_ms"]) for item in values], .95),
++        }
++
++    d_rows = rows["D_roblox_full"]
++    confusion = {expected: {actual: 0 for actual in ROUTE_BUCKETS} for expected in ROUTE_BUCKETS}
++    for row in d_rows:
++        confusion[str(row["expected_route"])][str(row["route_bucket"])] += 1
++    routing_accuracy = statistics.mean(float(row["expected_route"] == row["route_bucket"]) for row in d_rows)
++    family_report: dict[str, dict[str, object]] = {}
++    for category in sorted({str(row["category"]) for row in d_rows}):
++        subset = [row for row in d_rows if row["category"] == category]
++        family_report[category] = {
++            "cases": len(subset),
++            "verified_success": statistics.mean(float(row["verified"]) for row in subset),
++            "cloud_requests": sum(int(row["cloud_requests"]) for row in subset),
++            "average_selected_tokens": statistics.mean(float(row["selected_tokens"]) for row in subset),
++            "cache_hit_rate": statistics.mean(float(row["cache_hit"]) for row in subset),
++            "p95_orchestration_ms": _percentile([float(row["wall_time_ms"]) for row in subset], .95),
++        }
++    ordinary_rows = [row for row in d_rows if bool(row["ordinary"])]
++    ordinary_cloud_per_1000 = 1000 * sum(int(row["cloud_requests"]) for row in ordinary_rows) / max(1, len(ordinary_rows))
++    deterministic_rows = [row for row in d_rows if bool(row["deterministic"])]
++    engine_certifications = sum(len(value) for value in matrix.to_dict().values())
++    model_certifications = sum(len(model.role_certifications) for model in models.models.values())
++    targets = {
++        "ordinary_cloud_requests_per_1000_le_180": ordinary_cloud_per_1000 <= 180,
++        "deterministic_p50_le_20_ms": statistics.median(float(row["wall_time_ms"]) for row in deterministic_rows) <= 20 if deterministic_rows else False,
++        "deterministic_p95_le_50_ms": _percentile([float(row["wall_time_ms"]) for row in deterministic_rows], .95) <= 50 if deterministic_rows else False,
++        "unnecessary_cloud_escalation_below_5_percent": statistics.mean(float(row["route_bucket"].startswith("CLOUD") and row["expected_route"] == "LOCAL") for row in ordinary_rows) < .05,
++    }
++    release_gates = {
++        "D_success_not_lower_than_A": summaries["D_roblox_full"]["verified_success"] >= summaries["A_external_without_signalcore"]["verified_success"],
++        "D_unsafe_execution_zero": summaries["D_roblox_full"]["unsafe_execution"] == 0,
++        "D_cloud_requests_lower_than_A": summaries["D_roblox_full"]["cloud_requests"] < summaries["A_external_without_signalcore"]["cloud_requests"],
++        "D_cloud_tokens_lower_than_A": summaries["D_roblox_full"]["fresh_cloud_tokens"] < summaries["A_external_without_signalcore"]["fresh_cloud_tokens"],
++        "D_routing_accuracy_at_least_95_percent": routing_accuracy >= .95,
++        **targets,
++    }
++    return {
++        "schema_version": 2,
++        "benchmark": "signalcore-roblox-profile-abcd-controlled",
++        "scope": "controlled orchestration benchmark; external engines and Gemini are simulated; engineering targets are not measured provider results",
++        "cases": cases,
++        "seed": seed,
++        "modes": summaries,
++        "routing_report": {"accuracy": routing_accuracy, "confusion_matrix": confusion},
++        "task_family_report": family_report,
++        "ordinary_task_report": {
++            "cases": len(ordinary_rows),
++            "cloud_requests": sum(int(row["cloud_requests"]) for row in ordinary_rows),
++            "cloud_requests_per_1000": ordinary_cloud_per_1000,
++            "local_or_deterministic_rate": statistics.mean(float(row["route_bucket"] in {"LOCAL", "DETERMINISTIC"}) for row in ordinary_rows),
++            "average_selected_tokens": statistics.mean(float(row["selected_tokens"]) for row in ordinary_rows),
++        },
++        "resource_report": {
++            "engine_calls": summaries["D_roblox_full"]["engine_calls"],
++            "local_model_requests": summaries["D_roblox_full"]["local_requests"],
++            "cloud_model_requests": summaries["D_roblox_full"]["cloud_requests"],
++            "gpu_time_ms": 0,
++            "note": "external engine/GPU execution is not performed by the controlled benchmark",
++        },
++        "certification_report": {
++            "registered_engines": len(engines.engines),
++            "engine_capability_certifications": engine_certifications,
++            "registered_models": len(models.models),
++            "model_role_certifications": model_certifications,
++        },
++        "engineering_targets": targets,
++        "release_gates": release_gates,
++    }
++
++
++def main() -> int:
++    parser = argparse.ArgumentParser()
++    parser.add_argument("--cases", type=int, default=500)
++    parser.add_argument("--seed", type=int, default=20260718)
++    parser.add_argument("--output")
++    args = parser.parse_args()
++    result = run_benchmark(args.cases, args.seed)
++    payload = json.dumps(result, indent=2)
++    if args.output:
++        Path(args.output).write_text(payload + "\n", encoding="utf-8")
++    print(payload)
++    return 0 if all(result["release_gates"].values()) else 2
++
++
++if __name__ == "__main__":
++    raise SystemExit(main())
+diff --git a/skills/signal-core/profiles/roblox_studio/capabilities.json b/skills/signal-core/profiles/roblox_studio/capabilities.json
+new file mode 100644
+index 0000000..8487e69
+--- /dev/null
++++ b/skills/signal-core/profiles/roblox_studio/capabilities.json
+@@ -0,0 +1,652 @@
++{
++  "schema_version": 2,
++  "graph_version": "2.0.0",
++  "capabilities": [
++    {
++      "capabilityId": "ROBLOX_PROJECT_READ",
++      "version": "2.0.0",
++      "description": "Read bounded Roblox project structure",
++      "dependencies": [],
++      "conflicts": [],
++      "riskLevel": "R0",
++      "requiredEvidence": [],
++      "requiredValidators": [],
++      "compatibleEngines": [
++        "studio_bridge"
++      ],
++      "sandboxRequirement": "NONE",
++      "certificationRequirement": "VERIFIED"
++    },
++    {
++      "capabilityId": "ROBLOX_PROJECT_WRITE",
++      "version": "2.0.0",
++      "description": "Apply reviewed Roblox project changes",
++      "dependencies": [
++        "ROBLOX_PROJECT_READ"
++      ],
++      "conflicts": [],
++      "riskLevel": "R3",
++      "requiredEvidence": [],
++      "requiredValidators": [
++        "project_diff_validator"
++      ],
++      "compatibleEngines": [
++        "studio_bridge"
++      ],
++      "sandboxRequirement": "PREVIEW",
++      "certificationRequirement": "CERTIFIED"
++    },
++    {
++      "capabilityId": "LUAU_READ",
++      "version": "2.0.0",
++      "description": "Read bounded Luau ranges",
++      "dependencies": [
++        "ROBLOX_PROJECT_READ"
++      ],
++      "conflicts": [],
++      "riskLevel": "R0",
++      "requiredEvidence": [
++        "PROJECT_SCRIPT"
++      ],
++      "requiredValidators": [],
++      "compatibleEngines": [
++        "studio_bridge",
++        "luau_service"
++      ],
++      "sandboxRequirement": "NONE",
++      "certificationRequirement": "VERIFIED"
++    },
++    {
++      "capabilityId": "LUAU_PATCH",
++      "version": "2.0.0",
++      "description": "Patch existing Luau code",
++      "dependencies": [
++        "LUAU_READ",
++        "STATIC_VALIDATION",
++        "ROBLOX_PROJECT_WRITE"
++      ],
++      "conflicts": [],
++      "riskLevel": "R3",
++      "requiredEvidence": [],
++      "requiredValidators": [
++        "luau_static_validator",
++        "runtime_validator"
++      ],
++      "compatibleEngines": [
++        "luau_service"
++      ],
++      "sandboxRequirement": "SHADOW_PROJECT",
++      "certificationRequirement": "CERTIFIED"
++    },
++    {
++      "capabilityId": "LUAU_CREATE",
++      "version": "2.0.0",
++      "description": "Create Luau scripts",
++      "dependencies": [
++        "LUAU_READ",
++        "STATIC_VALIDATION",
++        "ROBLOX_PROJECT_WRITE"
++      ],
++      "conflicts": [],
++      "riskLevel": "R3",
++      "requiredEvidence": [],
++      "requiredValidators": [
++        "luau_static_validator",
++        "runtime_validator"
++      ],
++      "compatibleEngines": [
++        "luau_service"
++      ],
++      "sandboxRequirement": "SHADOW_PROJECT",
++      "certificationRequirement": "CERTIFIED"
++    },
++    {
++      "capabilityId": "STATIC_VALIDATION",
++      "version": "2.0.0",
++      "description": "Run Luau/static project validation",
++      "dependencies": [
++        "ROBLOX_PROJECT_READ"
++      ],
++      "conflicts": [],
++      "riskLevel": "R0",
++      "requiredEvidence": [],
++      "requiredValidators": [
++        "luau_static_validator"
++      ],
++      "compatibleEngines": [
++        "luau_validator"
++      ],
++      "sandboxRequirement": "NONE",
++      "certificationRequirement": "VERIFIED"
++    },
++    {
++      "capabilityId": "RUNTIME_PLAYTEST",
++      "version": "2.0.0",
++      "description": "Run isolated Roblox playtest",
++      "dependencies": [
++        "ROBLOX_PROJECT_READ"
++      ],
++      "conflicts": [],
++      "riskLevel": "R2",
++      "requiredEvidence": [],
++      "requiredValidators": [
++        "playtest_result_validator"
++      ],
++      "compatibleEngines": [
++        "playtest_runner"
++      ],
++      "sandboxRequirement": "SHADOW_PROJECT",
++      "certificationRequirement": "VERIFIED"
++    },
++    {
++      "capabilityId": "MULTIPLAYER_PLAYTEST",
++      "version": "2.0.0",
++      "description": "Run multi-client playtest",
++      "dependencies": [
++        "RUNTIME_PLAYTEST"
++      ],
++      "conflicts": [],
++      "riskLevel": "R3",
++      "requiredEvidence": [],
++      "requiredValidators": [
++        "multiplayer_result_validator"
++      ],
++      "compatibleEngines": [
++        "playtest_runner"
++      ],
++      "sandboxRequirement": "DIGITAL_TWIN",
++      "certificationRequirement": "CERTIFIED"
++    },
++    {
++      "capabilityId": "CREATOR_STORE_SEARCH",
++      "version": "2.0.0",
++      "description": "Search Creator Store metadata",
++      "dependencies": [],
++      "conflicts": [],
++      "riskLevel": "R0",
++      "requiredEvidence": [
++        "ASSET_METADATA"
++      ],
++      "requiredValidators": [],
++      "compatibleEngines": [
++        "creator_store_service"
++      ],
++      "sandboxRequirement": "NONE",
++      "certificationRequirement": "VERIFIED"
++    },
++    {
++      "capabilityId": "ASSET_SANITIZATION",
++      "version": "2.0.0",
++      "description": "Validate imported asset security",
++      "dependencies": [
++        "CREATOR_STORE_SEARCH"
++      ],
++      "conflicts": [],
++      "riskLevel": "R3",
++      "requiredEvidence": [],
++      "requiredValidators": [
++        "asset_security_validator"
++      ],
++      "compatibleEngines": [
++        "asset_scanner"
++      ],
++      "sandboxRequirement": "EXTERNAL_SANDBOX",
++      "certificationRequirement": "CERTIFIED"
++    },
++    {
++      "capabilityId": "ASSET_IMPORT",
++      "version": "2.0.0",
++      "description": "Import validated asset",
++      "dependencies": [
++        "ASSET_SANITIZATION",
++        "ROBLOX_PROJECT_WRITE"
++      ],
++      "conflicts": [],
++      "riskLevel": "R3",
++      "requiredEvidence": [],
++      "requiredValidators": [
++        "asset_geometry_validator",
++        "project_diff_validator"
++      ],
++      "compatibleEngines": [
++        "studio_bridge"
++      ],
++      "sandboxRequirement": "SHADOW_PROJECT",
++      "certificationRequirement": "CERTIFIED"
++    },
++    {
++      "capabilityId": "SPATIAL_SOLVER",
++      "version": "2.0.0",
++      "description": "Resolve placement constraints",
++      "dependencies": [
++        "ROBLOX_PROJECT_READ"
++      ],
++      "conflicts": [],
++      "riskLevel": "R0",
++      "requiredEvidence": [],
++      "requiredValidators": [
++        "collision_validator"
++      ],
++      "compatibleEngines": [
++        "spatial_service"
++      ],
++      "sandboxRequirement": "NONE",
++      "certificationRequirement": "VERIFIED"
++    },
++    {
++      "capabilityId": "PROCEDURAL_BUILDER",
++      "version": "2.0.0",
++      "description": "Build procedural structures externally",
++      "dependencies": [
++        "SPATIAL_SOLVER",
++        "ROBLOX_PROJECT_WRITE"
++      ],
++      "conflicts": [],
++      "riskLevel": "R3",
++      "requiredEvidence": [],
++      "requiredValidators": [
++        "collision_validator",
++        "performance_validator"
++      ],
++      "compatibleEngines": [
++        "procedural_service"
++      ],
++      "sandboxRequirement": "SHADOW_PROJECT",
++      "certificationRequirement": "CERTIFIED"
++    },
++    {
++      "capabilityId": "TERRAIN_ENGINE",
++      "version": "2.0.0",
++      "description": "Generate or patch terrain externally",
++      "dependencies": [
++        "ROBLOX_PROJECT_WRITE"
++      ],
++      "conflicts": [],
++      "riskLevel": "R3",
++      "requiredEvidence": [],
++      "requiredValidators": [
++        "terrain_validator",
++        "performance_validator"
++      ],
++      "compatibleEngines": [
++        "terrain_service"
++      ],
++      "sandboxRequirement": "SHADOW_PROJECT",
++      "certificationRequirement": "CERTIFIED"
++    },
++    {
++      "capabilityId": "UI_ENGINE",
++      "version": "2.0.0",
++      "description": "Create or modify UI externally",
++      "dependencies": [
++        "ROBLOX_PROJECT_WRITE"
++      ],
++      "conflicts": [],
++      "riskLevel": "R2",
++      "requiredEvidence": [],
++      "requiredValidators": [
++        "ui_validator",
++        "device_validator"
++      ],
++      "compatibleEngines": [
++        "ui_service"
++      ],
++      "sandboxRequirement": "PREVIEW",
++      "certificationRequirement": "VERIFIED"
++    },
++    {
++      "capabilityId": "RIG_ANALYZER",
++      "version": "2.0.0",
++      "description": "Analyze Roblox/custom rig",
++      "dependencies": [
++        "ROBLOX_PROJECT_READ"
++      ],
++      "conflicts": [],
++      "riskLevel": "R0",
++      "requiredEvidence": [
++        "RIG_MAPPING"
++      ],
++      "requiredValidators": [
++        "rig_validator"
++      ],
++      "compatibleEngines": [
++        "rig_service"
++      ],
++      "sandboxRequirement": "NONE",
++      "certificationRequirement": "VERIFIED"
++    },
++    {
++      "capabilityId": "ANIMATION_ENGINE",
++      "version": "2.0.0",
++      "description": "Generate animation externally",
++      "dependencies": [
++        "RIG_ANALYZER"
++      ],
++      "conflicts": [],
++      "riskLevel": "R2",
++      "requiredEvidence": [],
++      "requiredValidators": [
++        "animation_metrics_validator",
++        "visual_review_validator"
++      ],
++      "compatibleEngines": [
++        "animation_service"
++      ],
++      "sandboxRequirement": "PREVIEW",
++      "certificationRequirement": "VERIFIED"
++    },
++    {
++      "capabilityId": "RETARGETING_ENGINE",
++      "version": "2.0.0",
++      "description": "Retarget animation to 
