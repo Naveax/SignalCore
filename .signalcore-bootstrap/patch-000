@@ -1,0 +1,106 @@
+diff --git a/.github/workflows/validate.yml b/.github/workflows/validate.yml
+new file mode 100644
+index 0000000..d2aa7d7
+--- /dev/null
++++ b/.github/workflows/validate.yml
+@@ -0,0 +1,36 @@
++name: Validate SignalCore
++
++on:
++  push:
++    branches: [main]
++  pull_request:
++  workflow_dispatch:
++
++permissions:
++  contents: read
++
++jobs:
++  validate:
++    strategy:
++      fail-fast: false
++      matrix:
++        os: [ubuntu-latest, windows-latest, macos-latest]
++        python-version: ['3.11', '3.12', '3.13']
++    runs-on: ${{ matrix.os }}
++    steps:
++      - uses: actions/checkout@v4
++      - uses: actions/setup-python@v5
++        with:
++          python-version: ${{ matrix.python-version }}
++      - name: Compile
++        run: python -m compileall -q skills/signal-core/scripts skills/signal-core/profiles tools tests benchmarks
++      - name: Validate package
++        run: python tools/validate.py
++      - name: Run all tests
++        run: python -m unittest discover -s tests -q
++      - name: Roblox orchestration smoke benchmark
++        run: python benchmarks/roblox_profile_benchmark.py --cases 50 --output roblox-profile-smoke.json
++      - name: Check platform registry
++        run: python tools/install.py list --output platform-registry.json
++      - name: Dry-run native adapters
++        run: python tools/install.py install --platforms all-native --scope project --project . --dry-run --output native-dry-run.json
+diff --git a/MANIFEST.sha256 b/MANIFEST.sha256
+new file mode 100644
+index 0000000..6966960
+--- /dev/null
++++ b/MANIFEST.sha256
+@@ -0,0 +1,76 @@
++a7ebc6564705e4630e73bdfe087f1433cda5209373bdc28c09241e0facc59098  .claude-plugin/marketplace.json
++6be0f75d940007d1fb4d3993bff964a755c3a7330ebcb11b6ad2bcebe0305fda  .github/copilot-instructions.md
++b8171543ffb967e1dc8c8a68c0842188d10c30aeabbdbf703b0f92ef617c3713  .github/workflows/validate.yml
++1707e60df086d4be0f7c16f7c42e79268bf0d407f8b99cd9371cd39ad063a7db  .gitignore
++3d788351cec96a6457b5846539edc8501b6299e5d3f49bda295e14cf1c3306c2  AGENTS.md
++763ac7a738129a735f5645e6aaca874ba760aa0c424437c1410ed072946f8962  BENCHMARKS.md
++2c87781d4f54efc5b34fd01e8f6c389749675614298a271e38fd92f5db1dbe72  CHANGELOG.md
++7da8e8e7e38970ae28b50befe7a5e5c03d8566c5a688c4e66e64f3a9a3974919  COMPATIBILITY.md
++990145550db5191a59118adad2d2805eb15825f53a60a634a5ada4862b380570  GEMINI.md
++1e7769a67d520c65fa52b9ddb1121c225fc67085bf94b52677e77152cd43b5e2  README.md
++4e8c57f95ea0df4a6d1b2b1531fe40ac0ba6af6adf2a0ea71c5f5eae6dab3b74  ROBLOX_STUDIO_MODE.md
++908b8aeabfe26c24c7d5cf4eb32e5e6fc05f9b847da71545590d468d38097be8  SECURITY.md
++e6635045e1d2478ec4ca712d8c0e1dfcef8bb7b5b1e8e3bb560d37fe399a9e72  VERSION
++888ea80014efac30f20b163e4481bf12ceca9e67e4eeb426ebc2caca96610d54  benchmarks/results/roblox-profile/controlled-500.json
++4c5db24ab0120c3b8ab27a43d0fff88a8f88780b1292b9a0bae52fa5bda655c6  benchmarks/results/roblox-profile/deterministic-latency-2000.json
++458df001a921cb494819489fd389e3eb40ded2b697cceea2bcebb80dde64bcf3  benchmarks/results/runtime-v3/capsule-repair-4.json
++cf6c329c472c17ae70f9002014cf1d09fce639d8e9dcd31527dc69856bb250a6  benchmarks/results/runtime-v3/hard-600.json
++ec7a753258b3e856db93cbdde197060dff7fbc8ac90ddbcc826b3b92fd5ae6f9  benchmarks/results/runtime-v3/release.json
++258e66a091f208cea52c27f6892edeb2d0104f3c9bcc02f0056f5b997af11dfc  benchmarks/results/runtime-v3/runtime-output-400.json
++8c31a81f53f02237cf44dabeb3545020f403c8441d45186c346aecf954a76bdd  benchmarks/results/runtime-v3/semantic-120.json
++a2eac5966be56836a0fc8723efc4e605d98147dfeee113eec5482f0003f813fa  benchmarks/roblox_profile_benchmark.py
++e9df05180f82cc6416f2d646dd09c659d7aa420627d12a439979162cee191251  codemeta.json
++e67801ec0a89bb3c2dc18cbe3e0c9234c22a65a7fac348db6481c929332abf89  gemini-extension.json
++a2444f33c7fc54250b3af8eefbe76f835f9e8844cf6dc2b93c0dc96e86d003f7  llms.txt
++651928447cb55c7b26d3383508a82065b6e48878853d3360bf84b967a87eb60a  skills/signal-core/SKILL.md
++6fb1f6ad9e428baab7f215490dc10470bfeb6d0c71543255cde4a2ce62cf20e2  skills/signal-core/data/lexicon.json
++87971faf09a7bfa556edd620f9bc3b156d4f6d74dc11e6fc37e9f65c5c688bc4  skills/signal-core/data/platforms.json
++058c099de8356771254d34239b5548a3b3375b98e34778614dc02993cb75d456  skills/signal-core/profiles/roblox_studio/ARCHITECTURE.md
++e2b7d1aa7185c5fcc5e7a8c976dd3b7002dc8e11c95eddd73172e0cbef4113bf  skills/signal-core/profiles/roblox_studio/BENCHMARK_RESULTS.md
++be95f2d001c3c36e55fd312d17333c1ca6fc236bd8585ae3255961bcf36db997  skills/signal-core/profiles/roblox_studio/COMPLETION_REPORT.md
++6782432bf614a11132f8c5cc8ad8935d6cd1c2fa7eb0845ec6d5c085b87c3b65  skills/signal-core/profiles/roblox_studio/MIGRATION.md
++a273e726a6e4c52f9dc78f51224ee21268df4719133c5c7b6aa3610e2f4ed4b0  skills/signal-core/profiles/roblox_studio/README.md
++3cddb4af830d57e8503bae1a9a4413de9079aaf7d55f74856eaa29a791f4a886  skills/signal-core/profiles/roblox_studio/__init__.py
++bbd02d668482dbbe0ea532114c237fddd10c349fa28431f4bf13c4285fc89d0e  skills/signal-core/profiles/roblox_studio/activation.py
++b7b8cb192cf9c939eefc4aa72fc55b77a2077d404f7779c05210f0f720a93f02  skills/signal-core/profiles/roblox_studio/benchmark.py
++a11f0880394168d49bad8f5e29c2a7417d73c9fdf74265900b09253f7ecd4654  skills/signal-core/profiles/roblox_studio/capabilities.json
++2b37ce0a7627a9f093c9450892d1347c49ba9b0bd9def5303d2976c71ddb8b82  skills/signal-core/profiles/roblox_studio/capability_graph.py
++db18186379854c77cc7f88f58e62eac2def7c987ab8bad02e40a0607ac1ec2f3  skills/signal-core/profiles/roblox_studio/certification.example.json
++30c2030ca0debfea22e56013769b5f8dd9f6608aed899dd181508921990794de  skills/signal-core/profiles/roblox_studio/certification.py
++60b89760b930d5ea2ee098aae801f9a2d127ce23135ab4edb6f1c40af3dcf421  skills/signal-core/profiles/roblox_studio/config.default.json
++9ec2dca87e059ef106ebae62ef620ce06554f858f9f52ea22440ad1506bb79c4  skills/signal-core/profiles/roblox_studio/config.py
++115c2d4a252c0bcf3b90d1c9d5e2c36e0fa7171b4518a31ffb544f6d533c8408  skills/signal-core/profiles/roblox_studio/engines.example.json
++20d0f022577b246c7e682c34fe722a92a15f69c0074daadbf1ab8ac0ef898e7f  skills/signal-core/profiles/roblox_studio/errors.py
++3979bedd94c247aad5888d3d440dceb81c36f20d5da4158ae1296daf5539d275  skills/signal-core/profiles/roblox_studio/evidence.py
++29f8dda3ba5dcb15283bfff76f4dc24f1f0d4e2a4bee4c38baf026d529b22c57  skills/signal-core/profiles/roblox_studio/external_agent_example.py
++a5abe62fdbce822905d18173f2a2503ac20fed1c16ca65ce8bfeb130fa2e1f93  skills/signal-core/profiles/roblox_studio/governance.py
++67b5eef0d46e459dc60efe407cae79b383cb2b49f52691cc3660f29ecb82968f  skills/signal-core/profiles/roblox_studio/models.example.json
++7ba0bfcc1c1e694906b8775436fb86d8dda826d86587043b8c4875ea26d4738e  skills/signal-core/profiles/roblox_studio/orchestrator.py
++8495883f1a217342b05ed96bab5a268442f3c0efedab2455d621a2e5938102bd  skills/signal-core/profiles/roblox_studio/profile.json
++fb9424d75599d09c676ab4cd4ab26d7093bf37c0683429882c6b55e7bee685ff  skills/signal-core/profiles/roblox_studio/registries.py
++e6e50c32f286ef3c74b49e51dfd440fcfda09c974ffaeb70ee3d4f1cf4b33692  skills/signal-core/profiles/roblox_studio/routing.py
++cccd5689eabc7151007831dcb324f88d08043ac3a01b42d11b71c69a7efffbd3  skills/signal-core/profiles/roblox_studio/runtime.py
++31acbb1f2c9b7356c3b06e8c9c1e805be8f46738589316c1cfe21897380fc857  skills/signal-core/profiles/roblox_studio/schemas/engine.schema.json
++8d60ab0b32ad1ae2a90556647b5ece91d5a6773f73f404cfc3faf3f8ebdda95d  skills/signal-core/profiles/roblox_studio/schemas/evidence.schema.json
++9ab3ee0cc16dbded88a42755d4baf02c5c44c34ee4b29f1a1fb6c7a5309b273a  skills/signal-core/profiles/roblox_studio/schemas/model.schema.json
++6b0001d87b3b2ca4b1fb7d3cd3de66b89395d51002d8a3cea16526fbcab0535a  skills/signal-core/profiles/roblox_studio/schemas/task-state.schema.json
++9b9470a5de9a543aee7cc57aa8537daa40eee50b556d134ccc1b74d287775420  skills/signal-core/profiles/roblox_studio/schemas/telemetry.schema.json
++edcd33f26bf167ec7279a7
