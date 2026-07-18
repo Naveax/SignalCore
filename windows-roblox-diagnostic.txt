@@ -124,7 +124,7 @@ ERROR: test_append_recover_and_chain (test_runtime.EvidenceTests.test_append_rec
 Traceback (most recent call last):
   File "C:\hostedtoolcache\windows\Python\3.12.10\x64\Lib\shutil.py", line 633, in _rmtree_unsafe
     os.unlink(fullname)
-PermissionError: [WinError 32] The process cannot access the file because it is being used by another process: 'C:\\Users\\RUNNER~1\\AppData\\Local\\Temp\\tmpiba8ywnc\\e.db'
+PermissionError: [WinError 32] The process cannot access the file because it is being used by another process: 'C:\\Users\\RUNNER~1\\AppData\\Local\\Temp\\tmpte66qg8m\\e.db'
 
 During handling of the above exception, another exception occurred:
 
@@ -145,7 +145,7 @@ Traceback (most recent call last):
     onexc(os.unlink, fullname, err)
   File "C:\hostedtoolcache\windows\Python\3.12.10\x64\Lib\tempfile.py", line 909, in onexc
     _os.unlink(path)
-PermissionError: [WinError 32] The process cannot access the file because it is being used by another process: 'C:\\Users\\RUNNER~1\\AppData\\Local\\Temp\\tmpiba8ywnc\\e.db'
+PermissionError: [WinError 32] The process cannot access the file because it is being used by another process: 'C:\\Users\\RUNNER~1\\AppData\\Local\\Temp\\tmpte66qg8m\\e.db'
 
 ======================================================================
 ERROR: test_branch_isolation (test_runtime.EvidenceTests.test_branch_isolation)
@@ -153,7 +153,7 @@ ERROR: test_branch_isolation (test_runtime.EvidenceTests.test_branch_isolation)
 Traceback (most recent call last):
   File "C:\hostedtoolcache\windows\Python\3.12.10\x64\Lib\shutil.py", line 633, in _rmtree_unsafe
     os.unlink(fullname)
-PermissionError: [WinError 32] The process cannot access the file because it is being used by another process: 'C:\\Users\\RUNNER~1\\AppData\\Local\\Temp\\tmphuhrvkry\\e.db'
+PermissionError: [WinError 32] The process cannot access the file because it is being used by another process: 'C:\\Users\\RUNNER~1\\AppData\\Local\\Temp\\tmp2smqcjwa\\e.db'
 
 During handling of the above exception, another exception occurred:
 
@@ -174,7 +174,7 @@ Traceback (most recent call last):
     onexc(os.unlink, fullname, err)
   File "C:\hostedtoolcache\windows\Python\3.12.10\x64\Lib\tempfile.py", line 909, in onexc
     _os.unlink(path)
-PermissionError: [WinError 32] The process cannot access the file because it is being used by another process: 'C:\\Users\\RUNNER~1\\AppData\\Local\\Temp\\tmphuhrvkry\\e.db'
+PermissionError: [WinError 32] The process cannot access the file because it is being used by another process: 'C:\\Users\\RUNNER~1\\AppData\\Local\\Temp\\tmp2smqcjwa\\e.db'
 
 ======================================================================
 ERROR: test_contradiction_detection (test_runtime.EvidenceTests.test_contradiction_detection)
@@ -182,7 +182,7 @@ ERROR: test_contradiction_detection (test_runtime.EvidenceTests.test_contradicti
 Traceback (most recent call last):
   File "C:\hostedtoolcache\windows\Python\3.12.10\x64\Lib\shutil.py", line 633, in _rmtree_unsafe
     os.unlink(fullname)
-PermissionError: [WinError 32] The process cannot access the file because it is being used by another process: 'C:\\Users\\RUNNER~1\\AppData\\Local\\Temp\\tmpkb8go_ju\\e.db'
+PermissionError: [WinError 32] The process cannot access the file because it is being used by another process: 'C:\\Users\\RUNNER~1\\AppData\\Local\\Temp\\tmp__mo5zdo\\e.db'
 
 During handling of the above exception, another exception occurred:
 
@@ -203,7 +203,7 @@ Traceback (most recent call last):
     onexc(os.unlink, fullname, err)
   File "C:\hostedtoolcache\windows\Python\3.12.10\x64\Lib\tempfile.py", line 909, in onexc
     _os.unlink(path)
-PermissionError: [WinError 32] The process cannot access the file because it is being used by another process: 'C:\\Users\\RUNNER~1\\AppData\\Local\\Temp\\tmpkb8go_ju\\e.db'
+PermissionError: [WinError 32] The process cannot access the file because it is being used by another process: 'C:\\Users\\RUNNER~1\\AppData\\Local\\Temp\\tmp__mo5zdo\\e.db'
 
 ======================================================================
 ERROR: test_memory_project_branch_commit_isolation (test_runtime.OutputMemoryTests.test_memory_project_branch_commit_isolation)
@@ -211,7 +211,7 @@ ERROR: test_memory_project_branch_commit_isolation (test_runtime.OutputMemoryTes
 Traceback (most recent call last):
   File "C:\hostedtoolcache\windows\Python\3.12.10\x64\Lib\shutil.py", line 633, in _rmtree_unsafe
     os.unlink(fullname)
-PermissionError: [WinError 32] The process cannot access the file because it is being used by another process: 'C:\\Users\\RUNNER~1\\AppData\\Local\\Temp\\tmpc9599x5n\\m.db'
+PermissionError: [WinError 32] The process cannot access the file because it is being used by another process: 'C:\\Users\\RUNNER~1\\AppData\\Local\\Temp\\tmpq4dwu8u6\\m.db'
 
 During handling of the above exception, another exception occurred:
 
@@ -232,7 +232,7 @@ Traceback (most recent call last):
     onexc(os.unlink, fullname, err)
   File "C:\hostedtoolcache\windows\Python\3.12.10\x64\Lib\tempfile.py", line 909, in onexc
     _os.unlink(path)
-PermissionError: [WinError 32] The process cannot access the file because it is being used by another process: 'C:\\Users\\RUNNER~1\\AppData\\Local\\Temp\\tmpc9599x5n\\m.db'
+PermissionError: [WinError 32] The process cannot access the file because it is being used by another process: 'C:\\Users\\RUNNER~1\\AppData\\Local\\Temp\\tmpq4dwu8u6\\m.db'
 
 ======================================================================
 ERROR: test_signed_activation_to_verified_simulated_workflow_components (test_runtime.VerticalSliceTests.test_signed_activation_to_verified_simulated_workflow_components)
@@ -240,7 +240,7 @@ ERROR: test_signed_activation_to_verified_simulated_workflow_components (test_ru
 Traceback (most recent call last):
   File "C:\hostedtoolcache\windows\Python\3.12.10\x64\Lib\shutil.py", line 633, in _rmtree_unsafe
     os.unlink(fullname)
-PermissionError: [WinError 32] The process cannot access the file because it is being used by another process: 'C:\\Users\\RUNNER~1\\AppData\\Local\\Temp\\tmpeco2j4kg\\evidence.db'
+PermissionError: [WinError 32] The process cannot access the file because it is being used by another process: 'C:\\Users\\RUNNER~1\\AppData\\Local\\Temp\\tmp47nrhlyl\\evidence.db'
 
 During handling of the above exception, another exception occurred:
 
@@ -261,10 +261,10 @@ Traceback (most recent call last):
     onexc(os.unlink, fullname, err)
   File "C:\hostedtoolcache\windows\Python\3.12.10\x64\Lib\tempfile.py", line 909, in onexc
     _os.unlink(path)
-PermissionError: [WinError 32] The process cannot access the file because it is being used by another process: 'C:\\Users\\RUNNER~1\\AppData\\Local\\Temp\\tmpeco2j4kg\\evidence.db'
+PermissionError: [WinError 32] The process cannot access the file because it is being used by another process: 'C:\\Users\\RUNNER~1\\AppData\\Local\\Temp\\tmp47nrhlyl\\evidence.db'
 
 ----------------------------------------------------------------------
-Ran 119 tests in 6.863s
+Ran 119 tests in 1.476s
 
 FAILED (errors=5)
 exit_code=1
