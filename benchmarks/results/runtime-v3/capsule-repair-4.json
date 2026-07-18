@@ -1,0 +1,62 @@
+{
+  "benchmark": "signalcore-capsule-only-repair",
+  "scope": "four controlled Python mini-repositories; repair chosen from capsule evidence only; not SWE-bench or provider proof",
+  "cases": 4,
+  "passed_cases": 4,
+  "mean_context_reduction": 0.9734843984166254,
+  "all_passed": true,
+  "rows": [
+    {
+      "seed": 0,
+      "marker": "SC_AGENT_894772",
+      "full_repository_tokens": 5228,
+      "capsule_tokens": 137,
+      "reduction": 0.9737949502677888,
+      "patch_anchor": "return f'{commit}:{path}'",
+      "patch_replacement": "return f'{commit}:{schema}:{path}'",
+      "verifier_exit_code": 0,
+      "verifier_tail": ".                                                                        [100%]\n1 passed in 0.06s",
+      "passed": true,
+      "reasoning_source_reads": 0
+    },
+    {
+      "seed": 1,
+      "marker": "SC_AGENT_696853",
+      "full_repository_tokens": 5244,
+      "capsule_tokens": 142,
+      "reduction": 0.9729214340198322,
+      "patch_anchor": "return signature_valid or scope == 'write'",
+      "patch_replacement": "return signature_valid and scope == 'write'",
+      "verifier_exit_code": 0,
+      "verifier_tail": ".                                                                        [100%]\n1 passed in 0.06s",
+      "passed": true,
+      "reasoning_source_reads": 0
+    },
+    {
+      "seed": 2,
+      "marker": "SC_AGENT_196033",
+      "full_repository_tokens": 5248,
+      "capsule_tokens": 157,
+      "reduction": 0.9700838414634146,
+      "patch_anchor": "return observed >= expected",
+      "patch_replacement": "return observed == expected",
+      "verifier_exit_code": 0,
+      "verifier_tail": ".                                                                        [100%]\n1 passed in 0.06s",
+      "passed": true,
+      "reasoning_source_reads": 0
+    },
+    {
+      "seed": 5,
+      "marker": "SC_AGENT_877820",
+      "full_repository_tokens": 5205,
+      "capsule_tokens": 119,
+      "reduction": 0.9771373679154659,
+      "patch_anchor": "return values[start:end]",
+      "patch_replacement": "return values[start:end + 1]",
+      "verifier_exit_code": 0,
+      "verifier_tail": ".                                                                        [100%]\n1 passed in 0.06s",
+      "passed": true,
+      "reasoning_source_reads": 0
+    }
+  ]
+}
