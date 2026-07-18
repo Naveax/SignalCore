@@ -23,7 +23,7 @@ SignalCore is an unreleased, local-first coding-agent control layer. It coordina
 - OpenAI Codex
 - Claude Code
 - Gemini CLI
-- Google Antigravity
+- Google Antigravity IDE and CLI
 - Windsurf Cascade
 - OpenCode
 - VS Code / GitHub Copilot
@@ -51,7 +51,7 @@ python tools/install.py install --platforms all-native --scope project --project
 
 ```bash
 python tools/install.py install \
-  --platforms codex,claude-code,gemini-cli,antigravity,windsurf,opencode,vscode-copilot \
+  --platforms codex,claude-code,gemini-cli,antigravity,antigravity-cli,windsurf,opencode,vscode-copilot \
   --scope project --project .
 ```
 
