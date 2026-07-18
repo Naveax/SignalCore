@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-marketplace.json",
+  "name": "signalcore",
+  "version": "0.0.1",
+  "description": "SignalCore cross-platform coding-agent context, evidence, telemetry, and cost optimization skill",
+  "owner": {
+    "name": "Naveax"
+  },
+  "plugins": [
+    {
+      "name": "signal-core",
+      "description": "Success-first context, evidence, state, telemetry, and token/cost routing for coding agents",
+      "author": {
+        "name": "Naveax"
+      },
+      "category": "development",
+      "source": "./",
+      "strict": false,
+      "skills": [
+        "./skills/signal-core"
+      ],
+      "homepage": "https://github.com/Naveax/SignalCore"
+    }
+  ]
+}
