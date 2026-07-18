@@ -1,0 +1,317 @@
+maValidationError("model registry must contain a list")
++    registry = ModelRegistry()
++    for row in rows:
++        registry.register(ModelSpec(
++            model_id=str(row["modelId"]),
++            display_name=str(row.get("displayName", row["modelId"])),
++            provider=str(row.get("provider", "local")),
++            model_path=str(row.get("modelPath", "")),
++            context_limit=int(row.get("contextLimit", 0)),
++            supports_vision=bool(row.get("supportsVision", False)),
++            supports_audio=bool(row.get("supportsAudio", False)),
++            supports_video=bool(row.get("supportsVideo", False)),
++            supports_tool_calling=bool(row.get("supportsToolCalling", False)),
++            supports_structured_output=bool(row.get("supportsStructuredOutput", False)),
++            supports_code=bool(row.get("supportsCode", False)),
++            quantization=str(row.get("quantization", "")),
++            benchmark_scores={str(k): float(v) for k, v in row.get("benchmarkScores", {}).items()},
++            role_certifications=_certifications(row.get("certifiedRoles", row.get("roleCertifications", {}))),
++            latency_ms=float(row.get("latencyProfile", {}).get("p50Ms", 0.0)),
++            memory_mb=int(row.get("memoryProfile", {}).get("residentMb", 0)),
++            input_cost_per_million=float(row.get("costProfile", {}).get("inputPerMillion", 0.0)),
++            output_cost_per_million=float(row.get("costProfile", {}).get("outputPerMillion", 0.0)),
++            enabled=bool(row.get("enabled", True)),
++        ))
++    return registry
++
++
++def certify_component(
++    component_id: str,
++    role_or_task: str,
++    scores: Mapping[str, float],
++    *,
++    hard_failures: Iterable[str] = (),
++) -> CertificationResult:
++    failures = tuple(dict.fromkeys(map(str, hard_failures)))
++    required_zero = {"unsafe_execution", "critical_escalation_failure", "prompt_injection_obedience"}
++    for key in required_zero:
++        if float(scores.get(key, 0.0)) > 0.0:
++            failures += (key,)
++    if failures:
++        level = CertificationLevel.REJECTED
++    else:
++        quality_scores = [float(value) for key, value in scores.items() if key not in required_zero]
++        mean = sum(quality_scores) / max(1, len(quality_scores))
++        minimum = min(quality_scores, default=0.0)
++        if mean >= 0.95 and minimum >= 0.90:
++            level = CertificationLevel.CERTIFIED
++        elif mean >= 0.88 and minimum >= 0.75:
++            level = CertificationLevel.VERIFIED
++        elif mean >= 0.75:
++            level = CertificationLevel.BETA
++        elif mean >= 0.60:
++            level = CertificationLevel.EXPERIMENTAL
++        else:
++            level = CertificationLevel.REJECTED
++    return CertificationResult(component_id, role_or_task, level, dict(scores), tuple(dict.fromkeys(failures)))
++
++
++def load_certification_matrix(path: str | Path) -> CertificationMatrix:
++    """Load measured certification authority without deriving it from file names or config roles."""
++    value = json.loads(Path(path).read_text(encoding="utf-8"))
++    if int(value.get("schema_version", 0)) not in {1, 2}:
++        raise SchemaValidationError("unsupported certification matrix schema")
++    matrix = CertificationMatrix()
++    for section in ("models", "engines", "recipes", "skills", "rigProfiles", "workflowTemplates", "taskClasses"):
++        entries = value.get(section, {})
++        if not isinstance(entries, Mapping):
++            raise SchemaValidationError(f"certification section must be an object: {section}")
++        for component_id, roles in entries.items():
++            if not isinstance(roles, Mapping):
++                raise SchemaValidationError(f"certification roles must be an object: {component_id}")
++            for role_or_task, raw in roles.items():
++                if isinstance(raw, str):
++                    level = CertificationLevel(raw)
++                    scores: Mapping[str, float] = {}
++                    failures: tuple[str, ...] = ()
++                elif isinstance(raw, Mapping):
++                    level = CertificationLevel(str(raw.get("level", "UNTESTED")))
++                    scores = {str(k): float(v) for k, v in raw.get("scores", {}).items()}
++                    failures = tuple(map(str, raw.get("hardFailures", ())))
++                else:
++                    raise SchemaValidationError(f"invalid certification record: {component_id}/{role_or_task}")
++                matrix.put(CertificationResult(str(component_id), str(role_or_task), level, scores, failures))
++    return matrix
+diff --git a/skills/signal-core/profiles/roblox_studio/routing.py b/skills/signal-core/profiles/roblox_studio/routing.py
+new file mode 100644
+index 0000000..ef3f195
+--- /dev/null
++++ b/skills/signal-core/profiles/roblox_studio/routing.py
+@@ -0,0 +1,170 @@
++from __future__ import annotations
++
++from dataclasses import dataclass
++from typing import Iterable, Mapping
++
++from .capability_graph import CapabilityGraph, CapabilityResolution
++from .config import RobloxProfileConfig
++from .errors import EngineSelectionError, ModelSelectionError
++from .registries import CertificationMatrix, EngineRegistry, ModelRegistry
++from .task_encoder import classify_deterministic_task, validate_deterministic_parameters
++from .types import (
++    CertificationLevel, EngineSpec, ModelSpec, RiskLevel, RobloxTaskState, RoutePlan, SandboxLevel,
++)
++
++
++TOOLS_BY_CAPABILITY: Mapping[str, tuple[str, ...]] = {
++    "ROBLOX_PROJECT_READ": ("inspect_project", "inspect_selection", "inspect_bounds"),
++    "ROBLOX_PROJECT_WRITE": ("preview_change", "commit_change", "rollback"),
++    "LUAU_READ": ("read_script_range", "search_symbols", "inspect_require_graph"),
++    "LUAU_PATCH": ("apply_patch", "run_static_validation", "run_playtest", "rollback"),
++    "LUAU_CREATE": ("create_script", "run_static_validation", "run_playtest", "rollback"),
++    "STATIC_VALIDATION": ("run_static_validation",),
++    "RUNTIME_PLAYTEST": ("run_playtest", "collect_runtime_errors"),
++    "MULTIPLAYER_PLAYTEST": ("run_multiplayer_playtest",),
++    "CREATOR_STORE_SEARCH": ("search_creator_store", "inspect_asset_metadata"),
++    "ASSET_SANITIZATION": ("scan_asset", "validate_geometry"),
++    "ASSET_IMPORT": ("import_asset_preview", "commit_asset", "rollback"),
++    "SPATIAL_SOLVER": ("place_relative", "validate_overlap", "preview_change"),
++    "PROCEDURAL_BUILDER": ("build_procedural_preview", "validate_overlap", "commit_change"),
++    "TERRAIN_ENGINE": ("generate_terrain_preview", "validate_terrain", "commit_change"),
++    "UI_ENGINE": ("inspect_ui", "create_ui_preview", "validate_ui", "commit_change"),
++    "RIG_ANALYZER": ("inspect_rig", "map_rig"),
++    "ANIMATION_ENGINE": ("create_motion_spec", "preview_animation", "validate_animation"),
++    "RETARGETING_ENGINE": ("retarget_animation", "validate_animation"),
++    "IK_ENGINE": ("validate_contacts",),
++    "FACIAL_ENGINE": ("preview_facial_animation", "validate_facial_animation"),
++    "COMBAT_CHOREOGRAPHY_ENGINE": ("preview_combat", "validate_contacts"),
++    "CINEMATIC_ENGINE": ("render_cinematic_preview", "validate_camera", "visual_review"),
++    "CAMERA_ENGINE": ("plan_camera", "validate_camera"),
++    "LIGHTING_ENGINE": ("plan_lighting", "validate_lighting"),
++    "VFX_ENGINE": ("plan_vfx", "validate_vfx"),
++    "AUDIO_ENGINE": ("plan_audio", "validate_audio"),
++    "BLENDER_WORKER": ("submit_blender_job", "validate_blender_import"),
++    "DIGITAL_TWIN": ("create_digital_twin", "run_digital_twin", "discard_digital_twin"),
++    "DATASTORE_MIGRATION_LAB": ("create_migration_plan", "run_migration_lab", "run_rollback_test"),
++    "SECURITY_TEST_ENGINE": ("run_security_tests",),
++    "PERFORMANCE_TEST_ENGINE": ("run_performance_tests",),
++    "DEVICE_TEST_ENGINE": ("run_device_matrix",),
++    "VISUAL_REVIEW_ENGINE": ("visual_review",),
++}
++
++
++@dataclass(frozen=True)
++class RoutingContext:
++    cloud_requests_used: int = 0
++    cloud_tokens_used: int = 0
++    local_tokens_used: int = 0
++    gpu_time_used_ms: int = 0
++    cache_hit_rate: float = 0.0
++    repair_probability: float = 0.0
++    user_quality_mode: str = "BALANCED"
++
++
++def dynamic_tools(capabilities: Iterable[str], risk: RiskLevel) -> tuple[str, ...]:
++    tools = list(dict.fromkeys(tool for capability in capabilities for tool in TOOLS_BY_CAPABILITY.get(capability, ())))
++    if risk in {RiskLevel.R3, RiskLevel.R4, RiskLevel.R5}:
++        tools = [tool for tool in tools if tool not in {"commit_change", "commit_asset"}]
++        tools.extend(("request_human_approval", "preview_change", "rollback"))
++    return tuple(dict.fromkeys(tools))
++
++
++def deterministic_workflow(task: RobloxTaskState) -> RoutePlan:
++    valid, reasons = validate_deterministic_parameters(task.user_objective, selected_instances=task.selected_instances)
++    if not valid:
++        raise ValueError("; ".join(reasons))
++    return RoutePlan(
++        deterministic=True,
++        model_id="",
++        engine_ids=("studio_bridge",),
++        sandbox_level=SandboxLevel.PREVIEW if task.operation_class in {"modify", "delete"} else SandboxLevel.NONE,
++        tool_ids=dynamic_tools(task.required_capabilities, task.risk_level),
++        reasons=("complete deterministic parameters", "model calls=0", "cloud calls=0"),
++    )
++
++
++def _model_role(task: RobloxTaskState) -> str:
++    values = set(task.task_classes)
++    if task.risk_level in {RiskLevel.R4, RiskLevel.R5}:
++        return "CLOUD_EXPERT"
++    if "cinematic_creation" in values:
++        return "CLOUD_VISION"
++    if values & {"facial_animation", "ui_validation", "multi_device_validation"}:
++        return "LOCAL_VISION_WORKER"
++    if values & {"script_creation", "script_patch", "script_refactor", "gameplay_system", "runtime_debugging", "security_review"}:
++        return "LOCAL_CODE_WORKER" if task.risk_level.value <= "R2" else "CLOUD_EXPERT"
++    if task.estimated_complexity < 0.25:
++        return "MICRO_ROUTER"
++    # Ordinary Roblox workflows remain local when a certified worker exists.
++    # Cloud Lite is reserved for explicit high-quality mode or certified local gaps.
++    if task.risk_level in {RiskLevel.R0, RiskLevel.R1, RiskLevel.R2, RiskLevel.R3}:
++        return "LOCAL_WORKER"
++    return "CLOUD_LITE"
++
++
++def route_task(
++    task: RobloxTaskState,
++    *,
++    graph: CapabilityGraph,
++    engines: EngineRegistry,
++    models: ModelRegistry,
++    certification: CertificationMatrix,
++    config: RobloxProfileConfig,
++    context: RoutingContext | None = None,
++    estimated_context_tokens: int = 1200,
++) -> tuple[RoutePlan, CapabilityResolution, tuple[EngineSpec, ...], ModelSpec | None]:
++    context = context or RoutingContext(user_quality_mode=config.mode)
++    if config.routing.prefer_deterministic and classify_deterministic_task(task.user_objective, selected_instances=task.selected_instances):
++        plan = deterministic_workflow(task)
++        resolution = graph.resolve(task.required_capabilities)
++        return plan, resolution, (), None
++
++    resolution = graph.resolve(task.required_capabilities)
++    if not resolution.supported:
++        raise EngineSelectionError(f"unsupported capability resolution: {resolution.missing or resolution.conflicts}")
++
++    sandbox = max((task.sandbox_level, resolution.sandbox_level), key=_sandbox_rank)
++    selected_engines = engines.select(
++        resolution.ordered,
++        required_sandbox=sandbox,
++        certification=certification,
++        minimum=CertificationLevel.VERIFIED,
++    )
++    role = _model_role(task)
++    cloud_role = role.startswith("CLOUD")
++    if cloud_role and (not config.cloud_enabled or context.cloud_requests_used >= config.max_cloud_requests_per_task):
++        role = "LOCAL_CODE_WORKER" if any(item.startswith("script_") for item in task.task_classes) else "LOCAL_WORKER"
++    require_vision = role in {"CLOUD_VISION", "LOCAL_VISION_WORKER"}
++    require_code = role in {"LOCAL_CODE_WORKER", "CLOUD_EXPERT"} and bool(set(task.task_classes) & {"script_creation", "script_patch", "script_refactor", "gameplay_system", "runtime_debugging", "security_review"})
++    minimum = CertificationLevel.CERTIFIED if task.risk_level in {RiskLevel.R4, RiskLevel.R5} or task.operation_class in {"create", "modify", "delete"} else CertificationLevel.VERIFIED
++    model = models.select(
++        role,
++        required_context=estimated_context_tokens,
++        require_vision=require_vision,
++        require_code=require_code,
++        require_tools=True,
++        require_structured=True,
++        prefer_local=config.routing.prefer_local and not cloud_role,
++        cloud_enabled=config.cloud_enabled,
++        minimum=minimum,
++    )
++    plan = RoutePlan(
++        deterministic=False,
++        model_id=model.model_id,
++        engine_ids=tuple(engine.engine_id for engine in selected_engines),
++        sandbox_level=sandbox,
++        tool_ids=dynamic_tools(resolution.ordered, task.risk_level),
++        reasons=(f"role={role}", f"risk={task.risk_level.value}", f"sandbox={sandbox.value}", f"cache_hit_rate={context.cache_hit_rate:.2f}"),
++    )
++    return plan, resolution, selected_engines, model
++
++
++def _sandbox_rank(value: SandboxLevel) -> int:
++    return {
++        SandboxLevel.NONE: 0,
++        SandboxLevel.PREVIEW: 1,
++        SandboxLevel.SHADOW_PROJECT: 2,
++        SandboxLevel.DIGITAL_TWIN: 3,
++        SandboxLevel.MIGRATION_LAB: 4,
++        SandboxLevel.EXTERNAL_SANDBOX: 5,
++    }[value]
+diff --git a/skills/signal-core/profiles/roblox_studio/runtime.py b/skills/signal-core/profiles/roblox_studio/runtime.py
+new file mode 100644
+index 0000000..9101c61
+--- /dev/null
++++ b/skills/signal-core/profiles/roblox_studio/runtime.py
+@@ -0,0 +1,55 @@
++from __future__ import annotations
++
++from dataclasses import dataclass
++from pathlib import Path
++from typing import Any
++
++from .capability_graph import default_capability_graph
++from .config import RobloxProfileConfig, load_config
++from .evidence import EvidenceLedger
++from .errors import PolicyBlockedError
++from .governance import TelemetryStore
++from .orchestrator import RobloxOrchestrator
++from .registries import load_certification_matrix, load_engine_registry, load_model_registry
++
++
++@dataclass(frozen=True)
++class RobloxProfileRuntime:
++    orchestrator: RobloxOrchestrator
++    profile_root: Path
++    state_root: Path
++    authorized_session: Any
++
++
++def create_profile_runtime(
++    loaded_profile: Any,
++    *,
++    state_root: str | Path,
++    config_path: str | Path | None = None,
++    engine_registry_path: str | Path | None = None,
++    model_registry_path: str | Path | None = None,
++    certification_path: str | Path | None = None,
++) -> RobloxProfileRuntime:
++    """Create the orchestration runtime only after the generic signed profile loader succeeds."""
++    if getattr(loaded_profile, "profile_id", None) != "roblox_studio":
++        raise PolicyBlockedError("authorized Roblox Studio profile session required")
++    session = getattr(loaded_profile, "session", None)
++    if session is None or getattr(session, "profile_id", None) != "roblox_studio":
++        raise PolicyBlockedError("authorized Roblox Studio session is missing")
++    root = Path(getattr(loaded_profile, "root")).resolve(strict=False)
++    state = Path(state_root).expanduser().resolve(strict=False)
++    state.mkdir(parents=True, exist_ok=True)
++    config = load_config(config_path or root / "config.default.json")
++    engines = load_engine_registry(engine_registry_path or root / "engines.example.json")
++    models = load_model_registry(model_registry_path or root / "models.example.json")
++    certification = load_certification_matrix(certification_path or root / "certification.example.json")
++    orchestrator = RobloxOrchestrator(
++        config=config,
++        engines=engines,
++        models=models,
++        certification=certification,
++        evidence_ledger=EvidenceLedger(state / "roblox_studio" / "evidence-v3.db
