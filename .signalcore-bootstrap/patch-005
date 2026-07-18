@@ -1,0 +1,456 @@
+rig",
++      "dependencies": [
++        "ANIMATION_ENGINE",
++        "RIG_ANALYZER"
++      ],
++      "conflicts": [],
++      "riskLevel": "R3",
++      "requiredEvidence": [],
++      "requiredValidators": [
++        "rig_validator",
++        "animation_metrics_validator"
++      ],
++      "compatibleEngines": [
++        "animation_service"
++      ],
++      "sandboxRequirement": "PREVIEW",
++      "certificationRequirement": "CERTIFIED"
++    },
++    {
++      "capabilityId": "IK_ENGINE",
++      "version": "2.0.0",
++      "description": "Validate IK/contact constraints",
++      "dependencies": [
++        "RIG_ANALYZER"
++      ],
++      "conflicts": [],
++      "riskLevel": "R0",
++      "requiredEvidence": [],
++      "requiredValidators": [
++        "contact_validator"
++      ],
++      "compatibleEngines": [
++        "animation_service"
++      ],
++      "sandboxRequirement": "NONE",
++      "certificationRequirement": "VERIFIED"
++    },
++    {
++      "capabilityId": "FACIAL_ENGINE",
++      "version": "2.0.0",
++      "description": "Generate facial animation externally",
++      "dependencies": [
++        "ANIMATION_ENGINE"
++      ],
++      "conflicts": [],
++      "riskLevel": "R2",
++      "requiredEvidence": [],
++      "requiredValidators": [
++        "facial_validator",
++        "visual_review_validator"
++      ],
++      "compatibleEngines": [
++        "facial_service"
++      ],
++      "sandboxRequirement": "PREVIEW",
++      "certificationRequirement": "VERIFIED"
++    },
++    {
++      "capabilityId": "COMBAT_CHOREOGRAPHY_ENGINE",
++      "version": "2.0.0",
++      "description": "Generate combat choreography externally",
++      "dependencies": [
++        "ANIMATION_ENGINE",
++        "IK_ENGINE"
++      ],
++      "conflicts": [],
++      "riskLevel": "R3",
++      "requiredEvidence": [],
++      "requiredValidators": [
++        "contact_validator",
++        "combat_validator",
++        "visual_review_validator"
++      ],
++      "compatibleEngines": [
++        "choreography_service"
++      ],
++      "sandboxRequirement": "DIGITAL_TWIN",
++      "certificationRequirement": "CERTIFIED"
++    },
++    {
++      "capabilityId": "CAMERA_ENGINE",
++      "version": "2.0.0",
++      "description": "Plan and validate cameras",
++      "dependencies": [
++        "ROBLOX_PROJECT_READ"
++      ],
++      "conflicts": [],
++      "riskLevel": "R0",
++      "requiredEvidence": [],
++      "requiredValidators": [
++        "camera_collision_validator"
++      ],
++      "compatibleEngines": [
++        "cinematic_service"
++      ],
++      "sandboxRequirement": "NONE",
++      "certificationRequirement": "VERIFIED"
++    },
++    {
++      "capabilityId": "LIGHTING_ENGINE",
++      "version": "2.0.0",
++      "description": "Plan lighting sequence",
++      "dependencies": [
++        "ROBLOX_PROJECT_READ"
++      ],
++      "conflicts": [],
++      "riskLevel": "R0",
++      "requiredEvidence": [],
++      "requiredValidators": [
++        "lighting_validator",
++        "performance_validator"
++      ],
++      "compatibleEngines": [
++        "cinematic_service"
++      ],
++      "sandboxRequirement": "NONE",
++      "certificationRequirement": "VERIFIED"
++    },
++    {
++      "capabilityId": "VFX_ENGINE",
++      "version": "2.0.0",
++      "description": "Plan VFX sequence",
++      "dependencies": [
++        "ROBLOX_PROJECT_READ"
++      ],
++      "conflicts": [],
++      "riskLevel": "R0",
++      "requiredEvidence": [],
++      "requiredValidators": [
++        "vfx_validator",
++        "performance_validator"
++      ],
++      "compatibleEngines": [
++        "cinematic_service"
++      ],
++      "sandboxRequirement": "NONE",
++      "certificationRequirement": "VERIFIED"
++    },
++    {
++      "capabilityId": "AUDIO_ENGINE",
++      "version": "2.0.0",
++      "description": "Plan audio sequence",
++      "dependencies": [],
++      "conflicts": [],
++      "riskLevel": "R0",
++      "requiredEvidence": [],
++      "requiredValidators": [
++        "audio_validator"
++      ],
++      "compatibleEngines": [
++        "cinematic_service"
++      ],
++      "sandboxRequirement": "NONE",
++      "certificationRequirement": "VERIFIED"
++    },
++    {
++      "capabilityId": "CINEMATIC_ENGINE",
++      "version": "2.0.0",
++      "description": "Build cinematic workflow externally",
++      "dependencies": [
++        "CAMERA_ENGINE",
++        "LIGHTING_ENGINE",
++        "VFX_ENGINE",
++        "AUDIO_ENGINE"
++      ],
++      "conflicts": [],
++      "riskLevel": "R3",
++      "requiredEvidence": [],
++      "requiredValidators": [
++        "camera_collision_validator",
++        "visual_review_validator",
++        "performance_validator"
++      ],
++      "compatibleEngines": [
++        "cinematic_service"
++      ],
++      "sandboxRequirement": "DIGITAL_TWIN",
++      "certificationRequirement": "CERTIFIED"
++    },
++    {
++      "capabilityId": "BLENDER_WORKER",
++      "version": "2.0.0",
++      "description": "Run external Blender job",
++      "dependencies": [],
++      "conflicts": [],
++      "riskLevel": "R4",
++      "requiredEvidence": [],
++      "requiredValidators": [
++        "blender_import_validator",
++        "rig_validator"
++      ],
++      "compatibleEngines": [
++        "blender_worker"
++      ],
++      "sandboxRequirement": "EXTERNAL_SANDBOX",
++      "certificationRequirement": "CERTIFIED"
++    },
++    {
++      "capabilityId": "DIGITAL_TWIN",
++      "version": "2.0.0",
++      "description": "Run isolated project clone",
++      "dependencies": [
++        "ROBLOX_PROJECT_READ"
++      ],
++      "conflicts": [],
++      "riskLevel": "R3",
++      "requiredEvidence": [],
++      "requiredValidators": [
++        "digital_twin_validator"
++      ],
++      "compatibleEngines": [
++        "digital_twin_runner"
++      ],
++      "sandboxRequirement": "DIGITAL_TWIN",
++      "certificationRequirement": "CERTIFIED"
++    },
++    {
++      "capabilityId": "DATASTORE_MIGRATION_LAB",
++      "version": "2.0.0",
++      "description": "Test DataStore migration and rollback",
++      "dependencies": [
++        "DIGITAL_TWIN"
++      ],
++      "conflicts": [],
++      "riskLevel": "R5",
++      "requiredEvidence": [],
++      "requiredValidators": [
++        "migration_validator",
++        "rollback_validator"
++      ],
++      "compatibleEngines": [
++        "migration_lab"
++      ],
++      "sandboxRequirement": "MIGRATION_LAB",
++      "certificationRequirement": "CERTIFIED"
++    },
++    {
++      "capabilityId": "SECURITY_TEST_ENGINE",
++      "version": "2.0.0",
++      "description": "Run independent security tests",
++      "dependencies": [
++        "RUNTIME_PLAYTEST"
++      ],
++      "conflicts": [],
++      "riskLevel": "R4",
++      "requiredEvidence": [],
++      "requiredValidators": [
++        "security_result_validator"
++      ],
++      "compatibleEngines": [
++        "security_test_service"
++      ],
++      "sandboxRequirement": "DIGITAL_TWIN",
++      "certificationRequirement": "CERTIFIED"
++    },
++    {
++      "capabilityId": "PERFORMANCE_TEST_ENGINE",
++      "version": "2.0.0",
++      "description": "Run performance tests",
++      "dependencies": [
++        "RUNTIME_PLAYTEST"
++      ],
++      "conflicts": [],
++      "riskLevel": "R0",
++      "requiredEvidence": [],
++      "requiredValidators": [
++        "performance_result_validator"
++      ],
++      "compatibleEngines": [
++        "performance_test_service"
++      ],
++      "sandboxRequirement": "DIGITAL_TWIN",
++      "certificationRequirement": "VERIFIED"
++    },
++    {
++      "capabilityId": "DEVICE_TEST_ENGINE",
++      "version": "2.0.0",
++      "description": "Run multi-device tests",
++      "dependencies": [
++        "RUNTIME_PLAYTEST"
++      ],
++      "conflicts": [],
++      "riskLevel": "R0",
++      "requiredEvidence": [],
++      "requiredValidators": [
++        "device_result_validator"
++      ],
++      "compatibleEngines": [
++        "device_test_service"
++      ],
++      "sandboxRequirement": "DIGITAL_TWIN",
++      "certificationRequirement": "VERIFIED"
++    },
++    {
++      "capabilityId": "VISUAL_REVIEW_ENGINE",
++      "version": "2.0.0",
++      "description": "Run independent visual review",
++      "dependencies": [],
++      "conflicts": [],
++      "riskLevel": "R0",
++      "requiredEvidence": [],
++      "requiredValidators": [
++        "visual_review_validator"
++      ],
++      "compatibleEngines": [
++        "visual_review_service"
++      ],
++      "sandboxRequirement": "NONE",
++      "certificationRequirement": "VERIFIED"
++    }
++  ]
++}
+diff --git a/skills/signal-core/profiles/roblox_studio/capability_graph.py b/skills/signal-core/profiles/roblox_studio/capability_graph.py
+new file mode 100644
+index 0000000..9b13bdf
+--- /dev/null
++++ b/skills/signal-core/profiles/roblox_studio/capability_graph.py
+@@ -0,0 +1,165 @@
++from __future__ import annotations
++
++from dataclasses import dataclass
++from typing import Iterable, Mapping
++
++from .errors import CapabilityResolutionError
++from .types import CapabilitySpec, CertificationLevel, RiskLevel, SandboxLevel
++
++
++CAPABILITY_IDS = (
++    "ROBLOX_PROJECT_READ", "ROBLOX_PROJECT_WRITE", "LUAU_READ", "LUAU_PATCH", "LUAU_CREATE",
++    "STATIC_VALIDATION", "RUNTIME_PLAYTEST", "MULTIPLAYER_PLAYTEST", "CREATOR_STORE_SEARCH",
++    "ASSET_IMPORT", "ASSET_SANITIZATION", "SPATIAL_SOLVER", "PROCEDURAL_BUILDER", "TERRAIN_ENGINE",
++    "UI_ENGINE", "ANIMATION_ENGINE", "RIG_ANALYZER", "RETARGETING_ENGINE", "IK_ENGINE", "FACIAL_ENGINE",
++    "COMBAT_CHOREOGRAPHY_ENGINE", "CINEMATIC_ENGINE", "CAMERA_ENGINE", "LIGHTING_ENGINE", "VFX_ENGINE",
++    "AUDIO_ENGINE", "BLENDER_WORKER", "DIGITAL_TWIN", "DATASTORE_MIGRATION_LAB", "SECURITY_TEST_ENGINE",
++    "PERFORMANCE_TEST_ENGINE", "DEVICE_TEST_ENGINE", "VISUAL_REVIEW_ENGINE",
++)
++
++
++@dataclass(frozen=True)
++class CapabilityResolution:
++    requested: tuple[str, ...]
++    ordered: tuple[str, ...]
++    missing: tuple[str, ...]
++    conflicts: tuple[tuple[str, str], ...]
++    required_validators: tuple[str, ...]
++    sandbox_level: SandboxLevel
++    maximum_risk: RiskLevel
++
++    @property
++    def supported(self) -> bool:
++        return not self.missing and not self.conflicts
++
++
++class CapabilityGraph:
++    def __init__(self, specs: Iterable[CapabilitySpec], version: str = "2.0.0") -> None:
++        self.version = version
++        self.specs = {spec.capability_id: spec for spec in specs}
++        duplicate_count = len(tuple(specs)) - len(self.specs) if not isinstance(specs, tuple) else 0
++        if duplicate_count:
++            raise ValueError("duplicate capability identifiers")
++
++    def get(self, capability_id: str) -> CapabilitySpec:
++        try:
++            return self.specs[capability_id]
++        except KeyError as exc:
++            raise CapabilityResolutionError(f"unknown capability: {capability_id}") from exc
++
++    def resolve(self, requested: Iterable[str]) -> CapabilityResolution:
++        requested_tuple = tuple(dict.fromkeys(map(str, requested)))
++        missing = tuple(sorted(cap for cap in requested_tuple if cap not in self.specs))
++        visited: set[str] = set()
++        visiting: set[str] = set()
++        ordered: list[str] = []
++
++        def visit(capability_id: str) -> None:
++            if capability_id in visited or capability_id in missing:
++                return
++            if capability_id in visiting:
++                raise CapabilityResolutionError(f"capability dependency cycle at {capability_id}")
++            visiting.add(capability_id)
++            spec = self.specs[capability_id]
++            for dependency in spec.dependencies:
++                if dependency not in self.specs:
++                    raise CapabilityResolutionError(f"missing dependency {dependency} for {capability_id}")
++                visit(dependency)
++            visiting.remove(capability_id)
++            visited.add(capability_id)
++            ordered.append(capability_id)
++
++        for capability in requested_tuple:
++            visit(capability)
++
++        conflicts: set[tuple[str, str]] = set()
++        active = set(ordered)
++        for capability in ordered:
++            for conflict in self.specs[capability].conflicts:
++                if conflict in active:
++                    conflicts.add(tuple(sorted((capability, conflict))))
++        validators = tuple(dict.fromkeys(
++            validator for capability in ordered for validator in self.specs[capability].required_validators
++        ))
++        sandbox = max((self.specs[capability].sandbox_requirement for capability in ordered), key=_sandbox_rank, default=SandboxLevel.NONE)
++        risk = max((self.specs[capability].risk_level for capability in ordered), key=_risk_rank, default=RiskLevel.R0)
++        return CapabilityResolution(requested_tuple, tuple(ordered), missing, tuple(sorted(conflicts)), validators, sandbox, risk)
++
++    def compatible_engines(self, capability_id: str) -> tuple[str, ...]:
++        return self.get(capability_id).compatible_engines
++
++    def minimum_certification(self, capability_id: str) -> CertificationLevel:
++        return self.get(capability_id).certification_requirement
++
++
++def _risk_rank(value: RiskLevel) -> int:
++    return int(value.value[1:])
++
++
++def _sandbox_rank(value: SandboxLevel) -> int:
++    return {
++        SandboxLevel.NONE: 0,
++        SandboxLevel.PREVIEW: 1,
++        SandboxLevel.SHADOW_PROJECT: 2,
++        SandboxLevel.DIGITAL_TWIN: 3,
++        SandboxLevel.MIGRATION_LAB: 4,
++        SandboxLevel.EXTERNAL_SANDBOX: 5,
++    }[value]
++
++
++def default_capability_graph() -> CapabilityGraph:
++    specs: list[CapabilitySpec] = []
++
++    def add(
++        capability_id: str,
++        description: str,
++        *,
++        dependencies: tuple[str, ...] = (),
++        risk: RiskLevel = RiskLevel.R0,
++        evidence: tuple[str, ...] = (),
++        validators: tuple[str, ...] = (),
++        engines: tuple[str, ...] = (),
++        sandbox: SandboxLevel = SandboxLevel.NONE,
++        certification: CertificationLevel = CertificationLevel.VERIFIED,
++        conflicts: tuple[str, ...] = (),
++    ) -> None:
++        specs.append(CapabilitySpec(
++            capability_id, "2.0.0", description, dependencies, conflicts, risk,
++            evidence, validators, engines, sandbox, certification,
++        ))
++
++    add("ROBLOX_PROJECT_READ", "Read bounded Roblox project structure", engines=("studio_bridge",))
++    add("ROBLOX_PROJECT_WRITE", "Apply reviewed Roblox project changes", dependencies=("ROBLOX_PROJECT_READ",), risk=RiskLevel.R3, validators=("project_diff_validator",), engines=("studio_bridge",), sandbox=SandboxLevel.PREVIEW, certification=CertificationLevel.CERTIFIED)
++    add("LUAU_READ", "Read bounded Luau ranges", dependencies=("ROBLOX_PROJECT_READ",), evidence=("PROJECT_SCRIPT",), engines=("studio_bridge", "luau_service"))
++    add("LUAU_PATCH", "Patch existing Luau code", dependencies=("LUAU_READ", "STATIC_VALIDATION", "ROBLOX_PROJECT_WRITE"), risk=RiskLevel.R3, validators=("luau_static_validator", "runtime_validator"), engines=("luau_service",), sandbox=SandboxLevel.SHADOW_PROJECT, certification=CertificationLevel.CERTIFIED)
++    add("LUAU_CREATE", "Create Luau scripts", dependencies=("LUAU_READ", "STATIC_VALIDATION", "ROBLOX_PROJECT_WRITE"), risk=RiskLevel.R3, validators=("luau_static_validator", "runtime_validator"), engines=("luau_service",), sandbox=SandboxLevel.SHADOW_PROJECT, certification=CertificationLevel.CERTIFIED)
++    add("STATIC_VALIDATION", "Run Luau/static project validation", dependencies=("ROBLOX_PROJECT_READ",), validators=("luau_static_validator",), engines=("luau_validator",))
++    add("RUNTIME_PLAYTEST", "Run isolated Roblox playtest", dependencies=("ROBLOX_PROJECT_READ",), risk=RiskLevel.R2, validators=("playtest_result_validator",), engines=("playtest_runner",), sandbox=SandboxLevel.SHADOW_PROJECT)
++    add("MULTIPLAYER_PLAYTEST", "Run multi-client playtest", dependencies=("RUNTIME_PLAYTEST",), risk=RiskLevel.R3, validators=("multiplayer_result_validator",), engines=("playtest_runner",), sandbox=SandboxLevel.DIGITAL_TWIN, 
