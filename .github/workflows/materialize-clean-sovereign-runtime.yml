@@ -50,14 +50,34 @@ jobs:
           git commit -m "core: materialize sovereign Roblox runtime"
           echo "SOURCE_COMMIT=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
 
-      - name: Generate traceable claims and artifacts
+      - name: Record direct test artifact
         shell: bash
         run: |
           set -euo pipefail
           python tools/run_roblox_tests.py --source-commit "$SOURCE_COMMIT" --output benchmarks/results/roblox-profile/profile-tests.json
+
+      - name: Record simulated benchmark artifact
+        shell: bash
+        run: |
+          set -euo pipefail
           python benchmarks/roblox_profile_benchmark.py --cases 50 --mode simulated --source-commit "$SOURCE_COMMIT" --output benchmarks/results/roblox-profile/simulated-50.json
+
+      - name: Generate claim registry and README
+        shell: bash
+        run: |
+          set -euo pipefail
           python .github/materialize/metadata.py
+
+      - name: Verify claims
+        shell: bash
+        run: |
+          set -euo pipefail
           python tools/verify_claims.py
+
+      - name: Validate final profile tree
+        shell: bash
+        run: |
+          set -euo pipefail
           python tools/validate_roblox_profile.py
 
       - name: Remove bootstrap and publish ordinary tree
