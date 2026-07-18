@@ -1,0 +1,25 @@
+{
+  "name": "SignalCore",
+  "version": "0.0.1",
+  "build": "Context Intelligence Extreme v2 + Runtime Optimizer v3",
+  "release_zip_sha256": "141b6b34fabb25de2d1d308386a15a43e1fca1712c7e315e1101ff4bd5604d79",
+  "release_zip_bytes": 178835,
+  "manifest_entries": 103,
+  "tests": {
+    "passed": 1200,
+    "failed": 0
+  },
+  "validator": {
+    "passed": 19,
+    "failed": 0
+  },
+  "benchmarks": {
+    "hard_600": "hard-600.json",
+    "semantic_120": "semantic-120.json",
+    "runtime_output_400": "runtime-output-400.json",
+    "capsule_repair_4": "capsule-repair-4.json"
+  },
+  "public_provider_superiority_proven": false,
+  "independent_reproduction_completed": false,
+  "license_selected": false
+}
