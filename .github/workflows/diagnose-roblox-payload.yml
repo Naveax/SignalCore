@@ -1,0 +1,76 @@
+name: Diagnose Roblox profile payload
+
+on:
+  push:
+    branches:
+      - agent/roblox-studio-profile-direct
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  diagnose:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Build diagnostics
+        shell: bash
+        run: |
+          set +e
+          report=.signalcore-direct/diagnostic.txt
+          : > "$report"
+          echo "payload files:" >> "$report"
+          find .signalcore-direct -maxdepth 1 -type f -name 'payload-*.b64' -print0 | sort -z | xargs -0 sha256sum >> "$report"
+          echo >> "$report"
+          echo "sizes:" >> "$report"
+          find .signalcore-direct -maxdepth 1 -type f -name 'payload-*.b64' -print0 | sort -z | xargs -0 wc -c >> "$report"
+          cat \
+            .signalcore-direct/payload-00.b64 \
+            .signalcore-direct/payload-01.b64 \
+            .signalcore-direct/payload-02.b64 \
+            .signalcore-direct/payload-03.b64 \
+            .signalcore-direct/payload-04.b64 \
+            .signalcore-direct/payload-05.b64 \
+            .signalcore-direct/payload-06.b64 \
+            .signalcore-direct/payload-07.b64 \
+            .signalcore-direct/payload-08.b64 \
+            .signalcore-direct/payload-09.b64 \
+            .signalcore-direct/payload-10.b64 \
+            .signalcore-direct/payload-11a.b64 \
+            .signalcore-direct/payload-11b.b64 \
+            .signalcore-direct/payload-12a.b64 \
+            .signalcore-direct/payload-12b.b64 \
+            .signalcore-direct/payload-13a.b64 \
+            .signalcore-direct/payload-13b.b64 \
+            .signalcore-direct/payload-14a.b64 \
+            .signalcore-direct/payload-14b.b64 \
+            .signalcore-direct/payload-15a.b64 \
+            .signalcore-direct/payload-15b.b64 \
+            .signalcore-direct/payload-16a.b64 \
+            .signalcore-direct/payload-16b.b64 \
+            > /tmp/payload.b64
+          echo >> "$report"
+          echo "combined base64 bytes: $(wc -c < /tmp/payload.b64)" >> "$report"
+          echo "combined base64 sha256: $(sha256sum /tmp/payload.b64 | cut -d' ' -f1)" >> "$report"
+          base64 --decode /tmp/payload.b64 > /tmp/payload.xz 2>/tmp/base64.err
+          echo "base64 exit: $?" >> "$report"
+          echo "base64 stderr: $(tr '\n' ' ' < /tmp/base64.err)" >> "$report"
+          echo "xz bytes: $(wc -c < /tmp/payload.xz)" >> "$report"
+          echo "xz sha256: $(sha256sum /tmp/payload.xz | cut -d' ' -f1)" >> "$report"
+          xz -t /tmp/payload.xz 2>/tmp/xz.err
+          echo "xz test exit: $?" >> "$report"
+          echo "xz stderr: $(tr '\n' ' ' < /tmp/xz.err)" >> "$report"
+          xz -dc /tmp/payload.xz > /tmp/payload.patch 2>/tmp/decompress.err
+          echo "decompress exit: $?" >> "$report"
+          echo "decompress stderr: $(tr '\n' ' ' < /tmp/decompress.err)" >> "$report"
+          echo "patch bytes: $(wc -c < /tmp/payload.patch)" >> "$report"
+          echo "patch sha256: $(sha256sum /tmp/payload.patch | cut -d' ' -f1)" >> "$report"
+          git add "$report"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Record Roblox payload diagnostics"
+          git push origin HEAD:agent/roblox-studio-profile-direct
