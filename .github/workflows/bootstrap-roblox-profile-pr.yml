@@ -1,0 +1,73 @@
+name: Bootstrap Roblox Studio profile from PR
+
+on:
+  pull_request:
+    branches:
+      - main
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: bootstrap-roblox-studio-profile-pr
+  cancel-in-progress: false
+
+jobs:
+  unpack:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/roblox-studio-orchestration-profile
+          fetch-depth: 0
+
+      - name: Reconstruct and verify patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          : > /tmp/roblox-profile.patch
+          for index in $(seq -w 0 15); do
+            cat ".signalcore-bootstrap/patch-${index}" >> /tmp/roblox-profile.patch
+          done
+          awk '
+            BEGIN { fix = 0 }
+            /^\+diff --git / { fix = 1 }
+            {
+              if (fix) sub(/^\+/, "")
+              print
+            }
+          ' .signalcore-bootstrap/patch-016 >> /tmp/roblox-profile.patch
+          for index in 017 018 019; do
+            cat ".signalcore-bootstrap/patch-${index}" >> /tmp/roblox-profile.patch
+          done
+          echo "ef594b2169ac2515697386ee09d47314191a51d90383f2e22e098fcff3bcc1bd  /tmp/roblox-profile.patch" | sha256sum -c -
+          git apply --check /tmp/roblox-profile.patch
+
+      - name: Apply and validate source tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep '^diff --git a/' /tmp/roblox-profile.patch | sed -E 's#^diff --git a/([^ ]+) b/.*#\1#' > /tmp/roblox-targets
+          while IFS= read -r path; do
+            git rm -rf --ignore-unmatch -- "$path"
+          done < /tmp/roblox-targets
+          git apply --index /tmp/roblox-profile.patch
+          git rm -rf .signalcore-bootstrap
+          git rm -f .github/workflows/bootstrap-roblox-profile.yml
+          git rm -f .github/workflows/bootstrap-roblox-profile-pr.yml
+          python -m compileall -q skills/signal-core/scripts skills/signal-core/profiles tools tests benchmarks
+          python -m unittest discover -s tests -q
+          python tools/validate.py
+          python benchmarks/roblox_profile_benchmark.py --cases 50 --output /tmp/roblox-profile-smoke.json
+
+      - name: Commit and push verified source
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Implement Roblox Studio orchestration profile"
+          git push origin HEAD:agent/roblox-studio-orchestration-profile
