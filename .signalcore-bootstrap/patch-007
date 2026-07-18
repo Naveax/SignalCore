@@ -1,0 +1,597 @@
+model_roles", {}))).items()},
++    )
++    config.validate()
++    return config
++
++
++def _snake_keys(value: Mapping[str, Any]) -> dict[str, Any]:
++    aliases = {
++        "preferDeterministic": "prefer_deterministic",
++        "preferLocal": "prefer_local",
++        "allowUncertifiedReadOnly": "allow_uncertified_read_only",
++        "allowUncertifiedWrite": "allow_uncertified_write",
++        "highRiskRequiresShadowProject": "high_risk_requires_shadow_project",
++        "migrationRequiresLab": "migration_requires_lab",
++        "blenderRequiresExternalSandbox": "blender_requires_external_sandbox",
++        "cloudLiteTokens": "cloud_lite_tokens",
++        "cloudExpertTokens": "cloud_expert_tokens",
++        "repairTokens": "repair_tokens",
++        "cloudRequests": "cloud_requests",
++        "workflowWallTimeSeconds": "workflow_wall_time_seconds",
++        "gpuTimeMs": "gpu_time_ms",
++        "localTokens": "local_tokens",
++        "transferUnits": "transfer_units",
++        "redactSecrets": "redact_secrets",
++        "sendMinimalCode": "send_minimal_code",
++        "allowExternalAssetTextAsInstruction": "allow_external_asset_text_as_instruction",
++        "allowFullProjectCloudUpload": "allow_full_project_cloud_upload",
++        "projectDelta": "project_delta",
++        "visualReviews": "visual_reviews",
++    }
++    return {aliases.get(str(key), str(key)): item for key, item in value.items()}
++
++
++def load_config(path: str | Path | None = None) -> RobloxProfileConfig:
++    if path is None:
++        return RobloxProfileConfig()
++    value = json.loads(Path(path).read_text(encoding="utf-8"))
++    if not isinstance(value, dict):
++        raise SchemaValidationError("profile configuration must be an object")
++    return _construct(value)
+diff --git a/skills/signal-core/profiles/roblox_studio/engines.example.json b/skills/signal-core/profiles/roblox_studio/engines.example.json
+new file mode 100644
+index 0000000..bdebb42
+--- /dev/null
++++ b/skills/signal-core/profiles/roblox_studio/engines.example.json
+@@ -0,0 +1,743 @@
++{
++  "schema_version": 2,
++  "engines": [
++    {
++      "engineId": "animation_service",
++      "engineType": "animation_engine",
++      "version": "1.0.0",
++      "provider": "external",
++      "endpoint": "local://animation-service",
++      "capabilities": [
++        "ANIMATION_ENGINE",
++        "IK_ENGINE",
++        "RETARGETING_ENGINE"
++      ],
++      "supportedInputSchemas": [
++        "signalcore.roblox.engine-request.v2"
++      ],
++      "supportedOutputSchemas": [
++        "signalcore.roblox.engine-result.v2"
++      ],
++      "riskClass": "R3",
++      "sandboxSupport": [
++        "NONE",
++        "PREVIEW",
++        "SHADOW_PROJECT",
++        "DIGITAL_TWIN",
++        "MIGRATION_LAB",
++        "EXTERNAL_SANDBOX"
++      ],
++      "certificationStatus": "VERIFIED",
++      "latencyProfile": {
++        "p50Ms": 0
++      },
++      "resourceProfile": {
++        "gpuMb": 0
++      },
++      "enabled": true
++    },
++    {
++      "engineId": "asset_scanner",
++      "engineType": "asset_security_scanner",
++      "version": "1.0.0",
++      "provider": "external",
++      "endpoint": "local://asset-scanner",
++      "capabilities": [
++        "ASSET_SANITIZATION"
++      ],
++      "supportedInputSchemas": [
++        "signalcore.roblox.engine-request.v2"
++      ],
++      "supportedOutputSchemas": [
++        "signalcore.roblox.engine-result.v2"
++      ],
++      "riskClass": "R3",
++      "sandboxSupport": [
++        "NONE",
++        "PREVIEW",
++        "SHADOW_PROJECT",
++        "DIGITAL_TWIN",
++        "MIGRATION_LAB",
++        "EXTERNAL_SANDBOX"
++      ],
++      "certificationStatus": "VERIFIED",
++      "latencyProfile": {
++        "p50Ms": 0
++      },
++      "resourceProfile": {
++        "gpuMb": 0
++      },
++      "enabled": true
++    },
++    {
++      "engineId": "blender_worker",
++      "engineType": "blender_worker",
++      "version": "1.0.0",
++      "provider": "external",
++      "endpoint": "local://blender-worker",
++      "capabilities": [
++        "BLENDER_WORKER"
++      ],
++      "supportedInputSchemas": [
++        "signalcore.roblox.engine-request.v2"
++      ],
++      "supportedOutputSchemas": [
++        "signalcore.roblox.engine-result.v2"
++      ],
++      "riskClass": "R4",
++      "sandboxSupport": [
++        "NONE",
++        "PREVIEW",
++        "SHADOW_PROJECT",
++        "DIGITAL_TWIN",
++        "MIGRATION_LAB",
++        "EXTERNAL_SANDBOX"
++      ],
++      "certificationStatus": "VERIFIED",
++      "latencyProfile": {
++        "p50Ms": 0
++      },
++      "resourceProfile": {
++        "gpuMb": 0
++      },
++      "enabled": true
++    },
++    {
++      "engineId": "choreography_service",
++      "engineType": "external_engine",
++      "version": "1.0.0",
++      "provider": "external",
++      "endpoint": "local://choreography-service",
++      "capabilities": [
++        "COMBAT_CHOREOGRAPHY_ENGINE"
++      ],
++      "supportedInputSchemas": [
++        "signalcore.roblox.engine-request.v2"
++      ],
++      "supportedOutputSchemas": [
++        "signalcore.roblox.engine-result.v2"
++      ],
++      "riskClass": "R3",
++      "sandboxSupport": [
++        "NONE",
++        "PREVIEW",
++        "SHADOW_PROJECT",
++        "DIGITAL_TWIN",
++        "MIGRATION_LAB",
++        "EXTERNAL_SANDBOX"
++      ],
++      "certificationStatus": "VERIFIED",
++      "latencyProfile": {
++        "p50Ms": 0
++      },
++      "resourceProfile": {
++        "gpuMb": 0
++      },
++      "enabled": true
++    },
++    {
++      "engineId": "cinematic_service",
++      "engineType": "cinematic_engine",
++      "version": "1.0.0",
++      "provider": "external",
++      "endpoint": "local://cinematic-service",
++      "capabilities": [
++        "AUDIO_ENGINE",
++        "CAMERA_ENGINE",
++        "CINEMATIC_ENGINE",
++        "LIGHTING_ENGINE",
++        "VFX_ENGINE"
++      ],
++      "supportedInputSchemas": [
++        "signalcore.roblox.engine-request.v2"
++      ],
++      "supportedOutputSchemas": [
++        "signalcore.roblox.engine-result.v2"
++      ],
++      "riskClass": "R3",
++      "sandboxSupport": [
++        "NONE",
++        "PREVIEW",
++        "SHADOW_PROJECT",
++        "DIGITAL_TWIN",
++        "MIGRATION_LAB",
++        "EXTERNAL_SANDBOX"
++      ],
++      "certificationStatus": "VERIFIED",
++      "latencyProfile": {
++        "p50Ms": 0
++      },
++      "resourceProfile": {
++        "gpuMb": 0
++      },
++      "enabled": true
++    },
++    {
++      "engineId": "creator_store_service",
++      "engineType": "creator_store_service",
++      "version": "1.0.0",
++      "provider": "external",
++      "endpoint": "local://creator-store-service",
++      "capabilities": [
++        "CREATOR_STORE_SEARCH"
++      ],
++      "supportedInputSchemas": [
++        "signalcore.roblox.engine-request.v2"
++      ],
++      "supportedOutputSchemas": [
++        "signalcore.roblox.engine-result.v2"
++      ],
++      "riskClass": "R0",
++      "sandboxSupport": [
++        "NONE",
++        "PREVIEW",
++        "SHADOW_PROJECT",
++        "DIGITAL_TWIN",
++        "MIGRATION_LAB",
++        "EXTERNAL_SANDBOX"
++      ],
++      "certificationStatus": "VERIFIED",
++      "latencyProfile": {
++        "p50Ms": 0
++      },
++      "resourceProfile": {
++        "gpuMb": 0
++      },
++      "enabled": true
++    },
++    {
++      "engineId": "device_test_service",
++      "engineType": "external_engine",
++      "version": "1.0.0",
++      "provider": "external",
++      "endpoint": "local://device-test-service",
++      "capabilities": [
++        "DEVICE_TEST_ENGINE"
++      ],
++      "supportedInputSchemas": [
++        "signalcore.roblox.engine-request.v2"
++      ],
++      "supportedOutputSchemas": [
++        "signalcore.roblox.engine-result.v2"
++      ],
++      "riskClass": "R0",
++      "sandboxSupport": [
++        "NONE",
++        "PREVIEW",
++        "SHADOW_PROJECT",
++        "DIGITAL_TWIN",
++        "MIGRATION_LAB",
++        "EXTERNAL_SANDBOX"
++      ],
++      "certificationStatus": "VERIFIED",
++      "latencyProfile": {
++        "p50Ms": 0
++      },
++      "resourceProfile": {
++        "gpuMb": 0
++      },
++      "enabled": true
++    },
++    {
++      "engineId": "digital_twin_runner",
++      "engineType": "external_engine",
++      "version": "1.0.0",
++      "provider": "external",
++      "endpoint": "local://digital-twin-runner",
++      "capabilities": [
++        "DIGITAL_TWIN"
++      ],
++      "supportedInputSchemas": [
++        "signalcore.roblox.engine-request.v2"
++      ],
++      "supportedOutputSchemas": [
++        "signalcore.roblox.engine-result.v2"
++      ],
++      "riskClass": "R3",
++      "sandboxSupport": [
++        "NONE",
++        "PREVIEW",
++        "SHADOW_PROJECT",
++        "DIGITAL_TWIN",
++        "MIGRATION_LAB",
++        "EXTERNAL_SANDBOX"
++      ],
++      "certificationStatus": "VERIFIED",
++      "latencyProfile": {
++        "p50Ms": 0
++      },
++      "resourceProfile": {
++        "gpuMb": 0
++      },
++      "enabled": true
++    },
++    {
++      "engineId": "facial_service",
++      "engineType": "facial_engine",
++      "version": "1.0.0",
++      "provider": "external",
++      "endpoint": "local://facial-service",
++      "capabilities": [
++        "FACIAL_ENGINE"
++      ],
++      "supportedInputSchemas": [
++        "signalcore.roblox.engine-request.v2"
++      ],
++      "supportedOutputSchemas": [
++        "signalcore.roblox.engine-result.v2"
++      ],
++      "riskClass": "R2",
++      "sandboxSupport": [
++        "NONE",
++        "PREVIEW",
++        "SHADOW_PROJECT",
++        "DIGITAL_TWIN",
++        "MIGRATION_LAB",
++        "EXTERNAL_SANDBOX"
++      ],
++      "certificationStatus": "VERIFIED",
++      "latencyProfile": {
++        "p50Ms": 0
++      },
++      "resourceProfile": {
++        "gpuMb": 0
++      },
++      "enabled": true
++    },
++    {
++      "engineId": "luau_service",
++      "engineType": "luau_validation_service",
++      "version": "1.0.0",
++      "provider": "external",
++      "endpoint": "local://luau-service",
++      "capabilities": [
++        "LUAU_CREATE",
++        "LUAU_PATCH",
++        "LUAU_READ"
++      ],
++      "supportedInputSchemas": [
++        "signalcore.roblox.engine-request.v2"
++      ],
++      "supportedOutputSchemas": [
++        "signalcore.roblox.engine-result.v2"
++      ],
++      "riskClass": "R3",
++      "sandboxSupport": [
++        "NONE",
++        "PREVIEW",
++        "SHADOW_PROJECT",
++        "DIGITAL_TWIN",
++        "MIGRATION_LAB",
++        "EXTERNAL_SANDBOX"
++      ],
++      "certificationStatus": "VERIFIED",
++      "latencyProfile": {
++        "p50Ms": 0
++      },
++      "resourceProfile": {
++        "gpuMb": 0
++      },
++      "enabled": true
++    },
++    {
++      "engineId": "luau_validator",
++      "engineType": "external_engine",
++      "version": "1.0.0",
++      "provider": "external",
++      "endpoint": "local://luau-validator",
++      "capabilities": [
++        "STATIC_VALIDATION"
++      ],
++      "supportedInputSchemas": [
++        "signalcore.roblox.engine-request.v2"
++      ],
++      "supportedOutputSchemas": [
++        "signalcore.roblox.engine-result.v2"
++      ],
++      "riskClass": "R0",
++      "sandboxSupport": [
++        "NONE",
++        "PREVIEW",
++        "SHADOW_PROJECT",
++        "DIGITAL_TWIN",
++        "MIGRATION_LAB",
++        "EXTERNAL_SANDBOX"
++      ],
++      "certificationStatus": "VERIFIED",
++      "latencyProfile": {
++        "p50Ms": 0
++      },
++      "resourceProfile": {
++        "gpuMb": 0
++      },
++      "enabled": true
++    },
++    {
++      "engineId": "migration_lab",
++      "engineType": "datastore_migration_lab",
++      "version": "1.0.0",
++      "provider": "external",
++      "endpoint": "local://migration-lab",
++      "capabilities": [
++        "DATASTORE_MIGRATION_LAB"
++      ],
++      "supportedInputSchemas": [
++        "signalcore.roblox.engine-request.v2"
++      ],
++      "supportedOutputSchemas": [
++        "signalcore.roblox.engine-result.v2"
++      ],
++      "riskClass": "R5",
++      "sandboxSupport": [
++        "NONE",
++        "PREVIEW",
++        "SHADOW_PROJECT",
++        "DIGITAL_TWIN",
++        "MIGRATION_LAB",
++        "EXTERNAL_SANDBOX"
++      ],
++      "certificationStatus": "VERIFIED",
++      "latencyProfile": {
++        "p50Ms": 0
++      },
++      "resourceProfile": {
++        "gpuMb": 0
++      },
++      "enabled": true
++    },
++    {
++      "engineId": "performance_test_service",
++      "engineType": "external_engine",
++      "version": "1.0.0",
++      "provider": "external",
++      "endpoint": "local://performance-test-service",
++      "capabilities": [
++        "PERFORMANCE_TEST_ENGINE"
++      ],
++      "supportedInputSchemas": [
++        "signalcore.roblox.engine-request.v2"
++      ],
++      "supportedOutputSchemas": [
++        "signalcore.roblox.engine-result.v2"
++      ],
++      "riskClass": "R0",
++      "sandboxSupport": [
++        "NONE",
++        "PREVIEW",
++        "SHADOW_PROJECT",
++        "DIGITAL_TWIN",
++        "MIGRATION_LAB",
++        "EXTERNAL_SANDBOX"
++      ],
++      "certificationStatus": "VERIFIED",
++      "latencyProfile": {
++        "p50Ms": 0
++      },
++      "resourceProfile": {
++        "gpuMb": 0
++      },
++      "enabled": true
++    },
++    {
++      "engineId": "playtest_runner",
++      "engineType": "playtest_runner",
++      "version": "1.0.0",
++      "provider": "external",
++      "endpoint": "local://playtest-runner",
++      "capabilities": [
++        "MULTIPLAYER_PLAYTEST",
++        "RUNTIME_PLAYTEST"
++      ],
++      "supportedInputSchemas": [
++        "signalcore.roblox.engine-request.v2"
++      ],
++      "supportedOutputSchemas": [
++        "signalcore.roblox.engine-result.v2"
++      ],
++      "riskClass": "R3",
++      "sandboxSupport": [
++        "NONE",
++        "PREVIEW",
++        "SHADOW_PROJECT",
++        "DIGITAL_TWIN",
++        "MIGRATION_LAB",
++        "EXTERNAL_SANDBOX"
++      ],
++      "certificationStatus": "VERIFIED",
++      "latencyProfile": {
++        "p50Ms": 0
++      },
++      "resourceProfile": {
++        "gpuMb": 0
++      },
++      "enabled": true
++    },
++    {
++      "engineId": "procedural_service",
++      "engineType": "external_engine",
++      "version": "1.0.0",
++      "provider": "external",
++      "endpoint": "local://procedural-service",
++      "capabilities": [
++        "PROCEDURAL_BUILDER"
++      ],
++      "supportedInputSchemas": [
++        "signalcore.roblox.engine-request.v2"
++      ],
++      "supportedOutputSchemas": [
++        "signalcore.roblox.engine-result.v2"
++      ],
++      "riskClass": "R3",
++      "sandboxSupport": [
++        "NONE",
++        "PREVIEW",
++        "SHADOW_PROJECT",
++        "DIGITAL_TWIN",
++        "MIGRATION_LAB",
++        "EXTERNAL_SANDBOX"
++      ],
++      "certificationStatus": "VERIFIED",
++      "latencyProfile": {
++        "p50Ms": 0
++      },
++      "resourceProfile": {
++        "gpuMb": 0
++      },
++      "enabled": true
++    },
++    {
++      "engineId": "rig_service",
++      "engineType": "rig_analyzer",
++      "version": "1.0.0",
++      "provider": "external",
++      "endpoint": "local://rig-service",
++      "capabilities": [
++        "RIG_ANALYZER"
++      ],
++      "supportedInputSchemas": [
++        "signalcore.roblox.engine-request.v2"
++      ],
++      "supportedOutputSchemas": [
++        "signalcore.roblox.engine-result.v2"
++      ],
++      "riskClass": "R0",
++      "sandboxSupport": [
++        "NONE",
++        "PREVIEW",
++        "SHADOW_PROJECT",
++        "DIGITAL_TWIN",
++        "MIGRATION_LAB",
++        "EXTERNAL_SANDBOX"
++      ],
++      "certificationStatus": "VERIFIED",
++      "latencyProfile": {
++        "p50Ms": 0
++      },
++      "resourceProfile": {
++        "gpuMb": 0
++      },
++      "enabled": true
++    },
++    {
++      "engineId": "security_test_service",
++      "engineType": "external_engine",
++      "version": "1.0.0",
++      "provider": "external",
++      "endpoint": "local://security-test-service",
++      "capabilities": [
++        "SECURITY_TEST_ENGINE"
++      ],
++      "supportedInputSchemas": [
++        "signalcore.roblox.engine-reque
