@@ -25,7 +25,7 @@ class PlatformTests(unittest.TestCase):
         self.assertGreaterEqual(len(ids), 20)
 
     def test_verified_native_targets(self):
-        expected = {"codex", "claude-code", "gemini-cli", "antigravity", "windsurf", "opencode", "vscode-copilot"}
+        expected = {"codex", "claude-code", "gemini-cli", "antigravity", "antigravity-cli", "windsurf", "opencode", "vscode-copilot"}
         rows = platforms.platform_map()
         self.assertTrue(expected.issubset(rows))
         for key in expected:
