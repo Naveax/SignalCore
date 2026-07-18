@@ -1,0 +1,344 @@
+f not gate.execution_allowed or route is None:
++            status = _blocked_status(gate.status.value)
++            telemetry = TelemetryRecord(
++                task.task_id, task.task_classes[0], task.risk_level, 0, (), (), 0, 0, 0, 0, 0, 0, 0, 0,
++                len(evidence_candidates), 0, 0.0, 0, 0, int((time.perf_counter() - started) * 1000), False, status,
++            )
++            self.telemetry_store.record(telemetry)
++            return OrchestrationResult(task, gate, route, None, None, None, None, telemetry)
++
++        if route.deterministic:
++            capsule = ContextCapsule(task.to_dict(), dict(project_summary or {}), (), (), (), task.acceptance_criteria, route.tool_ids, 0, 0)
++        else:
++            token_budget = self.config.budgets.cloud_expert_tokens if task.estimated_cloud_need == "REQUIRED" else self.config.budgets.cloud_lite_tokens
++            capsule = self.knapsack.capsule(
++                task,
++                evidence_candidates,
++                token_budget=token_budget,
++                transfer_budget=self.config.budgets.transfer_units,
++                tools=route.tool_ids,
++                project_summary=project_summary,
++            )
++            cloud = selected_model is not None and selected_model.provider not in {"local", "llama.cpp", "ollama", "lmstudio"}
++            budget.reserve(
++                cloud_requests=1 if cloud else 0,
++                cloud_expert_tokens=capsule.total_tokens if cloud and task.estimated_cloud_need == "REQUIRED" else 0,
++                cloud_lite_tokens=capsule.total_tokens if cloud and task.estimated_cloud_need != "REQUIRED" else 0,
++                local_tokens=capsule.total_tokens if not cloud else 0,
++                transfer_units=capsule.total_transfer_cost,
++            )
++        validators_by_capability = {
++            capability: self.graph.get(capability).required_validators for capability in resolution.ordered
++        }
++        workflow = self.planner.plan(task, route, validators_by_capability=validators_by_capability)
++        compiler = compile_one_round_trip(task, capsule, workflow)
++        trace = make_trace(
++            task_state=task.to_dict(),
++            capability_resolution=asdict(resolution),
++            engine_selection={"engines": [engine.engine_id for engine in selected_engines]},
++            model_selection={"model": selected_model.model_id if selected_model else ""},
++            evidence_selection=[item.evidence_id for item in capsule.evidence],
++            context_capsule=asdict(capsule),
++            tool_schemas=route.tool_ids,
++            workflow=asdict(workflow),
++            budgets=budget.snapshot(),
++            tests=required_cross_validators(resolution.ordered),
++            repairs=(), commits=(), rollbacks=(),
++            versions={
++                "profile_schema": str(self.config.schema_version),
++                "capability_graph": self.graph.version,
++                **{f"engine:{engine.engine_id}": engine.version for engine in selected_engines},
++                **({f"model:{selected_model.model_id}": selected_model.quantization or selected_model.model_path or "configured"} if selected_model else {}),
++            },
++        )
++        self.telemetry_store.record_trace(trace)
++        cloud = selected_model is not None and selected_model.provider not in {"local", "llama.cpp", "ollama", "lmstudio"}
++        telemetry = TelemetryRecord(
++            task_id=task.task_id,
++            task_class=task.task_classes[0],
++            risk_level=task.risk_level,
++            workflow_nodes=len(workflow.nodes),
++            models_used=(selected_model.model_id,) if selected_model else (),
++            engines_used=tuple(engine.engine_id for engine in selected_engines),
++            cloud_requests=1 if cloud else 0,
++            local_requests=0 if cloud or selected_model is None else 1,
++            cloud_input_tokens=capsule.total_tokens if cloud else 0,
++            cloud_output_tokens=0,
++            local_tokens=capsule.total_tokens if not cloud else 0,
++            gpu_time_ms=0,
++            playtest_time_ms=0,
++            blender_time_ms=0,
++            context_candidates=len(evidence_candidates),
++            context_selected=len(capsule.evidence),
++            cache_hit_rate=(routing_context.cache_hit_rate if routing_context else 0.0),
++            repair_count=0,
++            rollback_count=0,
++            wall_time_ms=int((time.perf_counter() - started) * 1000),
++            verified=False,
++            final_status=FinalStatus.COMPLETED_WITH_WARNINGS,
++        )
++        self.telemetry_store.record(telemetry)
++        return OrchestrationResult(task, gate, route, capsule, workflow, compiler, trace, telemetry)
++
++
++def _blocked_status(status: str) -> FinalStatus:
++    mapping = {
++        "BLOCKED_AMBIGUOUS": FinalStatus.BLOCKED_AMBIGUOUS,
++        "BLOCKED_UNSUPPORTED": FinalStatus.BLOCKED_UNSUPPORTED,
++        "BLOCKED_MISSING_ENGINE": FinalStatus.BLOCKED_UNSUPPORTED,
++        "BLOCKED_MISSING_EVIDENCE": FinalStatus.BLOCKED_UNSUPPORTED,
++        "BLOCKED_POLICY": FinalStatus.BLOCKED_POLICY,
++        "BLOCKED_BUDGET": FinalStatus.BLOCKED_BUDGET,
++    }
++    return mapping.get(status, FinalStatus.BLOCKED_POLICY)
+diff --git a/skills/signal-core/profiles/roblox_studio/profile.json b/skills/signal-core/profiles/roblox_studio/profile.json
+new file mode 100644
+index 0000000..a41ca31
+--- /dev/null
++++ b/skills/signal-core/profiles/roblox_studio/profile.json
+@@ -0,0 +1,56 @@
++{
++  "schema_version": 1,
++  "profile_id": "roblox_studio",
++  "profile_version": "0.0.1",
++  "orchestration_schema_version": 2,
++  "capability_graph_version": "2.0.0",
++  "display_name": "Roblox Studio Orchestration Profile",
++  "enabled": true,
++  "discoverable": false,
++  "direct_invocation": false,
++  "activation": {
++    "mode": "signed_studio_session",
++    "allowed_hosts": ["roblox_studio"],
++    "allowed_transports": ["roblox_studio_bridge"],
++    "allow_cli": false,
++    "allow_ide": false,
++    "require_process_attestation": true,
++    "accepted_process_names": ["RobloxStudioBeta.exe", "RobloxStudioBeta", "RobloxStudio"],
++    "require_project_identity": true,
++    "single_use_nonce": true,
++    "maximum_session_ttl_seconds": 120,
++    "clock_skew_seconds": 5
++  },
++  "allowed_capabilities": [
++    "inspect_project",
++    "inspect_selection",
++    "read_script_ranges",
++    "prepare_tool_arguments",
++    "route_models",
++    "select_evidence",
++    "validate_orchestration",
++    "record_telemetry",
++    "compile_task_state",
++    "resolve_capabilities",
++    "route_external_engines",
++    "build_workflow_dag",
++    "build_context_capsule",
++    "manage_checkpoints",
++    "build_repair_capsule",
++    "enforce_budgets",
++    "trace_and_replay"
++  ],
++  "forbidden_activation_sources": ["cli", "codex", "claude_code", "cursor", "vscode", "windsurf", "opencode", "gemini_cli", "antigravity_ide"],
++  "orchestration": {
++    "implementation": "external_engines_only",
++    "adaptive_learning": false,
++    "cross_engine_validation": true,
++    "full_project_cloud_upload": false,
++    "unverified_commit": false,
++    "default_config": "config.default.json",
++    "engine_registry": "engines.example.json",
++    "model_registry": "models.example.json",
++    "capability_graph": "capabilities.json"
++  },
++  "notes": "Hidden fail-closed Roblox Studio orchestration profile. It selects external engines, evidence, models, workflows, budgets and validators; it does not implement Roblox domain engines."
++}
+diff --git a/skills/signal-core/profiles/roblox_studio/registries.py b/skills/signal-core/profiles/roblox_studio/registries.py
+new file mode 100644
+index 0000000..d84fa67
+--- /dev/null
++++ b/skills/signal-core/profiles/roblox_studio/registries.py
+@@ -0,0 +1,266 @@
++from __future__ import annotations
++
++import json
++from dataclasses import dataclass
++from pathlib import Path
++from typing import Iterable, Mapping
++
++from .errors import EngineSelectionError, ModelSelectionError, SchemaValidationError
++from .types import (
++    CertificationLevel, EngineSpec, ModelSpec, RiskLevel, SandboxLevel,
++)
++
++
++@dataclass(frozen=True)
++class CertificationResult:
++    component_id: str
++    role_or_task: str
++    level: CertificationLevel
++    scores: Mapping[str, float]
++    hard_failures: tuple[str, ...] = ()
++
++    @property
++    def accepted(self) -> bool:
++        return not self.hard_failures and self.level.authority >= CertificationLevel.BETA.authority
++
++
++class CertificationMatrix:
++    def __init__(self, entries: Iterable[CertificationResult] = ()) -> None:
++        self._entries = {(item.component_id, item.role_or_task): item for item in entries}
++
++    def put(self, result: CertificationResult) -> None:
++        self._entries[(result.component_id, result.role_or_task)] = result
++
++    def level(self, component_id: str, role_or_task: str) -> CertificationLevel:
++        item = self._entries.get((component_id, role_or_task))
++        return item.level if item else CertificationLevel.UNTESTED
++
++    def require(self, component_id: str, role_or_task: str, minimum: CertificationLevel) -> bool:
++        level = self.level(component_id, role_or_task)
++        return level != CertificationLevel.REJECTED and level.authority >= minimum.authority
++
++    def to_dict(self) -> dict[str, dict[str, str]]:
++        output: dict[str, dict[str, str]] = {}
++        for (component, role), result in self._entries.items():
++            output.setdefault(component, {})[role] = result.level.value
++        return output
++
++
++class EngineRegistry:
++    def __init__(self, engines: Iterable[EngineSpec] = ()) -> None:
++        self.engines = {engine.engine_id: engine for engine in engines}
++
++    def register(self, engine: EngineSpec) -> None:
++        if not engine.version or engine.version.casefold() in {"latest", "*"}:
++            raise SchemaValidationError("engine versions must be pinned")
++        self.engines[engine.engine_id] = engine
++
++    def select(
++        self,
++        capabilities: Iterable[str],
++        *,
++        required_sandbox: SandboxLevel,
++        certification: CertificationMatrix,
++        minimum: CertificationLevel = CertificationLevel.VERIFIED,
++    ) -> tuple[EngineSpec, ...]:
++        selected: list[EngineSpec] = []
++        for capability in dict.fromkeys(capabilities):
++            candidates = [
++                engine for engine in self.engines.values()
++                if engine.enabled
++                and capability in engine.capabilities
++                and required_sandbox in engine.sandbox_support
++                and certification.require(engine.engine_id, capability, minimum)
++            ]
++            candidates.sort(key=lambda item: (item.latency_ms, item.gpu_mb, item.engine_id))
++            if not candidates:
++                raise EngineSelectionError(f"no certified engine for {capability} in {required_sandbox.value}")
++            chosen = candidates[0]
++            if chosen not in selected:
++                selected.append(chosen)
++        return tuple(selected)
++
++    def validate_invocation(self, engine_id: str, capability: str) -> None:
++        engine = self.engines.get(engine_id)
++        if engine is None or not engine.enabled:
++            raise EngineSelectionError(f"engine unavailable: {engine_id}")
++        if capability not in engine.capabilities:
++            raise EngineSelectionError(f"engine {engine_id} does not declare {capability}")
++
++
++class ModelRegistry:
++    def __init__(self, models: Iterable[ModelSpec] = ()) -> None:
++        self.models = {model.model_id: model for model in models}
++
++    def register(self, model: ModelSpec) -> None:
++        if model.context_limit <= 0:
++            raise SchemaValidationError("model context limit must be positive")
++        self.models[model.model_id] = model
++
++    def select(
++        self,
++        role: str,
++        *,
++        required_context: int,
++        require_vision: bool = False,
++        require_code: bool = False,
++        require_tools: bool = False,
++        require_structured: bool = True,
++        prefer_local: bool = True,
++        cloud_enabled: bool = True,
++        minimum: CertificationLevel = CertificationLevel.VERIFIED,
++        maximum_input_cost: float | None = None,
++    ) -> ModelSpec:
++        candidates: list[ModelSpec] = []
++        for model in self.models.values():
++            if not model.enabled or model.context_limit < required_context:
++                continue
++            if require_vision and not model.supports_vision:
++                continue
++            if require_code and not model.supports_code:
++                continue
++            if require_tools and not model.supports_tool_calling:
++                continue
++            if require_structured and not model.supports_structured_output:
++                continue
++            if not cloud_enabled and model.provider not in {"llama.cpp", "ollama", "lmstudio", "local"}:
++                continue
++            if maximum_input_cost is not None and model.input_cost_per_million > maximum_input_cost:
++                continue
++            level = model.role_certifications.get(role, CertificationLevel.UNTESTED)
++            if isinstance(level, str):
++                level = CertificationLevel(level)
++            if level == CertificationLevel.REJECTED or level.authority < minimum.authority:
++                continue
++            candidates.append(model)
++        if not candidates:
++            raise ModelSelectionError(f"no certified model for role {role}")
++
++        def score(item: ModelSpec) -> tuple[float, float, float, str]:
++            local = item.provider in {"llama.cpp", "ollama", "lmstudio", "local"}
++            local_penalty = 0.0 if local == prefer_local else 1.0
++            quality = float(item.benchmark_scores.get(role, item.benchmark_scores.get("overall", 0.0)))
++            cost = item.input_cost_per_million + item.output_cost_per_million
++            return (local_penalty, -quality, item.latency_ms + cost * 100.0, item.model_id)
++
++        return min(candidates, key=score)
++
++
++def _certifications(raw: Mapping[str, str]) -> dict[str, CertificationLevel]:
++    return {str(role): CertificationLevel(str(level)) for role, level in raw.items()}
++
++
++def load_engine_registry(path: str | Path) -> EngineRegistry:
++    value = json.loads(Path(path).read_text(encoding="utf-8"))
++    rows = value.get("engines", value) if isinstance(value, dict) else value
++    if not isinstance(rows, list):
++        raise SchemaValidationError("engine registry must contain a list")
++    registry = EngineRegistry()
++    for row in rows:
++        registry.register(EngineSpec(
++            engine_id=str(row["engineId"]),
++            engine_type=str(row["engineType"]),
++            version=str(row["version"]),
++            provider=str(row.get("provider", "external")),
++            endpoint=str(row.get("endpoint", "")),
++            capabilities=frozenset(map(str, row.get("capabilities", ()))),
++            input_schemas=tuple(map(str, row.get("supportedInputSchemas", ()))),
++            output_schemas=tuple(map(str, row.get("supportedOutputSchemas", ()))),
++            risk_class=RiskLevel(str(row.get("riskClass", "R0"))),
++            sandbox_support=frozenset(SandboxLevel(str(item)) for item in row.get("sandboxSupport", ("NONE",))),
++            certification_status=CertificationLevel(str(row.get("certificationStatus", "UNTESTED"))),
++            latency_ms=float(row.get("latencyProfile", {}).get("p50Ms", 0.0)),
++            gpu_mb=int(row.get("resourceProfile", {}).get("gpuMb", 0)),
++            enabled=bool(row.get("enabled", True)),
++        ))
++    return registry
++
++
++def load_model_registry(path: str | Path) -> ModelRegistry:
++    value = json.loads(Path(path).read_text(encoding="utf-8"))
++    rows = value.get("models", value) if isinstance(value, dict) else value
++    if not isinstance(rows, list):
++        raise Sche
