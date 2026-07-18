@@ -1,0 +1,435 @@
+MINISTIC": 0,
++        "LOCAL": 0,
++        "CLOUD_LITE": 0,
++        "CLOUD_EXPERT": 82,
++        "BLOCKED": 0
++      },
++      "BLOCKED": {
++        "DETERMINISTIC": 0,
++        "LOCAL": 0,
++        "CLOUD_LITE": 0,
++        "CLOUD_EXPERT": 0,
++        "BLOCKED": 0
++      }
++    }
++  },
++  "task_family_report": {
++    "advanced": {
++      "cases": 112,
++      "verified_success": 1.0,
++      "cloud_requests": 56,
++      "average_selected_tokens": 57.660714285714285,
++      "cache_hit_rate": 0.9642857142857143,
++      "p95_orchestration_ms": 11.917511999854469
++    },
++    "animation": {
++      "cases": 56,
++      "verified_success": 1.0,
++      "cloud_requests": 0,
++      "average_selected_tokens": 75.10714285714286,
++      "cache_hit_rate": 0.9642857142857143,
++      "p95_orchestration_ms": 14.233829999966474
++    },
++    "asset": {
++      "cases": 56,
++      "verified_success": 1.0,
++      "cloud_requests": 0,
++      "average_selected_tokens": 74.67857142857143,
++      "cache_hit_rate": 0.9642857142857143,
++      "p95_orchestration_ms": 11.124012999971455
++    },
++    "critical": {
++      "cases": 54,
++      "verified_success": 1.0,
++      "cloud_requests": 54,
++      "average_selected_tokens": 79.87037037037037,
++      "cache_hit_rate": 0.9629629629629629,
++      "p95_orchestration_ms": 9.953856000038286
++    },
++    "deterministic": {
++      "cases": 56,
++      "verified_success": 1.0,
++      "cloud_requests": 0,
++      "average_selected_tokens": 0.0,
++      "cache_hit_rate": 0.9642857142857143,
++      "p95_orchestration_ms": 10.184988999981215
++    },
++    "gameplay": {
++      "cases": 28,
++      "verified_success": 1.0,
++      "cloud_requests": 0,
++      "average_selected_tokens": 83.5,
++      "cache_hit_rate": 0.9642857142857143,
++      "p95_orchestration_ms": 7.827213000155098
++    },
++    "review": {
++      "cases": 54,
++      "verified_success": 1.0,
++      "cloud_requests": 0,
++      "average_selected_tokens": 57.833333333333336,
++      "cache_hit_rate": 0.9629629629629629,
++      "p95_orchestration_ms": 12.009720999913043
++    },
++    "script": {
++      "cases": 28,
++      "verified_success": 1.0,
++      "cloud_requests": 0,
++      "average_selected_tokens": 83.5,
++      "cache_hit_rate": 0.9642857142857143,
++      "p95_orchestration_ms": 11.342000000013286
++    },
++    "ui": {
++      "cases": 28,
++      "verified_success": 1.0,
++      "cloud_requests": 0,
++      "average_selected_tokens": 83.5,
++      "cache_hit_rate": 0.9642857142857143,
++      "p95_orchestration_ms": 9.441428000172891
++    },
++    "world": {
++      "cases": 28,
++      "verified_success": 1.0,
++      "cloud_requests": 0,
++      "average_selected_tokens": 40.0,
++      "cache_hit_rate": 0.9642857142857143,
++      "p95_orchestration_ms": 16.189998000072592
++    }
++  },
++  "ordinary_task_report": {
++    "cases": 334,
++    "cloud_requests": 0,
++    "cloud_requests_per_1000": 0.0,
++    "local_or_deterministic_rate": 1.0,
++    "average_selected_tokens": 58.81736526946108
++  },
++  "resource_report": {
++    "engine_calls": 1358,
++    "local_model_requests": 334,
++    "cloud_model_requests": 110,
++    "gpu_time_ms": 0,
++    "note": "external engine/GPU execution is not performed by the controlled benchmark"
++  },
++  "certification_report": {
++    "registered_engines": 22,
++    "engine_capability_certifications": 34,
++    "registered_models": 5,
++    "model_role_certifications": 7
++  },
++  "engineering_targets": {
++    "ordinary_cloud_requests_per_1000_le_180": true,
++    "deterministic_p50_le_20_ms": true,
++    "deterministic_p95_le_50_ms": true,
++    "unnecessary_cloud_escalation_below_5_percent": true
++  },
++  "release_gates": {
++    "D_success_not_lower_than_A": true,
++    "D_unsafe_execution_zero": true,
++    "D_cloud_requests_lower_than_A": true,
++    "D_cloud_tokens_lower_than_A": true,
++    "D_routing_accuracy_at_least_95_percent": true,
++    "ordinary_cloud_requests_per_1000_le_180": true,
++    "deterministic_p50_le_20_ms": true,
++    "deterministic_p95_le_50_ms": true,
++    "unnecessary_cloud_escalation_below_5_percent": true
++  }
++}
+diff --git a/benchmarks/results/roblox-profile/deterministic-latency-2000.json b/benchmarks/results/roblox-profile/deterministic-latency-2000.json
+new file mode 100644
+index 0000000..0923d3b
+--- /dev/null
++++ b/benchmarks/results/roblox-profile/deterministic-latency-2000.json
+@@ -0,0 +1,9 @@
++{
++  "cases": 2000,
++  "p50_ms": 5.405247,
++  "p95_ms": 11.596296,
++  "mean_ms": 6.1875052225,
++  "max_ms": 52.789051,
++  "target_p50_le_20": true,
++  "target_p95_le_50": true
++}
+diff --git a/benchmarks/roblox_profile_benchmark.py b/benchmarks/roblox_profile_benchmark.py
+new file mode 100644
+index 0000000..e52770b
+--- /dev/null
++++ b/benchmarks/roblox_profile_benchmark.py
+@@ -0,0 +1,14 @@
++from __future__ import annotations
++
++import sys
++from pathlib import Path
++
++ROOT = Path(__file__).resolve().parents[1]
++PROFILE_PARENT = ROOT / "skills" / "signal-core" / "profiles"
++if str(PROFILE_PARENT) not in sys.path:
++    sys.path.insert(0, str(PROFILE_PARENT))
++
++from roblox_studio.benchmark import main
++
++if __name__ == "__main__":
++    raise SystemExit(main())
+diff --git a/skills/signal-core/profiles/roblox_studio/ARCHITECTURE.md b/skills/signal-core/profiles/roblox_studio/ARCHITECTURE.md
+new file mode 100644
+index 0000000..b9a1dd0
+--- /dev/null
++++ b/skills/signal-core/profiles/roblox_studio/ARCHITECTURE.md
+@@ -0,0 +1,63 @@
++# Roblox Studio Profile Architecture
++
++## Boundary
++
++```text
++Authorized Roblox Studio bridge
++        │ signed activation envelope
++        ▼
++Generic SignalCore profile loader
++        ▼
++Roblox Studio domain profile
++        ├─ TaskState encoder and ambiguity gate
++        ├─ Capability graph
++        ├─ Engine/model/certification registries
++        ├─ Evidence Ledger and context knapsack
++        ├─ Workflow/checkpoint/repair planner
++        ├─ Budget/privacy/risk policies
++        └─ Telemetry and replay
++        │
++        ▼
++External Roblox/Luau/asset/animation/Blender/test engines
++```
++
++SignalCore does not execute the domain engines. It selects them, validates declared
++capabilities and pinned versions, prepares bounded inputs, compiles acceptance tests,
++and refuses success without external verifier evidence.
++
++## Module mapping
++
++| Master requirement | Implementation |
++|---|---|
++| TaskState V2 | `types.py`, `task_encoder.py` |
++| Capability graph | `capability_graph.py`, `capabilities.json` |
++| Engine/model registries | `registries.py`, `engines.example.json`, `models.example.json` |
++| Certification | `certification.py`, `certification.example.json` |
++| Deterministic skip and routing | `routing.py` |
++| Ambiguity/risk gates | `task_encoder.py`, `governance.py` |
++| Workflow/checkpoint/repair | `workflow.py` |
++| Evidence/delta/multimodal/knapsack | `evidence.py` |
++| Budget/privacy/telemetry/trace | `governance.py` |
++| Model/engine response validation | `validators.py` |
++| Signed runtime integration | existing `activation.py`, new `runtime.py` |
++| A/B/C/D evaluation | `benchmark.py` and top-level benchmark wrapper |
++
++## Fail-closed order
++
++1. Verify the signed Studio activation envelope.
++2. Encode a compact task state without conversation history.
++3. Resolve ambiguity, capabilities, dependencies and conflicts.
++4. Verify engine/model certification and sandbox availability.
++5. Select fresh evidence and build the context capsule.
++6. Reserve token, request, transfer, GPU and wall-time budgets.
++7. Compile a DAG with acceptance, retry and rollback rules.
++8. Validate every external response identity, version, capability and artifact hash.
++9. Require independent validators for high-impact outputs.
++10. Mark success only after verifier evidence is recorded.
++
++## Adaptive policy
++
++Adaptive policy mutation is disabled. `AdaptivePolicyGate` only reports whether
++stable telemetry would permit a future learning process. It cannot weaken ambiguity,
++risk, certification, sandbox, validation, privacy or human-approval invariants.
+diff --git a/skills/signal-core/profiles/roblox_studio/BENCHMARK_RESULTS.md b/skills/signal-core/profiles/roblox_studio/BENCHMARK_RESULTS.md
+new file mode 100644
+index 0000000..b6571ca
+--- /dev/null
++++ b/skills/signal-core/profiles/roblox_studio/BENCHMARK_RESULTS.md
+@@ -0,0 +1,81 @@
++# Roblox Studio Profile — Controlled Benchmark Results
++
++Build: SignalCore 0.0.1 Roblox Studio orchestration profile candidate  
++Seed: `20260718`  
++Cases: `500`
++
++## Scope
++
++This benchmark measures SignalCore orchestration decisions. Roblox Studio, Gemini,
++Creator Store, Luau validation, Blender, playtest, Digital Twin and migration engines
++are simulated. The numbers are not provider billing measurements or external-agent
++quality claims.
++
++## A/B/C/D summary
++
++| Mode | Verified orchestration | Cloud requests | Fresh cloud tokens | Mean selected tokens | Cache hit | p95 overhead |
++|---|---:|---:|---:|---:|---:|---:|
++| A — external system without SignalCore | 92.8% | 500 | 1,522,183 | 3,044.37 | 0% | 0.01 ms simulated |
++| B — generic SignalCore | 96.2% | 258 | 432,777 | 1,673.92 | 25% simulated | 0.01 ms simulated |
++| C — Roblox basic profile | 100% | 110 | 15,655 | 120.26 | 0% | 15.06 ms |
++| D — full Roblox profile | 100% | 110 | 7,548 | 60.83 | 96.4% | 12.70 ms |
++
++## Routing
++
++- Route bucket accuracy: **500/500**
++- Deterministic routes: **56**
++- Local-model routes: **334**
++- Cloud Lite routes: **28**
++- Cloud Expert routes: **82**
++- Blocked unsafe executions: **0**
++
++## Ordinary tasks
++
++The controlled ordinary-task subset excludes advanced cinematic, Blender, Digital
++Twin, migration and security-critical workflows.
++
++- Cases: **334**
++- Deterministic/local rate: **100%**
++- Simulated cloud requests per 1,000: **0**
++- Average selected context: **58.82 tokens**
++
++This result assumes certified local models exist for the required roles. Real-world
++cloud usage will be higher when local models are uncertified, unavailable or fail
++verification.
++
++## Deterministic latency
++
++A separate 2,000-case local run measured:
++
++- p50: **5.41 ms**
++- p95: **11.60 ms**
++- model calls: **0**
++- cloud calls: **0**
++
++## Certification and resources
++
++- Registered engine interfaces: **22**
++- Engine/capability certification entries: **34**
++- Registered model examples: **5**
++- Model/role certification entries in benchmark fixture: **7**
++- D-mode external engine calls compiled: **1,358**
++- D-mode local model requests: **334**
++- D-mode cloud requests: **110**
++
++GPU time is not reported because the controlled benchmark does not execute external
++models or engines.
++
++## Release gates
++
++All controlled release gates passed:
++
++- D success is not lower than A
++- unsafe execution is zero
++- D cloud requests and cloud tokens are lower than A
++- routing accuracy is at least 95%
++- deterministic p50/p95 targets pass
++- ordinary cloud request target passes
++- unnecessary cloud escalation remains below 5%
++
++Real external-engine and provider A/B tests remain mandatory before production or
++market-superiority claims.
+diff --git a/skills/signal-core/profiles/roblox_studio/COMPLETION_REPORT.md b/skills/signal-core/profiles/roblox_studio/COMPLETION_REPORT.md
+new file mode 100644
+index 0000000..86af3bf
+--- /dev/null
++++ b/skills/signal-core/profiles/roblox_studio/COMPLETION_REPORT.md
+@@ -0,0 +1,57 @@
++# Roblox Studio Profile Completion Report
++
++## Implemented
++
++- typed compound RobloxTaskState V2 covering every required task class
++- complete 33-capability graph with dependencies, conflicts, risk, evidence,
++  validators, compatible engines, sandbox and certification requirements
++- full pinned external-engine example registry covering every capability
++- provider-independent model registry for all logical roles
++- fail-closed model/engine/task certification matrix and benchmark harness
++- deterministic zero-model path
++- evidence-based ambiguity and understanding gate
++- workflow DAG planning, parallel-safe dependencies, approval, repair and rollback
++- resumable checkpoint persistence and incompatibility invalidation
++- Evidence Ledger V3, source/dependency invalidation and content-addressed references
++- project delta plus project/asset/rig/animation/visual/documentation cache namespaces
++- multimodal representative-frame selection and deduplication interface
++- Context Knapsack V2
++- dynamic tool/skill exposure
++- one-round-trip compiler contract
++- minimal repair capsule and bounded repair attempts
++- Blender, Digital Twin and migration-lab sandbox policies
++- request/token/transfer/GPU/wall-time budget governor
++- privacy, secret redaction and prompt-injection quarantine
++- cross-engine validators and strict model/engine response validation
++- Telemetry V2, trace and version-compatible replay
++- locked adaptive-learning gate
++- A/B/C/D controlled benchmark, routing confusion matrix and task-family reports
++- JSON schemas, external-agent example, architecture and migration documentation
++
++## Validation
++
++- Profile tests: **149/149 PASS**
++- Required task classes: **all covered**
++- Capabilities: **33/33 covered by pinned engine interfaces**
++- Controlled benchmark cases: **500**
++- Controlled route bucket accuracy: **500/500**
++- Deterministic latency: **p50 5.41 ms / p95 11.60 ms**
++
++## External dependencies still required
++
++The implementation intentionally does not bundle Roblox Studio, an MCP/plugin,
++Creator Store clients, Luau compiler/type checker, playtest infrastructure, asset
++scanner, spatial/terrain/animation/IK/facial/cinematic engines, Blender, Digital Twin,
++migration lab, device farm or visual review service.
++
++## Unproven until real integration
++
++- real Gemini/API request and token reductions
++- external engine correctness and latency
++- real GPU/Blender/playtest resource use
++- visual and animation quality
++- DataStore migration safety on production-like data
++- provider or competitor superiority
++
++The profile remains pre-release until paired real-engine A/B/C/D tests pass every
++release gate with raw telemetry and deterministic verification.
+diff --git a/skills/signal-core/profiles/roblox_studio/MIGRATION.md b/skills/signal-core/profiles/roblox_studio/MIGRATION.md
+new file mode 100644
+index 0000000..ce551f2
+--- /dev/null
++++ b/skills/signal-core/profiles/roblox_studio/MIGRATION.md
+@@ -0,0 +1,34 @@
++# Migration Notes
++
++## Compatibility
++
++- `profile.json` retains generic `schema_version: 1`, so the existing profile loader
++  remains compatible.
++- `profile_id`, `profile_version`, hidden discovery and signed activation behavior are
++  unchanged.
++- Existing activation envelope fields and nonce/process checks are unchanged.
++- Orchestration metadata is additive through `orchestration_schema_version: 2`.
++
++## Existing integrations
++
++Existing bridges can continue to load and authorize the profile. To use the new
++orchestrator, the bridge should call `create_profile_runtime()` after successful
++`load_profile()` and supply measured certification records.
++
++## State
++
++New persistent files are created under the caller-supplied SignalCore state root:
++
++```text
++roblox_studio/evidence-v3.db
++roblox_studio/telemetry-v2.db
++```
++
++They do not modify Roblox projects. Checkpoints and content-addressed payloads should
++also be stored outside the source repository.
++
++## Breaking behavior by design
++
++A non-deterministic task that previously relied on implicit engine/model authority is
++now blocked until explicit certification exists. High-risk tasks require the declared
++sandbox and human review. Full-project cloud upload remains forbidden.
+diff --git a/skills/signal-core/profiles/roblox_studio/README.md b/skills/signal-core/profiles/roblox_studio/README.md
+new file mode 100644
+index 0000000..559d60d
+--- /dev/null
++++ b/skills/signal-core/profiles/roblox_studio/README.md
+@@ -0,0 +1,56 @@
++# Roblox Studio Orchestration Profile —
