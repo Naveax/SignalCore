@@ -1,2 +1,3 @@
 execute verified single-branch cleanup
 retry after split validation gates
+retry after moving artifacts outside worktree
