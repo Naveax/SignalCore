@@ -1,0 +1,52 @@
+name: Validate SignalCore Fusion Runtime
+
+on:
+  pull_request:
+    paths:
+      - "signalcore_runtime/**"
+      - "tests/runtime/**"
+      - "benchmarks/**"
+      - "tools/**"
+      - "docs/**"
+      - "skills/signal-core/**"
+      - "README.md"
+      - "VERSION"
+      - ".github/workflows/validate-fusion-runtime.yml"
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python: ["3.11", "3.12", "3.13"]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Compile
+        run: python -m compileall -q signalcore_runtime skills/signal-core tools tests benchmarks
+      - name: Runtime tests
+        run: python -m unittest discover -s tests/runtime -q
+      - name: Existing adapter tests
+        run: python -m unittest tests.test_platforms tests.test_roblox_profile_gate -q
+      - name: Roblox profile tests
+        run: python -m unittest discover -s tests/roblox_profile -q
+      - name: Validate package
+        run: python tools/validate.py
+      - name: Validate runtime
+        run: python tools/validate_runtime.py
+      - name: Validate Roblox profile
+        run: python tools/validate_roblox_profile.py
+      - name: Verify Roblox claims
+        run: python tools/verify_claims.py
+      - name: Validate release machinery
+        run: python tools/validate_release.py --profile 5x --smoke --output fusion-release-smoke.json
