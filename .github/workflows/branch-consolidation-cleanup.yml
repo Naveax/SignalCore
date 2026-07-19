@@ -30,7 +30,7 @@ jobs:
           git fetch origin '+refs/heads/*:refs/remotes/origin/*' '+refs/tags/*:refs/tags/*' --prune
           git fsck --full
           stamp="$(date -u +%Y%m%d-%H%M%S)"
-          out="single-branch-cleanup-${stamp}"
+          out="$RUNNER_TEMP/single-branch-cleanup-${stamp}"
           mkdir -p "$out"
           bundle="$out/SignalCore-PreCleanup-Backup-${stamp}.bundle"
           git bundle create "$bundle" --all
@@ -136,6 +136,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: signalcore-single-branch-cleanup-${{ github.run_id }}
-          path: single-branch-cleanup-*/
+          path: ${{ runner.temp }}/single-branch-cleanup-*/
           if-no-files-found: error
           retention-days: 90
