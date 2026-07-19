@@ -67,7 +67,19 @@ Workload difficulty and performance are separate facts. A valid 20X/30X/100X con
 
 ## Roblox Studio profile
 
-The existing Roblox Studio orchestration profile remains hidden and fail-closed. Internal profile tests and simulated orchestration artifacts do not establish live Studio execution, generic provider savings or competitor superiority.
+The existing Roblox Studio orchestration profile remains hidden and fail-closed. Its retained claim registry remains intentionally scoped to the already verified profile source tree:
+
+- Signed activation: **INTERNALLY_VERIFIED** [claim:roblox.activation]
+- TaskState V2: **INTERNALLY_VERIFIED** [claim:roblox.task_state]
+- Capability graph: **INTERNALLY_VERIFIED** [claim:roblox.capabilities]
+- Simulated orchestration: **SIMULATED** [claim:roblox.simulated]
+- Transcript adapter: **IMPLEMENTED** [claim:roblox.transcript]
+- Live Studio bridge: **PLANNED** [claim:roblox.live]
+- DataStore migration execution: **PLANNED** [claim:roblox.datastore]
+- Asset, animation and Blender execution: **PLANNED** [claim:roblox.external_engines]
+- Roblox profile tests: **INTERNALLY_VERIFIED** [claim:roblox.tests]
+
+These internal and simulated Roblox results do not establish live Studio execution, generic provider savings or competitor superiority.
 
 ## Project status
 
