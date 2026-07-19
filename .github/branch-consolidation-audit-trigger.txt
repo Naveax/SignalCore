@@ -1,1 +1,2 @@
 audit trigger only
+synchronize after workflow syntax repair
