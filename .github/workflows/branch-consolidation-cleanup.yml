@@ -10,6 +10,9 @@ on:
 permissions:
   contents: write
 
+env:
+  PYTHONDONTWRITEBYTECODE: '1'
+
 jobs:
   consolidate:
     runs-on: ubuntu-latest
@@ -37,20 +40,40 @@ jobs:
           git log --all --decorate --oneline --graph -n 2000 > "$out/log-all-before.txt"
           printf '%s\n' "$out" > /tmp/cleanup-out
 
-      - name: Validate final main before deletion
+      - name: Verify branch and Git ancestry
         shell: bash
         run: |
           set -euo pipefail
           test "$(git branch --show-current)" = main
           git diff --check
           git merge-base --is-ancestor b040e3ad25bb81d9898ca869cd6ab281591eb3eb HEAD
-          python -m compileall -q skills/signal-core tools tests
-          python tools/validate.py
-          python -m unittest discover -s tests -q
-          python -m unittest discover -s tests/roblox_profile -q
-          python tools/validate_roblox_profile.py
-          python tools/verify_claims.py
-          python benchmarks/roblox_profile_benchmark.py --cases 50 --mode simulated --output /tmp/roblox-profile-final-smoke.json
+
+      - name: Compile Python sources
+        run: python -m compileall -q skills/signal-core tools tests
+
+      - name: Validate package
+        run: python tools/validate.py
+
+      - name: Run root tests
+        run: python -m unittest discover -s tests -q
+
+      - name: Run Roblox profile tests
+        run: python -m unittest discover -s tests/roblox_profile -q
+
+      - name: Validate Roblox profile
+        run: python tools/validate_roblox_profile.py
+
+      - name: Verify claims
+        run: python tools/verify_claims.py
+
+      - name: Run controlled smoke benchmark
+        run: python benchmarks/roblox_profile_benchmark.py --cases 50 --mode simulated --output /tmp/roblox-profile-final-smoke.json
+
+      - name: Verify clean worktree
+        shell: bash
+        run: |
+          set -euo pipefail
+          git status --short
           test -z "$(git status --short)"
 
       - name: Record branch decisions
