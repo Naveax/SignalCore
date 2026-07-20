@@ -27,7 +27,9 @@ jobs:
         with:
           python-version: "3.13"
       - name: Apply integration patches
-        run: python tools/apply_hardening_v3.py
+        run: |
+          python tools/apply_hardening_v3.py
+          python tools/apply_hardening_v3_compat.py
       - name: Run runtime modules independently
         run: |
           python - <<'PY'
