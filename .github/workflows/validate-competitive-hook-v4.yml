@@ -1,0 +1,59 @@
+name: Validate Competitive Hook V4
+
+on:
+  push:
+    branches:
+      - agent/adaptive-context-v04
+    paths:
+      - .github/workflows/validate-competitive-hook-v4.yml
+
+permissions:
+  contents: write
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/adaptive-context-v04
+          fetch-depth: 0
+      - name: Remove one-shot workflow and regenerate manifest
+        run: |
+          rm .github/workflows/validate-competitive-hook-v4.yml
+          python - <<'PY'
+          import hashlib
+          from pathlib import Path
+
+          root = Path('.')
+          generated = {'fusion-release-smoke.json','release-smoke.json','platform-registry.json','native-dry-run.json'}
+          rows = []
+          for path in root.rglob('*'):
+              if not path.is_file():
+                  continue
+              relative = path.relative_to(root)
+              if any(part in {'.git','.signalcore','__pycache__','.pytest_cache'} for part in relative.parts):
+                  continue
+              if (path.name == 'MANIFEST.sha256' and path.parent == root) or path.name in generated or path.suffix == '.pyc':
+                  continue
+              rows.append((relative.as_posix(), hashlib.sha256(path.read_bytes()).hexdigest()))
+          Path('MANIFEST.sha256').write_text(
+              ''.join(f'{digest}  {name}\n' for name, digest in sorted(rows)),
+              encoding='utf-8',
+          )
+          PY
+      - name: Validate hook and runtime
+        run: |
+          python -m py_compile signalcore_runtime/hooks.py signalcore_runtime/competitive_fabric.py signalcore_runtime/mcp_server.py
+          python -m unittest tests.runtime.test_competitive_hook_v4 -v
+          python -m unittest tests.runtime.test_competitive_fabric_v4 -v
+          python -m unittest tests.runtime.test_competitive_mcp_v4 -v
+          python -m unittest discover -s tests/runtime -p 'test_*.py' -v
+          python tools/validate.py
+      - name: Commit validated state
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -A
+          git commit -m "validate competitive fabric hook integration"
+          git push origin HEAD:agent/adaptive-context-v04
