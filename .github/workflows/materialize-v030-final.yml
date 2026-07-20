@@ -119,7 +119,6 @@ jobs:
           assert (skill_root() / 'SKILL.md').is_file()
           PY
       - name: Commit ordinary source
-        if: github.event_name == 'push'
         shell: bash
         run: |
           set -euo pipefail
