@@ -34,7 +34,6 @@ jobs:
           python - <<'PY'
           import json
           import tempfile
-          from dataclasses import asdict
           from pathlib import Path
           from signalcore_runtime.evidence import EvidenceStore
           from signalcore_runtime.host_output_pipeline import HostOutputPipeline
@@ -71,7 +70,51 @@ jobs:
           path: /tmp/host-debug.json
           if-no-files-found: error
       - name: Concurrent externalization gate
-        run: python tests/runtime/test_signalcore_hardening_v3.py SignalCoreHardeningV3Tests.test_externalization_concurrency_has_no_lock_or_roundtrip_failures -v
+        run: |
+          python - <<'PY'
+          import json
+          import tempfile
+          import traceback
+          from concurrent.futures import ThreadPoolExecutor
+          from pathlib import Path
+          from signalcore_runtime.evidence import EvidenceStore
+          from signalcore_runtime.tool_externalization import ToolOutputExternalizer
+          from signalcore_runtime.tool_externalization_types import ExternalizationPolicy, ToolPayload
+          with tempfile.TemporaryDirectory() as temp:
+              root = Path(temp)
+              evidence = EvidenceStore(root / 'evidence', project_id='p')
+              db_path = root / 'external.sqlite3'
+              def capture(index):
+                  try:
+                      engine = ToolOutputExternalizer(db_path, evidence=evidence, policy=ExternalizationPolicy.for_profile('compact'))
+                      text = (f'INFO worker={index} value=ok\n' * 1200) + f'ERROR needle-{index} at src/f{index}.py:9\n'
+                      artifact = engine.externalize(ToolPayload(command='service logs', stdout=text, scope_key='stress', path=f'worker-{index}.log'))
+                      return {'index': index, 'artifact_id': artifact.artifact_id, 'verify': engine.verify(artifact.artifact_id), 'search': bool(engine.search(f'needle-{index}', artifact_id=artifact.artifact_id))}
+                  except Exception as exc:
+                      return {'index': index, 'error_type': type(exc).__name__, 'error': str(exc), 'traceback': traceback.format_exc()}
+              with ThreadPoolExecutor(max_workers=8) as pool:
+                  rows = list(pool.map(capture, range(40)))
+              errors = [row for row in rows if 'error' in row]
+              final_stats = None
+              try:
+                  final_stats = ToolOutputExternalizer(db_path, evidence=evidence).stats()
+              except Exception as exc:
+                  errors.append({'index': 'final', 'error_type': type(exc).__name__, 'error': str(exc), 'traceback': traceback.format_exc()})
+              diagnostic = {'rows': rows, 'errors': errors, 'final_stats': final_stats}
+              Path('/tmp/concurrency-debug.json').write_text(json.dumps(diagnostic, ensure_ascii=False, indent=2, sort_keys=True, default=str), encoding='utf-8')
+              assert not errors
+              assert len({row['artifact_id'] for row in rows}) == 40
+              assert all(row['verify']['ok'] for row in rows)
+              assert all(row['search'] for row in rows)
+              assert final_stats['artifacts'] == 40
+          PY
+      - name: Upload concurrency diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hardening-v3-concurrency-debug
+          path: /tmp/concurrency-debug.json
+          if-no-files-found: error
       - name: Fail closed readiness gate
         run: python tests/runtime/test_signalcore_hardening_v3.py SignalCoreHardeningV3Tests.test_readiness_gate_cannot_fake_ten_of_ten -v
       - name: Complete runtime and profile tests
