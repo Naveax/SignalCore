@@ -37,24 +37,14 @@ jobs:
 
           path = Path("signalcore_runtime/long_session_planner.py")
           text = path.read_text(encoding="utf-8")
-          old = '''        mandatory = sorted(
-              (item for item in candidates if item.mandatory),
-              key=lambda item: (item.event_sequence or 0),
-              reverse=True,
-          )
-          '''
-          new = '''        mandatory = sorted(
-              (item for item in candidates if item.mandatory),
-              key=lambda item: (
-                  item.score,
-                  item.temporal_status == "current",
-                  item.event_sequence or 0,
-              ),
-              reverse=True,
-          )
-          '''
-          if old not in text:
-              raise SystemExit("mandatory ordering source pattern not found")
+          old = '            key=lambda item: (item.event_sequence or 0),'
+          new = '''            key=lambda item: (
+              item.score,
+              item.temporal_status == "current",
+              item.event_sequence or 0,
+          ),'''
+          if text.count(old) != 1:
+              raise SystemExit(f"mandatory ordering source pattern count={text.count(old)}")
           path.write_text(text.replace(old, new, 1), encoding="utf-8", newline="\n")
           PY
           rm -f strict-budget-v4-diagnostic.txt ecosystem-v4-diagnostic.txt ecosystem-v4-benchmark-diagnostic.txt
