@@ -125,6 +125,14 @@ class LongSessionPlanner:
     def _summary_reference(session_id: str, summary_id: str) -> str:
         return f"sc://session/{session_id}/summary/{summary_id}"
 
+    @staticmethod
+    def _section_tokens(section: PlannedSection, chars_per_token: float) -> int:
+        # Count the model-visible envelope, not only the preview text.
+        payload = asdict(section)
+        payload["estimated_tokens"] = 0
+        serialized = canonical_json(payload)
+        return max(1, math.ceil(len(serialized) / chars_per_token))
+
     def _summary_row(self, summary_id: str) -> dict[str, Any]:
         with self.runtime.state.read() as db:
             row = db.execute(
@@ -161,6 +169,7 @@ class LongSessionPlanner:
                 "query": query,
                 "budget": policy.token_budget,
                 "used": 0,
+                "visible_estimated_tokens": 0,
                 "sections": [],
                 "exact_history_events": 0,
                 "verification": verification,
@@ -202,32 +211,36 @@ class LongSessionPlanner:
             if temporal != "current" and not mandatory and overlap == 0:
                 continue
             preview = self._preview(text, policy.event_preview_chars)
-            tokens = max(1, math.ceil(len(preview) / policy.chars_per_token))
-            candidates.append(PlannedSection(
+            candidate = PlannedSection(
                 role="event",
                 reference=self._event_reference(event),
-                estimated_tokens=tokens,
+                estimated_tokens=0,
                 score=score,
                 mandatory=mandatory,
                 temporal_status=temporal,
                 text=preview,
                 event_sequence=event.sequence,
+            )
+            candidates.append(PlannedSection(
+                **{**asdict(candidate), "estimated_tokens": self._section_tokens(candidate, policy.chars_per_token)}
             ))
 
         summary_id = self.runtime.compact(session_id) if len(events) > policy.recent_events else None
         if summary_id:
             row = self._summary_row(summary_id)
             summary_text = self._preview(str(row["content"]), policy.summary_preview_chars)
-            summary_tokens = max(1, math.ceil(len(summary_text) / policy.chars_per_token))
-            candidates.append(PlannedSection(
+            candidate = PlannedSection(
                 role="summary",
                 reference=self._summary_reference(session_id, summary_id),
-                estimated_tokens=summary_tokens,
+                estimated_tokens=0,
                 score=1.5,
                 mandatory=False,
                 temporal_status="aggregate",
                 text=summary_text,
                 summary_id=summary_id,
+            )
+            candidates.append(PlannedSection(
+                **{**asdict(candidate), "estimated_tokens": self._section_tokens(candidate, policy.chars_per_token)}
             ))
 
         mandatory = sorted(
@@ -255,11 +268,16 @@ class LongSessionPlanner:
         ))
 
         payload = [asdict(item) for item in selected]
+        visible_estimated_tokens = max(
+            0,
+            math.ceil(len(canonical_json(payload)) / policy.chars_per_token),
+        )
         return {
             "session_id": session_id,
             "query": query,
             "budget": policy.token_budget,
             "used": used,
+            "visible_estimated_tokens": visible_estimated_tokens,
             "sections": payload,
             "selected_events": sum(1 for item in selected if item.role == "event"),
             "selected_summaries": sum(1 for item in selected if item.role == "summary"),
@@ -287,7 +305,11 @@ class LongSessionPlanner:
             "queries": len(plans),
             "exact_history_events": int(verification["events"]),
             "chain_ok": bool(verification["ok"]),
-            "all_within_budget": all(plan["used"] <= plan["budget"] for plan in plans),
+            "all_within_budget": all(
+                plan["used"] <= plan["budget"]
+                and plan["visible_estimated_tokens"] <= plan["budget"]
+                for plan in plans
+            ),
             "all_exactly_referenced": all(
                 section["reference"].startswith("sc://session/")
                 for plan in plans
