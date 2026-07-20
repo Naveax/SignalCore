@@ -3,6 +3,8 @@ name: Fix SignalCore v0.3 materializer cleanup
 on:
   push:
     branches: [agent/signalcore-v0.3.0-unified]
+  pull_request:
+    branches: [main]
 
 permissions:
   contents: write
