@@ -10,6 +10,7 @@ from typing import Any
 from .benchmark_harness import compare_results, generate_synthetic_repository, load_arm_results, validate_config, write_config
 from .bootstrap import resolve_codex_home, start_runtime
 from .claim_governance import verify_claim
+from .competitive_cli import add_competitive_commands
 from .compression import ContentRouter, ReversibleContentStore
 from .context_governor import evaluate, pack_context
 from .evidence import EvidenceStore
@@ -643,6 +644,7 @@ def build_parser() -> argparse.ArgumentParser:
     vl = vs.add_parser("lookup"); vl.add_argument("command", nargs="+"); vl.add_argument("--tree-hash", required=True); vl.add_argument("--environment-hash", required=True); vl.add_argument("--dependency-hash", required=True); vl.add_argument("--toolchain-hash", required=True)
     vi = vs.add_parser("invalidated-by"); vi.add_argument("--path", action="append", required=True)
     verifier.set_defaults(func=command_verifier)
+    add_competitive_commands(sub, catalog=MCPServer.tools)
     return parser
 
 

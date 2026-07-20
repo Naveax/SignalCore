@@ -1,0 +1,139 @@
+{
+  "artifacts": {
+    "evidence": [
+      {
+        "bytes": 565,
+        "handle": "sc://sha256/3fd1517d72928ddebb3ac9f73e940eb6463d69663504d8658a25919969bbf9d3",
+        "path": "evidence/3fd1517d72928ddebb3ac9f73e940eb6463d69663504d8658a25919969bbf9d3.txt",
+        "role": "test-transition",
+        "sha256": "3fd1517d72928ddebb3ac9f73e940eb6463d69663504d8658a25919969bbf9d3"
+      },
+      {
+        "bytes": 2836,
+        "handle": "sc://sha256/1d0ead50739b7419f779b98ac565f92e71ce00579d7785d1aa87c98fc55c96f5",
+        "path": "evidence/1d0ead50739b7419f779b98ac565f92e71ce00579d7785d1aa87c98fc55c96f5.txt",
+        "role": "success-performance",
+        "sha256": "1d0ead50739b7419f779b98ac565f92e71ce00579d7785d1aa87c98fc55c96f5"
+      },
+      {
+        "bytes": 2573,
+        "handle": "sc://sha256/67d6fd637cb26dace35bbd5006ca4bd5cbe5c0b368e0b422b29080138cf395e0",
+        "path": "evidence/67d6fd637cb26dace35bbd5006ca4bd5cbe5c0b368e0b422b29080138cf395e0.txt",
+        "role": "failure-performance-patched",
+        "sha256": "67d6fd637cb26dace35bbd5006ca4bd5cbe5c0b368e0b422b29080138cf395e0"
+      },
+      {
+        "bytes": 2513,
+        "handle": "sc://sha256/e3c5d7f88df635999daab8419c5d8510d01a7e27fe641b52cf452d887198d356",
+        "path": "evidence/e3c5d7f88df635999daab8419c5d8510d01a7e27fe641b52cf452d887198d356.txt",
+        "role": "failure-performance-baseline",
+        "sha256": "e3c5d7f88df635999daab8419c5d8510d01a7e27fe641b52cf452d887198d356"
+      }
+    ],
+    "patch": {
+      "bytes": 4120,
+      "path": "fix.patch",
+      "sha256": "37bfba6b76f02adedb1048bcbb442e826b866e16ae1e304b2d760e4df0e82208"
+    }
+  },
+  "claim_boundary": {
+    "counts_as_competitor_arm": false,
+    "counts_as_real_repository_task": true,
+    "provider_tokens_measured": false,
+    "public_superiority_proven": false
+  },
+  "execution": {
+    "all_evidence_verified": true,
+    "commands": 67,
+    "commands_nonzero": 6,
+    "commands_succeeded": 61,
+    "eligible_output_reduction_ratio": 0.8050801040668218,
+    "evidence_records": 67,
+    "measured_command_wall_seconds_sum": 156.91,
+    "model_visible_summary_bytes": 64709,
+    "observed_elapsed_seconds_first_to_last_command": 1253.5419294834137,
+    "provider_cost": null,
+    "provider_input_tokens": null,
+    "provider_output_tokens": null,
+    "provider_reasoning_tokens": null,
+    "raw_output_bytes": 79498
+  },
+  "limitations": [
+    "Container DNS/network access to github.com was unavailable, so the upstream repository could not be cloned with git and no external PR was pushed.",
+    "The exact current-main validators.py was fetched through the GitHub connector and matched locally by Git blob SHA.",
+    "Validation used a focused regression suite plus compatibility tests reconstructed against existing upstream behavior, not the entire attrs test matrix.",
+    "Actual provider token and dollar receipts are unavailable in this assistant runtime and were not invented."
+  ],
+  "performance": {
+    "failure_at_last_item": {
+      "baseline_evidence_handle": "sc://sha256/e3c5d7f88df635999daab8419c5d8510d01a7e27fe641b52cf452d887198d356",
+      "iterable_baseline_median_seconds": 0.00598264400014159,
+      "iterable_patched_median_seconds": 0.007142687999930786,
+      "iterable_relative_change": 0.19390155920388064,
+      "mapping_baseline_median_seconds": 0.017083870000078605,
+      "mapping_patched_median_seconds": 0.016981149000002915,
+      "mapping_relative_change": -0.00601274770149951,
+      "method": "31 repetitions; 100000 items; invalid final item",
+      "patched_evidence_handle": "sc://sha256/67d6fd637cb26dace35bbd5006ca4bd5cbe5c0b368e0b422b29080138cf395e0"
+    },
+    "rejected_design": {
+      "accepted": false,
+      "description": "Attribute.evolve on every successful member validation",
+      "iterable_slowdown_approx": 58.0,
+      "mapping_slowdown_approx": 55.0
+    },
+    "success_path": {
+      "evidence_handle": "sc://sha256/1d0ead50739b7419f779b98ac565f92e71ce00579d7785d1aa87c98fc55c96f5",
+      "iterable_baseline_median_seconds": 0.006177632999879279,
+      "iterable_patched_median_seconds": 0.007094553999650088,
+      "iterable_relative_change": 0.1484259423939116,
+      "mapping_baseline_median_seconds": 0.01763161899998522,
+      "mapping_patched_median_seconds": 0.01788554099994144,
+      "mapping_relative_change": 0.014401513551105749,
+      "method": "7 alternating baseline/patched process pairs; 11 inner repetitions per arm; 100000 items"
+    }
+  },
+  "receipt_type": "signalcore-real-repository-task",
+  "result": {
+    "baseline_commit": "d3d3c836295f288e50f806e196a5afad70c7095d",
+    "baseline_tests": {
+      "evidence_handle": "sc://sha256/3fd1517d72928ddebb3ac9f73e940eb6463d69663504d8658a25919969bbf9d3",
+      "failed": 12,
+      "passed": 19,
+      "total": 31
+    },
+    "diff": {
+      "deletions": 4,
+      "files": [
+        {
+          "deletions": 4,
+          "insertions": 81,
+          "path": "src/attr/validators.py"
+        }
+      ],
+      "insertions": 81
+    },
+    "patched_commit": "5fcf0b27b1a74f4d8addb261c9d99060dfee3b76",
+    "patched_tests": {
+      "evidence_handle": "sc://sha256/3fd1517d72928ddebb3ac9f73e940eb6463d69663504d8658a25919969bbf9d3",
+      "failed": 0,
+      "passed": 31,
+      "total": 31
+    },
+    "status": "FIXED_LOCALLY_VERIFIED",
+    "working_tree_clean": true
+  },
+  "schema_version": 1,
+  "task": {
+    "baseline_matches_source": true,
+    "identity": "python-attrs/attrs#1245@main:0b1a294432d294c4f154be2d9439d825c3ec0781",
+    "issue_number": 1245,
+    "issue_state_at_selection": "open",
+    "issue_title": "Wrong error message for inner validators",
+    "local_baseline_blob_sha": "0b1a294432d294c4f154be2d9439d825c3ec0781",
+    "repository": "python-attrs/attrs",
+    "source_blob_sha": "0b1a294432d294c4f154be2d9439d825c3ec0781",
+    "source_file": "src/attr/validators.py",
+    "source_ref": "main"
+  }
+}
