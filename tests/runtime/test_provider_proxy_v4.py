@@ -135,7 +135,7 @@ class ProviderProxyV4Tests(unittest.TestCase):
         self.assertNotEqual(_UpstreamHandler.last_authorization, "Bearer client-secret")
         self.assertIn("prompt_cache_key", _UpstreamHandler.last_payload)
         self.assertEqual(headers["X-SignalCore-Replay"], "miss")
-        self.assertTrue(headers["X-SignalCore-Evidence"].startswith("sc://evidence/"))
+        self.assertTrue(headers["X-SignalCore-Evidence"].startswith("sc://sha256/"))
         self.assertEqual(_UpstreamHandler.calls, 1)
 
         status, headers, raw = self.request(self.payload())
