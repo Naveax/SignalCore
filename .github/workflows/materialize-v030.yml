@@ -3,6 +3,8 @@ name: Materialize verified SignalCore v0.3.0 source
 on:
   push:
     branches: [agent/signalcore-v0.3.0-unified]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
