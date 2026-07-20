@@ -20,9 +20,23 @@ class StateDB:
     def connect(self) -> sqlite3.Connection:
         connection = sqlite3.connect(self.path, timeout=30.0, isolation_level=None)
         connection.row_factory = sqlite3.Row
-        connection.execute("PRAGMA journal_mode=WAL")
-        connection.execute("PRAGMA foreign_keys=ON")
         connection.execute("PRAGMA busy_timeout=30000")
+        last_error: sqlite3.OperationalError | None = None
+        for attempt in range(9):
+            try:
+                connection.execute("PRAGMA journal_mode=WAL")
+                last_error = None
+                break
+            except sqlite3.OperationalError as exc:
+                if "locked" not in str(exc).casefold() and "busy" not in str(exc).casefold():
+                    connection.close()
+                    raise
+                last_error = exc
+                time.sleep(min(0.5, 0.01 * (2 ** attempt)))
+        if last_error is not None:
+            connection.close()
+            raise last_error
+        connection.execute("PRAGMA foreign_keys=ON")
         connection.execute("PRAGMA synchronous=NORMAL")
         return connection
 
