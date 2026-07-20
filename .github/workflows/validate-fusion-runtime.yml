@@ -1,4 +1,4 @@
-name: Validate SignalCore Fusion Runtime
+name: Validate SignalCore Runtime 0.2
 
 on:
   pull_request:
@@ -14,7 +14,7 @@ env:
   PYTHONWARNINGS: "error::ResourceWarning"
 
 jobs:
-  validate:
+  runtime-matrix:
     strategy:
       fail-fast: false
       matrix:
@@ -26,21 +26,45 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python }}
-      - name: Compile
+      - name: Compile ordinary source
         run: python -m compileall -q signalcore_runtime skills/signal-core tools tests benchmarks
       - name: Runtime tests
         run: python -m unittest discover -s tests/runtime -q
       - name: Existing adapter tests
         run: python -m unittest tests.test_platforms tests.test_roblox_profile_gate -q
+      - name: Runtime package validation
+        run: python tools/validate_runtime.py
+      - name: Package integrity validation
+        run: python tools/validate.py
+      - name: Fail-closed release and benchmark smoke
+        run: python tools/validate_release.py --profile 5x --smoke --output fusion-release-smoke.json
+      - name: CLI enforcement smoke
+        shell: bash
+        run: |
+          python -m signalcore_runtime --project . context evaluate --used 60 --window 100 > context.json
+          python -m signalcore_runtime --project . --host claude-code hook pre --payload '{"tool":"shell","command":"pytest -q"}' > hook.json
+          python -m signalcore_runtime --project . --host codex host > host.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          context = json.loads(Path('context.json').read_text(encoding='utf-8'))
+          hook = json.loads(Path('hook.json').read_text(encoding='utf-8'))
+          host = json.loads(Path('host.json').read_text(encoding='utf-8'))
+          assert context['utilization'] == 0.6
+          assert hook['allowed'] is True and hook['mode'] == 'replace'
+          assert host['mode'] == 'MCP_CONTROLLED'
+          PY
+
+  profile-compatibility:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
       - name: Roblox profile tests
         run: python -m unittest discover -s tests/roblox_profile -q
-      - name: Validate package
-        run: python tools/validate.py
-      - name: Validate runtime
-        run: python tools/validate_runtime.py
       - name: Validate Roblox profile
         run: python tools/validate_roblox_profile.py
-      - name: Verify Roblox claims
+      - name: Verify governed Roblox claims
         run: python tools/verify_claims.py
-      - name: Validate fail-closed 5X machinery
-        run: python tools/validate_release.py --profile 5x --smoke --output fusion-release-smoke.json
