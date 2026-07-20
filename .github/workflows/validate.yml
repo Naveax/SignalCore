@@ -1,4 +1,4 @@
-name: Validate SignalCore
+name: Validate SignalCore Package
 
 on:
   push:
@@ -10,12 +10,12 @@ permissions:
   contents: read
 
 jobs:
-  validate:
+  package:
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-        python-version: ['3.11', '3.12', '3.13']
+        python-version: ["3.11", "3.12", "3.13"]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -23,10 +23,10 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
       - name: Compile
-        run: python -m compileall -q skills/signal-core/scripts tools tests
+        run: python -m compileall -q signalcore_runtime skills/signal-core/scripts tools tests benchmarks
       - name: Validate package
         run: python tools/validate.py
-      - name: Run adapter tests
+      - name: Run complete test discovery
         run: python -m unittest discover -s tests -q
       - name: Check platform registry
         run: python tools/install.py list --output platform-registry.json
