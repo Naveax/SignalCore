@@ -7,6 +7,7 @@ import time
 from pathlib import Path
 from typing import Any, Iterable
 
+from .competitive_fabric import CompetitiveContextFabric
 from .compression import ContentRouter
 from .evidence import EvidenceStore
 from .host_output_pipeline import HostOutputPipeline
@@ -32,7 +33,12 @@ NETWORK_MARKERS = {"curl", "wget", "Invoke-WebRequest", "iwr", "npm", "pip", "uv
 
 def normalize_command(command: str | Iterable[str]) -> tuple[str, ...]:
     if isinstance(command, str):
-        return tuple(shlex.split(command, posix=os.name != "nt"))
+        try:
+            return tuple(shlex.split(command, posix=os.name != "nt"))
+        except ValueError:
+            # Preserve malformed or shell-composite input for the fabric router,
+            # which will mark it unsafe to rewrite instead of guessing semantics.
+            return (command,)
     return tuple(str(value) for value in command)
 
 
@@ -47,23 +53,30 @@ class HookEngine:
         state_root: Path | None = None,
         output_pipeline: HostOutputPipeline | None = None,
         auto_externalize: bool = True,
+        host: str = "generic-mcp",
+        fabric: CompetitiveContextFabric | None = None,
     ):
         self.project_root = project_root.resolve(strict=True)
         self.broker_prefix = broker_prefix
         self.sandbox_prefix = sandbox_prefix
         self.compressor = compressor
         self.output_pipeline = output_pipeline
+        active_state = Path(state_root).resolve(strict=False) if state_root else self.project_root / ".signalcore" / "runtime-v3"
+        self.fabric = fabric or CompetitiveContextFabric(
+            active_state / "competitive-fabric.sqlite3",
+            project=self.project_root,
+            host=host,
+        )
         if self.output_pipeline is None and auto_externalize:
-            active_state = Path(state_root).resolve(strict=False) if state_root else self.project_root / '.signalcore' / 'runtime-v3'
             project_id = stable_project_id(self.project_root)
-            evidence = EvidenceStore(active_state / 'evidence', project_id=project_id)
+            evidence = EvidenceStore(active_state / "evidence", project_id=project_id)
             externalizer = ToolOutputExternalizer(
-                active_state / 'tool-externalization.sqlite3',
+                active_state / "tool-externalization.sqlite3",
                 evidence=evidence,
-                policy=ExternalizationPolicy.for_profile('balanced'),
+                policy=ExternalizationPolicy.for_profile("balanced"),
             )
-            usage = UsageReceiptLedger(active_state / 'usage-receipts.sqlite3')
-            sessions = SessionRuntime(active_state / 'sessions.sqlite3', project_id=project_id)
+            usage = UsageReceiptLedger(active_state / "usage-receipts.sqlite3")
+            sessions = SessionRuntime(active_state / "sessions.sqlite3", project_id=project_id)
             self.output_pipeline = HostOutputPipeline(externalizer, usage_ledger=usage, sessions=sessions)
 
     def _cwd(self, payload: dict[str, Any]) -> Path:
@@ -87,29 +100,38 @@ class HookEngine:
             cwd = self._cwd(payload)
         except PermissionError:
             return HookDecision(False, "blocked", command, ("cwd-outside-project",))
-        executable = Path(command[0]).name.casefold() if command else ""
+
         explicit_sandbox = bool(payload.get("sandbox")) or bool(payload.get("untrusted"))
-        risky = explicit_sandbox or any(marker.casefold() == executable for marker in NETWORK_MARKERS) and bool(payload.get("network_untrusted"))
-        if risky and command[: len(self.sandbox_prefix)] != self.sandbox_prefix:
+        route = self.fabric.route(
+            raw_command,
+            network_untrusted=bool(payload.get("network_untrusted")) or explicit_sandbox,
+            repeated=bool(payload.get("repeated")),
+        )
+        if route.mode == "blocked":
+            return HookDecision(False, "blocked", command, route.reasons)
+        if explicit_sandbox and route.mode != "sandbox-replace" and command[: len(self.sandbox_prefix)] != self.sandbox_prefix:
             replacement = {
                 "tool": tool,
                 "argv": [*self.sandbox_prefix, *command],
                 "cwd": str(cwd),
-                "reason": "route-untrusted-command-through-secure-sandbox",
+                "reason": "competitive-fabric-explicit-sandbox",
+                "family": route.family,
+                "repeat_key": route.repeat_key,
+                "recommended_tools": list(route.recommended_tools),
             }
-            return HookDecision(True, "replace", command, ("sandbox-required",), replacement)
-        long_running = executable in LONG_RUNNING_MARKERS or any(
-            marker in joined for marker in (" test", " build", " install", " benchmark", " lint", " check", " compile")
-        )
-        if long_running and command[: len(self.broker_prefix)] != self.broker_prefix:
+            return HookDecision(True, "replace", command, ("explicit-sandbox", *route.reasons), replacement)
+        if route.replacement_argv:
             replacement = {
                 "tool": tool,
-                "argv": [*self.broker_prefix, *command],
+                "argv": list(route.replacement_argv),
                 "cwd": str(cwd),
-                "reason": "route-long-command-through-zero-poll-broker",
+                "reason": f"competitive-fabric:{route.mode}",
+                "family": route.family,
+                "repeat_key": route.repeat_key,
+                "recommended_tools": list(route.recommended_tools),
             }
-            return HookDecision(True, "replace", command, ("long-running-command",), replacement)
-        return HookDecision(True, "allow", command)
+            return HookDecision(True, "replace", command, route.reasons, replacement)
+        return HookDecision(True, "allow", command, route.reasons)
 
     def post_tool(self, payload: dict[str, Any]) -> dict[str, Any]:
         if self.output_pipeline is not None:
@@ -127,7 +149,12 @@ class HookEngine:
                 text = value.get(key)
                 if isinstance(text, str) and len(text.encode("utf-8")) > 4096:
                     if self.compressor:
-                        compressed = self.compressor.compress(text, hint=str(payload.get("content_type", "log")), path=str(payload.get("path", "")), budget_bytes=4096)
+                        compressed = self.compressor.compress(
+                            text,
+                            hint=str(payload.get("content_type", "log")),
+                            path=str(payload.get("path", "")),
+                            budget_bytes=4096,
+                        )
                         value[key] = compressed.visible_text
                         compressions[key] = compressed.__dict__
                     else:
@@ -141,7 +168,7 @@ class HookEngine:
             "mode": "activate-runtime",
             "project": str(self.project_root),
             "task": payload.get("task") or payload.get("prompt") or "",
-            "required_actions": ("runtime-status", "structural-index", "session-open"),
+            "required_actions": ("runtime-status", "structural-index", "session-open", "competitive-fabric-profile"),
             "timestamp": time.time(),
         }
 
@@ -169,11 +196,19 @@ class HookEngine:
 
     @staticmethod
     def stop(payload: dict[str, Any]) -> dict[str, Any]:
-        return {"mode": "flush-runtime", "session_id": payload.get("session_id"), "actions": ("flush-events", "checkpoint", "drain-completions")}
+        return {
+            "mode": "flush-runtime",
+            "session_id": payload.get("session_id"),
+            "actions": ("flush-events", "checkpoint", "drain-completions", "flush-fabric-insights"),
+        }
 
     @staticmethod
     def session_end(payload: dict[str, Any]) -> dict[str, Any]:
-        return {"mode": "close-session", "session_id": payload.get("session_id"), "actions": ("final-checkpoint", "claim-boundary", "release-locks")}
+        return {
+            "mode": "close-session",
+            "session_id": payload.get("session_id"),
+            "actions": ("final-checkpoint", "claim-boundary", "release-locks", "final-fabric-metrics"),
+        }
 
 
 def run_hook(engine: HookEngine, phase: str, payload_text: str) -> str:
