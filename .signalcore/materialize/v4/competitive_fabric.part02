@@ -1,0 +1,200 @@
+                return item[:180] + f"…<{len(item)} chars>…" + item[-60:]
+            return item
+
+        return json.dumps(shrink(value), ensure_ascii=False, sort_keys=True, indent=2)
+
+    def _select(self, family: str, text: str) -> tuple[list[str], int]:
+        lines = text.splitlines()
+        errors = self._dedup(line for line in lines if _ERROR_RE.search(line) or _LOCATION_RE.search(line))
+        if family == "test":
+            summaries = self._dedup(line for line in lines if _TEST_SUMMARY_RE.search(line))
+            failures = self._dedup(
+                line for line in lines
+                if line.lstrip().startswith(("E ", "F ", "FAILED", ">")) or _ERROR_RE.search(line)
+            )
+            return summaries[-12:] + failures[:48] + errors[:32], len(errors)
+        if family == "git":
+            status = self._dedup(
+                line for line in lines
+                if line.startswith(("On branch ", "Your branch ", "Changes ", "Untracked ", "diff --git", "@@ "))
+                or line[:2] in {" M", "M ", "A ", " D", "D ", "??"}
+                or _DIFF_HEADER_RE.match(line)
+            )
+            changed = [line for line in lines if line.startswith(("+", "-")) and not line.startswith(("+++", "---"))]
+            return status[:80] + changed[:24] + changed[-12:] + errors[:24], len(errors)
+        if family in {"search", "read"}:
+            grouped: dict[str, list[str]] = defaultdict(list)
+            for line in lines:
+                if not line.strip():
+                    continue
+                key = line.split(":", 1)[0] if ":" in line else str(Path(line).parent)
+                grouped[key].append(line)
+            selected = [f"results={sum(map(len, grouped.values()))} groups={len(grouped)}"]
+            for key, values in list(grouped.items())[:40]:
+                selected.append(f"[{key}] {len(values)}")
+                selected.extend(values[:4])
+            return selected + errors[:24], len(errors)
+        if family in {"package", "cloud", "container", "network"}:
+            preview = self._json_preview(text)
+            if preview is not None:
+                return preview.splitlines(), len(errors)
+            headings = self._dedup(
+                line for line in lines
+                if re.search(r"(?i)\b(name|version|status|state|image|id|resource|package|total|warning)\b", line)
+            )
+            return errors[:32] + headings[:48] + lines[:20] + lines[-10:], len(errors)
+        if family in {"build", "github"}:
+            summaries = self._dedup(
+                line for line in lines
+                if _ERROR_RE.search(line) or _LOCATION_RE.search(line)
+                or re.search(r"(?i)\b(success|succeeded|complete|completed|warning|changed files?|checks?)\b", line)
+            )
+            return summaries[:80] + lines[-20:], len(errors)
+        preview = self._json_preview(text)
+        if preview is not None:
+            return preview.splitlines(), len(errors)
+        return errors[:40] + lines[:24] + lines[-12:], len(errors)
+
+    def compact(
+        self,
+        command: str | Iterable[str],
+        stdout: str,
+        stderr: str = "",
+        *,
+        budget_bytes: int = 4096,
+    ) -> CompactionResult:
+        if budget_bytes < 256:
+            raise ValueError("budget_bytes must be at least 256")
+        router = SafeCommandRouter()
+        family = router.route(command).family
+        combined = stdout.rstrip("\n")
+        if stderr:
+            combined += ("\n[stderr]\n" if combined else "[stderr]\n") + stderr
+        security = scan_text(combined)
+        selected, retained_errors = self._select(family, security.redacted_text)
+        header = (
+            f"SignalCore compact family={family} lines={len(security.normalized_text.splitlines())} "
+            f"secrets={len(security.secret_types)} injection_risk={str(security.injection_risk).lower()}"
+        )
+        visible = self._bounded(header + "\n" + "\n".join(self._dedup(selected)), budget_bytes)
+        original_bytes = len(combined.encode("utf-8"))
+        visible_bytes = len(visible.encode("utf-8"))
+        return CompactionResult(
+            family=family,
+            visible_text=visible,
+            original_bytes=original_bytes,
+            visible_bytes=visible_bytes,
+            savings_ratio=0.0 if original_bytes == 0 else max(0.0, 1.0 - visible_bytes / original_bytes),
+            exact_required=visible_bytes < original_bytes,
+            secret_types=security.secret_types,
+            injection_risk=security.injection_risk,
+            injection_reasons=security.injection_reasons,
+            retained_error_lines=retained_errors,
+        )
+
+
+class InsightLedger:
+    """Append-only local analytics for savings, reliability, routing, and cache behavior."""
+
+    def __init__(self, path: Path):
+        self.state = StateDB(path)
+        with self.state.transaction(immediate=True) as db:
+            db.executescript(
+                """
+                CREATE TABLE IF NOT EXISTS fabric_events(
+                    event_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    event_type TEXT NOT NULL,
+                    family TEXT NOT NULL,
+                    host TEXT NOT NULL,
+                    raw_bytes INTEGER NOT NULL,
+                    visible_bytes INTEGER NOT NULL,
+                    latency_ms REAL NOT NULL,
+                    success INTEGER NOT NULL,
+                    cache_hit INTEGER NOT NULL,
+                    metadata_json TEXT NOT NULL,
+                    created_at REAL NOT NULL
+                );
+                CREATE INDEX IF NOT EXISTS fabric_event_type_idx ON fabric_events(event_type,created_at);
+                CREATE INDEX IF NOT EXISTS fabric_family_idx ON fabric_events(family,created_at);
+                """
+            )
+
+    def record(
+        self,
+        event_type: str,
+        *,
+        family: str = "generic",
+        host: str = "unknown",
+        raw_bytes: int = 0,
+        visible_bytes: int = 0,
+        latency_ms: float = 0.0,
+        success: bool = True,
+        cache_hit: bool = False,
+        metadata: Mapping[str, Any] | None = None,
+    ) -> int:
+        with self.state.transaction(immediate=True) as db:
+            cursor = db.execute(
+                "INSERT INTO fabric_events(event_type,family,host,raw_bytes,visible_bytes,latency_ms,success,cache_hit,metadata_json,created_at) VALUES(?,?,?,?,?,?,?,?,?,?)",
+                (
+                    str(event_type), str(family), str(host), max(0, int(raw_bytes)), max(0, int(visible_bytes)),
+                    max(0.0, float(latency_ms)), int(bool(success)), int(bool(cache_hit)),
+                    json.dumps(dict(metadata or {}), ensure_ascii=False, sort_keys=True), time.time(),
+                ),
+            )
+        return int(cursor.lastrowid)
+
+    @staticmethod
+    def _percentile(values: list[float], fraction: float) -> float:
+        if not values:
+            return 0.0
+        ordered = sorted(values)
+        index = min(len(ordered) - 1, max(0, math.ceil(len(ordered) * fraction) - 1))
+        return float(ordered[index])
+
+    def metrics(self, *, since_seconds: float | None = None) -> dict[str, Any]:
+        sql = "SELECT * FROM fabric_events"
+        params: list[Any] = []
+        if since_seconds is not None:
+            sql += " WHERE created_at>=?"
+            params.append(time.time() - max(0.0, float(since_seconds)))
+        sql += " ORDER BY event_id"
+        with self.state.read() as db:
+            rows = [dict(row) for row in db.execute(sql, params)]
+        raw = sum(int(row["raw_bytes"]) for row in rows)
+        visible = sum(int(row["visible_bytes"]) for row in rows)
+        latencies = [float(row["latency_ms"]) for row in rows]
+        families = Counter(str(row["family"]) for row in rows)
+        event_types = Counter(str(row["event_type"]) for row in rows)
+        hosts = Counter(str(row["host"]) for row in rows)
+        successes = sum(int(row["success"]) for row in rows)
+        cache_hits = sum(int(row["cache_hit"]) for row in rows)
+        return {
+            "events": len(rows),
+            "success_rate": 1.0 if not rows else successes / len(rows),
+            "cache_hit_rate": 0.0 if not rows else cache_hits / len(rows),
+            "raw_bytes": raw,
+            "visible_bytes": visible,
+            "saved_bytes": max(0, raw - visible),
+            "savings_ratio": 0.0 if raw == 0 else max(0.0, 1.0 - visible / raw),
+            "latency_ms": {
+                "mean": statistics.fmean(latencies) if latencies else 0.0,
+                "p50": self._percentile(latencies, 0.50),
+                "p95": self._percentile(latencies, 0.95),
+                "max": max(latencies, default=0.0),
+            },
+            "families": dict(families.most_common()),
+            "event_types": dict(event_types.most_common()),
+            "hosts": dict(hosts.most_common()),
+            "database_integrity": self.state.integrity_check(),
+        }
+
+
+class PlatformPlanBuilder:
+    """Generate portable installation and enforcement plans for every registered host."""
+
+    @staticmethod
+    def _mcp_entry() -> dict[str, Any]:
+        return {"command": "signalcore", "args": ["mcp"]}
+
+    def plan(self, host: str, *, project: Path, scope: str = "project") -> dict[str, Any]:
+        spec = host_spec(host)
