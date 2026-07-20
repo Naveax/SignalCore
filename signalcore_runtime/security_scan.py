@@ -42,7 +42,8 @@ _INJECTION_PATTERNS: tuple[re.Pattern[str], ...] = (
     ,
 )
 
-_BASE64_TOKEN = re.compile(r"(?<![A-Za-z0-9+/=_-])[A-Za-z0-9+/_-]{40,}={0,2}(?![A-Za-z0-9+/=_-])")
+# Assignment delimiters are intentionally allowed immediately before the token.
+_BASE64_TOKEN = re.compile(r"(?<![A-Za-z0-9+/_-])[A-Za-z0-9+/_-]{40,}={0,2}(?![A-Za-z0-9+/_-])")
 
 
 @dataclass(frozen=True)
