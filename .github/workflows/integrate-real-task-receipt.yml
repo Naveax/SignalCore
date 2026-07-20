@@ -33,13 +33,31 @@ jobs:
         run: python -m compileall -q signalcore_runtime tools tests benchmarks
       - name: Verify receipt unit tests
         run: python -m unittest tests.runtime.test_real_task_receipts -q
-      - name: Verify committed attrs receipt
+      - name: Inspect committed attrs receipt
         run: |
           python - <<'PY'
+          import json
           from pathlib import Path
           from signalcore_runtime.real_task_receipts import load_verified_real_tasks
-          root = Path('benchmarks/results/real-tasks')
-          result = load_verified_real_tasks(root)
+          result = load_verified_real_tasks(Path('benchmarks/results/real-tasks'))
+          Path('/tmp/real-task-receipt-debug.json').write_text(
+              json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True),
+              encoding='utf-8',
+          )
+          PY
+      - name: Upload receipt diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: real-task-receipt-debug
+          path: /tmp/real-task-receipt-debug.json
+          if-no-files-found: error
+      - name: Enforce committed attrs receipt
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          result = json.loads(Path('/tmp/real-task-receipt-debug.json').read_text())
           assert result['verified_count'] == 1, result
           assert result['rejected_count'] == 0, result
           task = result['verified'][0]
