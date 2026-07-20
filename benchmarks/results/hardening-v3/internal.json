@@ -1,14 +1,14 @@
 {
-  "boundary": "Internal hardening benchmark. Real repository tasks and external competitor arms are intentionally zero and cannot satisfy the 10/10 gate.",
+  "boundary": "Internal hardening benchmark with cryptographically verified real-task receipts. External competitor arms remain zero, so superiority is not proven.",
   "claim": "SUPERIORITY_NOT_PROVEN",
   "concurrency": {
     "all_roundtrips": true,
     "all_searches": true,
     "completed_artifacts": 64,
     "errors": [],
-    "p95_proxy_ms": 170.40454263281245,
+    "p95_proxy_ms": 165.31945725000006,
     "requested_artifacts": 64,
-    "seconds": 7.270593818999998,
+    "seconds": 7.053630176000002,
     "success_rate": 1.0,
     "workers": 8
   },
@@ -35,7 +35,7 @@
   "provider_receipt_ledger": {
     "attestation": "HMAC",
     "entries": 30,
-    "last_chain_hash": "c4b7add652c9fd5ddb47a7b12fdcad14889e1a7f7d8f298b95ff14f069905bf8",
+    "last_chain_hash": "a1f260d018bcfbae7b18e11fc515094191ed63670c70f6babc7d3710e166de9f",
     "ok": true,
     "reasons": []
   },
@@ -45,10 +45,10 @@
       "concurrency_success_rate": 1.0,
       "exact_roundtrip_rate": 1.0,
       "host_interception_coverage": 1.0,
-      "p95_latency_ms": 170.40454263281245,
+      "p95_latency_ms": 165.31945725000006,
       "pass_rate_delta": 0.0,
       "provider_receipt_coverage": 1.0,
-      "real_repository_tasks": 0,
+      "real_repository_tasks": 1,
       "security_regressions": 0,
       "semantic_recall_at_5": 1.0,
       "temporal_truth_accuracy": 1.0,
@@ -74,6 +74,22 @@
     "score": 7.5,
     "ten_of_ten": false
   },
+  "real_repository_tasks": {
+    "rejected": [],
+    "rejected_count": 0,
+    "verified": [
+      {
+        "evidence_objects": 4,
+        "identity": "python-attrs/attrs#1245@main:0b1a294432d294c4f154be2d9439d825c3ec0781",
+        "issue_number": 1245,
+        "patch_sha256": "37bfba6b76f02adedb1048bcbb442e826b866e16ae1e304b2d760e4df0e82208",
+        "patched_tests": 31,
+        "receipt_path": "/home/runner/work/SignalCore/SignalCore/benchmarks/results/real-tasks/attrs-1245/receipt.json",
+        "repository": "python-attrs/attrs"
+      }
+    ],
+    "verified_count": 1
+  },
   "schema_version": 1,
   "security_scan": {
     "injection_risk": true,
@@ -98,7 +114,7 @@
         "high-value-event-type",
         "current-temporal-truth"
       ],
-      "score": 12.846153846038087,
+      "score": 12.84615384601739,
       "sequence": 3,
       "session_id": "s",
       "subject": "subject:auth-refresh",

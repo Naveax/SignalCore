@@ -17,6 +17,7 @@ sys.path.insert(0, str(ROOT))
 from signalcore_runtime.evidence import EvidenceStore
 from signalcore_runtime.host_output_pipeline import HostOutputPipeline
 from signalcore_runtime.readiness_gate import ReadinessEvidence, SignalCoreReadinessGate
+from signalcore_runtime.real_task_receipts import load_verified_real_tasks
 from signalcore_runtime.security_scan import scan_text
 from signalcore_runtime.session_retrieval import SessionSemanticRetriever
 from signalcore_runtime.tool_externalization import ToolOutputExternalizer
@@ -118,9 +119,13 @@ def main(argv: list[str] | None = None) -> int:
             "result": {"stdout": ("INFO repeated\n" * 2000) + "FATAL final needle at app.py:8\n"},
         })
 
+        real_tasks = load_verified_real_tasks(
+            ROOT / 'benchmarks' / 'results' / 'real-tasks'
+        )
+
         evidence_gate = ReadinessEvidence(
             host_interception_coverage=1.0 if pipeline_result.get("captures") else 0.0,
-            real_repository_tasks=0,
+            real_repository_tasks=real_tasks['verified_count'],
             competitor_arms=0,
             valid_paired_repetitions=0,
             provider_receipt_coverage=1.0 if ledger_verification["ok"] else 0.0,
@@ -135,7 +140,7 @@ def main(argv: list[str] | None = None) -> int:
         readiness = SignalCoreReadinessGate.evaluate(evidence_gate)
         result = {
             "schema_version": 1,
-            "boundary": "Internal hardening benchmark. Real repository tasks and external competitor arms are intentionally zero and cannot satisfy the 10/10 gate.",
+            "boundary": "Internal hardening benchmark with cryptographically verified real-task receipts. External competitor arms remain zero, so superiority is not proven.",
             "claim": "SUPERIORITY_NOT_PROVEN",
             "concurrency": {
                 "workers": args.workers,
@@ -149,6 +154,7 @@ def main(argv: list[str] | None = None) -> int:
                 "errors": errors,
             },
             "externalization_stats": stats,
+            "real_repository_tasks": real_tasks,
             "semantic_temporal_retrieval": {"ok": semantic_ok, "top_hit": asdict(hits[0]) if hits else None},
             "provider_receipt_ledger": ledger_verification,
             "security_scan": {
