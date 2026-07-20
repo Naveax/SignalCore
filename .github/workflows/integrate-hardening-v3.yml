@@ -31,11 +31,26 @@ jobs:
         run: python tools/apply_hardening_v3.py
       - name: Compile source
         run: python -m compileall -q signalcore_runtime tools tests benchmarks
-      - name: Run complete runtime and profile tests
+      - name: Security and provider normalization gates
         run: |
-          python -m unittest discover -s tests/runtime -q
-          python -m unittest tests.test_platforms tests.test_roblox_profile_gate -q
-          python -m unittest discover -s tests/roblox_profile -q
+          python tests/runtime/test_signalcore_hardening_v3.py SignalCoreHardeningV3Tests.test_security_scan_redacts_structured_secrets_and_encoded_injection -v
+          python tests/runtime/test_signalcore_hardening_v3.py SignalCoreHardeningV3Tests.test_provider_usage_normalization -v
+      - name: Provider ledger tamper gate
+        run: python tests/runtime/test_signalcore_hardening_v3.py SignalCoreHardeningV3Tests.test_usage_receipt_ledger_is_hmac_attested_and_tamper_evident -v
+      - name: Semantic temporal truth gate
+        run: python tests/runtime/test_signalcore_hardening_v3.py SignalCoreHardeningV3Tests.test_semantic_temporal_retrieval_prefers_current_decision -v
+      - name: Mandatory host interception gate
+        run: python tests/runtime/test_signalcore_hardening_v3.py SignalCoreHardeningV3Tests.test_host_pipeline_externalizes_large_output_and_records_session -v
+      - name: Concurrent externalization gate
+        run: python tests/runtime/test_signalcore_hardening_v3.py SignalCoreHardeningV3Tests.test_externalization_concurrency_has_no_lock_or_roundtrip_failures -v
+      - name: Fail closed readiness gate
+        run: python tests/runtime/test_signalcore_hardening_v3.py SignalCoreHardeningV3Tests.test_readiness_gate_cannot_fake_ten_of_ten -v
+      - name: Run complete runtime tests
+        run: python -m unittest discover -s tests/runtime -q
+      - name: Run platform gates
+        run: python -m unittest tests.test_platforms tests.test_roblox_profile_gate -q
+      - name: Run profile tests
+        run: python -m unittest discover -s tests/roblox_profile -q
       - name: Run hardening benchmark
         run: |
           mkdir -p benchmarks/results/hardening-v3
