@@ -1,0 +1,200 @@
+            "host": host,
+            "host_mode": negotiate(host).get("mode"),
+            "profile_hash": sha256_bytes(canonical_json({"profile": profile_name, "tools": selected})),
+        }
+
+
+class CacheAligner:
+    """Build cache-stable request fingerprints while preserving exact message payloads."""
+
+    @staticmethod
+    def _stable_copy(value: Any, volatile: set[str]) -> Any:
+        if isinstance(value, Mapping):
+            result: dict[str, Any] = {}
+            for key in sorted(value, key=str):
+                name = str(key)
+                if name in _VOLATILE_FIELDS or name.startswith("_"):
+                    volatile.add(name)
+                    continue
+                result[name] = CacheAligner._stable_copy(value[key], volatile)
+            return result
+        if isinstance(value, (list, tuple)):
+            return [CacheAligner._stable_copy(item, volatile) for item in value]
+        return value
+
+    def align(self, messages: Sequence[Mapping[str, Any]], *, keep_tail: int = 1) -> CacheAlignment:
+        if keep_tail < 0:
+            raise ValueError("keep_tail must be non-negative")
+        stable_count = max(0, len(messages) - keep_tail)
+        volatile: set[str] = set()
+        stable = [self._stable_copy(message, volatile) for message in messages[:stable_count]]
+        canonical = canonical_json(stable).decode("utf-8")
+        return CacheAlignment(
+            prefix_hash=sha256_bytes(canonical.encode("utf-8")),
+            stable_message_count=stable_count,
+            volatile_tail_count=len(messages) - stable_count,
+            cacheable_bytes=len(canonical.encode("utf-8")),
+            volatile_fields=tuple(sorted(volatile)),
+            canonical_prefix=canonical,
+        )
+
+    def align_request(self, payload: Mapping[str, Any], *, message_key: str = "messages", keep_tail: int = 1) -> dict[str, Any]:
+        messages = payload.get(message_key) or []
+        if not isinstance(messages, Sequence) or isinstance(messages, (str, bytes, bytearray)):
+            raise TypeError(f"{message_key} must be a message sequence")
+        alignment = self.align(messages, keep_tail=keep_tail)
+        return {"alignment": asdict(alignment), "request": dict(payload)}
+
+
+class SafeCommandRouter:
+    """Classify shell work and choose exact-preserving SignalCore execution paths."""
+
+    LONG_RUNNING = {
+        "pytest", "py.test", "cargo", "npm", "pnpm", "yarn", "gradle", "mvn",
+        "dotnet", "go", "make", "cmake", "ninja", "docker", "podman", "terraform",
+        "tox", "nox", "ruff", "mypy", "eslint", "vitest", "jest", "ctest",
+    }
+    NETWORK = {"curl", "wget", "iwr", "invoke-webrequest", "pip", "uv", "npm", "pnpm", "yarn", "cargo", "git", "gh"}
+
+    @staticmethod
+    def _parse(command: str | Iterable[str]) -> tuple[tuple[str, ...], bool]:
+        if isinstance(command, str):
+            unsafe = bool(_SHELL_UNSAFE_RE.search(command))
+            try:
+                return tuple(shlex.split(command, posix=os.name != "nt")), unsafe
+            except ValueError:
+                return tuple(command.split()), True
+        return tuple(str(item) for item in command), False
+
+    @staticmethod
+    def _family(argv: tuple[str, ...]) -> str:
+        if not argv:
+            return "empty"
+        exe = Path(argv[0]).name.casefold()
+        joined = " ".join(argv).casefold()
+        if exe == "git":
+            return "git"
+        if exe == "gh":
+            return "github"
+        if exe in {"pytest", "py.test", "jest", "vitest", "ctest"} or " test" in f" {joined}":
+            return "test"
+        if exe in {"grep", "rg", "find", "fd", "ls", "tree"}:
+            return "search"
+        if exe in {"cat", "head", "tail", "sed", "type", "get-content"}:
+            return "read"
+        if exe in {"npm", "pnpm", "yarn", "pip", "uv", "cargo"}:
+            return "package"
+        if exe in {"kubectl", "aws", "gcloud", "az"}:
+            return "cloud"
+        if exe in {"docker", "podman"}:
+            return "container"
+        if exe in {"curl", "wget", "iwr", "invoke-webrequest"}:
+            return "network"
+        if exe in {"make", "cmake", "ninja", "gradle", "mvn", "dotnet", "go"}:
+            return "build"
+        return "generic"
+
+    def route(
+        self,
+        command: str | Iterable[str],
+        *,
+        network_untrusted: bool = False,
+        repeated: bool = False,
+    ) -> RouteDecision:
+        argv, ambiguous = self._parse(command)
+        normalized = tuple(argv)
+        joined = " ".join(normalized)
+        family = self._family(normalized)
+        reasons: list[str] = []
+        if not argv:
+            reasons.append("empty-command")
+        if _DESTRUCTIVE_RE.search(joined):
+            return RouteDecision(
+                family, "blocked", normalized, (), (), ("destructive-command",), False,
+                False, False, sha256_bytes(joined.encode("utf-8")), False,
+            )
+        exe = Path(argv[0]).name.casefold() if argv else ""
+        long_running = exe in self.LONG_RUNNING or family in {"test", "build"}
+        sandbox = network_untrusted and exe in self.NETWORK
+        capture = family not in {"empty"}
+        recommended = ["signalcore.output.capture"] if capture else []
+        if family in {"search", "read"}:
+            recommended.extend(("signalcore.inspect.map", "signalcore.output.search"))
+        if family in {"test", "build"}:
+            recommended.extend(("signalcore.process.submit", "signalcore.process.completions"))
+        if sandbox:
+            recommended.insert(0, "signalcore.sandbox.execute")
+        if repeated and family in {"read", "search", "git", "github"}:
+            reasons.append("repeat-read-elision-eligible")
+            recommended.append("signalcore.output.search")
+        replacement: tuple[str, ...] = ()
+        safe_to_rewrite = not ambiguous
+        mode = "execute-and-capture"
+        if sandbox and safe_to_rewrite:
+            replacement = ("signalcore", "sandbox", "execute", "--", *argv)
+            mode = "sandbox-replace"
+            reasons.append("untrusted-network-command")
+        elif long_running and safe_to_rewrite:
+            replacement = ("signalcore", "run", "--background", "--", *argv)
+            mode = "background-replace"
+            reasons.append("long-running-command")
+        elif ambiguous:
+            reasons.append("ambiguous-shell-syntax-no-rewrite")
+        else:
+            reasons.append("exact-command-preserved")
+        return RouteDecision(
+            family=family,
+            mode=mode,
+            normalized_command=normalized,
+            replacement_argv=replacement,
+            recommended_tools=tuple(dict.fromkeys(recommended)),
+            reasons=tuple(reasons),
+            capture_required=capture,
+            background=long_running,
+            sandbox=sandbox,
+            repeat_key=sha256_bytes(canonical_json({"argv": normalized, "family": family})),
+            safe_to_rewrite=safe_to_rewrite,
+        )
+
+
+class CommandCompactor:
+    """Deterministic multi-family output compaction with exact-evidence handoff."""
+
+    @staticmethod
+    def _bounded(text: str, budget_bytes: int) -> str:
+        raw = text.encode("utf-8")
+        if len(raw) <= budget_bytes:
+            return text
+        marker = "\n[… exact output externalized; search or reveal for omitted evidence …]"
+        keep = max(0, budget_bytes - len(marker.encode("utf-8")))
+        return raw[:keep].decode("utf-8", errors="ignore").rstrip() + marker
+
+    @staticmethod
+    def _dedup(lines: Iterable[str]) -> list[str]:
+        return list(dict.fromkeys(line for line in lines if line.strip()))
+
+    @staticmethod
+    def _json_preview(text: str) -> str | None:
+        try:
+            value = json.loads(text)
+        except (json.JSONDecodeError, TypeError):
+            return None
+
+        def shrink(item: Any, depth: int = 0) -> Any:
+            if depth >= 4 and isinstance(item, (dict, list)):
+                return f"<{type(item).__name__}:{len(item)}>"
+            if isinstance(item, dict):
+                keys = sorted(item, key=str)
+                result = {str(key): shrink(item[key], depth + 1) for key in keys[:30]}
+                if len(keys) > 30:
+                    result["<omitted_keys>"] = len(keys) - 30
+                return result
+            if isinstance(item, list):
+                if len(item) <= 10:
+                    return [shrink(value, depth + 1) for value in item]
+                return {
+                    "<length>": len(item),
+                    "<head>": [shrink(value, depth + 1) for value in item[:5]],
+                    "<tail>": [shrink(value, depth + 1) for value in item[-2:]],
+                }
+            if isinstance(item, str) and len(item) > 300:
