@@ -1,0 +1,87 @@
+name: Integrate Competitive CLI V4
+
+on:
+  push:
+    branches:
+      - agent/adaptive-context-v04
+    paths:
+      - .github/workflows/integrate-competitive-cli-v4.yml
+
+permissions:
+  contents: write
+
+jobs:
+  integrate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/adaptive-context-v04
+          fetch-depth: 0
+      - name: Wire competitive CLI commands
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('signalcore_runtime/cli.py')
+          text = path.read_text(encoding='utf-8')
+          import_line = 'from .competitive_cli import add_competitive_commands\n'
+          if import_line not in text:
+              anchor = 'from .compression import ContentRouter, ReversibleContentStore\n'
+              if anchor not in text:
+                  raise SystemExit('competitive CLI import anchor missing')
+              text = text.replace(anchor, import_line + anchor, 1)
+          call = '    add_competitive_commands(sub, catalog=MCPServer.tools)\n'
+          if call not in text:
+              anchor = '    verifier.set_defaults(func=command_verifier)\n    return parser\n'
+              if anchor not in text:
+                  raise SystemExit('competitive CLI parser anchor missing')
+              text = text.replace(
+                  anchor,
+                  '    verifier.set_defaults(func=command_verifier)\n' + call + '    return parser\n',
+                  1,
+              )
+          path.write_text(text, encoding='utf-8')
+          Path('.github/workflows/integrate-competitive-cli-v4.yml').unlink()
+          PY
+      - name: Regenerate manifest
+        run: |
+          python - <<'PY'
+          import hashlib
+          from pathlib import Path
+
+          root = Path('.')
+          generated = {'fusion-release-smoke.json','release-smoke.json','platform-registry.json','native-dry-run.json'}
+          rows = []
+          for path in root.rglob('*'):
+              if not path.is_file():
+                  continue
+              relative = path.relative_to(root)
+              if any(part in {'.git','.signalcore','__pycache__','.pytest_cache'} for part in relative.parts):
+                  continue
+              if (path.name == 'MANIFEST.sha256' and path.parent == root) or path.name in generated or path.suffix == '.pyc':
+                  continue
+              rows.append((relative.as_posix(), hashlib.sha256(path.read_bytes()).hexdigest()))
+          Path('MANIFEST.sha256').write_text(
+              ''.join(f'{digest}  {name}\n' for name, digest in sorted(rows)), encoding='utf-8'
+          )
+          PY
+      - name: Validate CLI and runtime
+        env:
+          PYTHONDONTWRITEBYTECODE: "1"
+          PYTHONWARNINGS: "error::ResourceWarning"
+        run: |
+          python -m py_compile signalcore_runtime/competitive_cli.py signalcore_runtime/cli.py
+          python -m unittest tests.runtime.test_competitive_cli_v4 -v
+          python -m unittest tests.runtime.test_provider_gateway_v4 -v
+          python -m unittest tests.runtime.test_provider_mcp_v4 -v
+          python -m unittest discover -s tests/runtime -p 'test_*.py' -v
+          python tools/validate_runtime.py
+          python tools/validate.py
+      - name: Commit CLI integration
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -A
+          git commit -m "expose competitive fabric through CLI"
+          git push origin HEAD:agent/adaptive-context-v04
