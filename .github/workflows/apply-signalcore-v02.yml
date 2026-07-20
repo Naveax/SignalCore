@@ -21,6 +21,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 2
       - name: Reconstruct and verify patch
         shell: bash
@@ -58,6 +59,9 @@ jobs:
           test ! -e .signalcore-patch
           test ! -e .github/workflows/apply-signalcore-v02.yml
           ! find . -type f \( -name 'payload-*.b64' -o -name '*.patch.xz' \) -print -quit | grep .
+      - name: Restore workflow paths for token-safe push
+        shell: bash
+        run: git restore --source=HEAD --staged --worktree .github/workflows
       - name: Commit ordinary source
         shell: bash
         run: |
