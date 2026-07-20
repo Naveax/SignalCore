@@ -1,0 +1,162 @@
+name: Finalize Competitive Fabric V4B
+
+on:
+  push:
+    branches:
+      - agent/adaptive-context-v04
+    paths:
+      - .github/workflows/finalize-competitive-v4b.yml
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/adaptive-context-v04
+          fetch-depth: 0
+      - name: Apply final production patches
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          proxy = Path('signalcore_runtime/provider_proxy.py')
+          text = proxy.read_text(encoding='utf-8')
+          patches = [
+              (
+                  '                body = response.read(runtime.config.max_buffered_response_bytes + 1)\n                if len(body) > runtime.config.max_buffered_response_bytes:\n',
+                  '                body = response.read(runtime.config.max_buffered_response_bytes + 1)\n                response.close()\n                if len(body) > runtime.config.max_buffered_response_bytes:\n',
+              ),
+              (
+                  '                        self.wfile.flush()\n                    spool.seek(0)\n',
+                  '                        self.wfile.flush()\n                    response.close()\n                    spool.seek(0)\n',
+              ),
+              (
+                  '                    body = response.read(runtime.config.max_buffered_response_bytes + 1)\n                    if len(body) > runtime.config.max_buffered_response_bytes:\n',
+                  '                    body = response.read(runtime.config.max_buffered_response_bytes + 1)\n                    response.close()\n                    if len(body) > runtime.config.max_buffered_response_bytes:\n',
+              ),
+          ]
+          for old, new in patches:
+              if new not in text:
+                  if old not in text:
+                      raise SystemExit(f'provider proxy patch anchor missing: {old[:80]!r}')
+                  text = text.replace(old, new, 1)
+          if '    def wait(self) -> None:\n' not in text:
+              anchor = '    def shutdown(self) -> None:\n        server = self._server\n'
+              if anchor not in text:
+                  raise SystemExit('provider proxy wait anchor missing')
+              text = text.replace(
+                  anchor,
+                  '''    def wait(self) -> None:
+        thread = self._thread
+        if thread is None:
+            raise RuntimeError("proxy is not running in background mode")
+        try:
+            while thread.is_alive():
+                thread.join(timeout=1.0)
+        except KeyboardInterrupt:
+            self.shutdown()
+
+''' + anchor,
+                  1,
+              )
+          proxy.write_text(text, encoding='utf-8')
+
+          cli = Path('signalcore_runtime/competitive_cli.py')
+          text = cli.read_text(encoding='utf-8')
+          # Global --skill-root is authoritative. Subparser duplicates would overwrite it.
+          for line in (
+              '    install.add_argument("--skill-root")\n',
+              '    verify_install.add_argument("--skill-root")\n',
+              '    rollback_install.add_argument("--skill-root")\n',
+              '    installations.add_argument("--skill-root")\n',
+          ):
+              text = text.replace(line, '')
+          cli.write_text(text, encoding='utf-8')
+
+          for temporary in (
+              '.github/workflows/integrate-provider-proxy-v4.yml',
+              '.github/workflows/retry-provider-proxy-v4.yml',
+              '.github/workflows/finalize-competitive-v4b.yml',
+              'provider-proxy-v4-diagnostic.txt',
+          ):
+              Path(temporary).unlink(missing_ok=True)
+          PY
+      - name: Regenerate exact package manifest
+        run: |
+          python - <<'PY'
+          import hashlib
+          from pathlib import Path
+
+          root = Path('.')
+          generated = {
+              'fusion-release-smoke.json',
+              'release-smoke.json',
+              'platform-registry.json',
+              'native-dry-run.json',
+          }
+          rows = []
+          for path in root.rglob('*'):
+              if not path.is_file():
+                  continue
+              relative = path.relative_to(root)
+              if any(part in {'.git', '.signalcore', '__pycache__', '.pytest_cache'} for part in relative.parts):
+                  continue
+              if (path.name == 'MANIFEST.sha256' and path.parent == root) or path.name in generated or path.suffix == '.pyc':
+                  continue
+              rows.append((relative.as_posix(), hashlib.sha256(path.read_bytes()).hexdigest()))
+          Path('MANIFEST.sha256').write_text(
+              ''.join(f'{digest}  {name}\n' for name, digest in sorted(rows)),
+              encoding='utf-8',
+          )
+          PY
+      - name: Run complete validation
+        id: validate
+        continue-on-error: true
+        env:
+          PYTHONDONTWRITEBYTECODE: "1"
+          PYTHONWARNINGS: "error::ResourceWarning"
+        run: |
+          set +e
+          {
+            python -m compileall -q signalcore_runtime skills/signal-core tools tests benchmarks
+            python -m unittest tests.runtime.test_provider_proxy_v4 -v
+            python -m unittest tests.runtime.test_provider_proxy_cli_v4 -v
+            python -m unittest tests.runtime.test_host_installation_v4 -v
+            python -m unittest tests.runtime.test_host_installation_cli_v4 -v
+            python -m unittest tests.runtime.test_competitive_cli_v4 -v
+            python -m unittest tests.runtime.test_provider_gateway_v4 -v
+            python -m unittest tests.runtime.test_provider_mcp_v4 -v
+            python -m unittest tests.runtime.test_competitive_fabric_v4 -v
+            python -m unittest tests.runtime.test_competitive_hook_v4 -v
+            python -m unittest tests.runtime.test_competitive_mcp_v4 -v
+            python -m unittest discover -s tests/runtime -p 'test_*.py' -v
+            python -m unittest tests.test_platforms tests.test_roblox_profile_gate -v
+            python tools/validate_runtime.py
+            python tools/validate.py
+            python tools/validate_release.py --profile 5x --smoke --output release-smoke.json
+          } > /tmp/competitive-v4b-validation.log 2>&1
+          status=$?
+          cat /tmp/competitive-v4b-validation.log
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          exit 0
+      - name: Commit result
+        run: |
+          status='${{ steps.validate.outputs.status }}'
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          if [ "$status" != "0" ]; then
+            mkdir -p diagnostics
+            cp /tmp/competitive-v4b-validation.log diagnostics/competitive-v4b-validation-failure.log
+            git add -A
+            git commit -m "record competitive v4b validation failure"
+            git push origin HEAD:agent/adaptive-context-v04
+            exit 0
+          fi
+          git add -A
+          git commit -m "finalize competitive fabric proxy and host installation"
+          git push origin HEAD:agent/adaptive-context-v04
