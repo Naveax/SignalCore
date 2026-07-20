@@ -62,7 +62,7 @@ jobs:
           assert doctor['runtime']['details']['version'] == '0.3.0'
           assert install['ok'] is True and install['dry_run'] is True
           assert 'local-restricted' in sandbox
-          assert 'compact' in output
+          assert 'compact' in output['profiles']
           assert signalbench['ok'] is True
           PY
 
