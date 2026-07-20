@@ -1,0 +1,28 @@
+name: Export final SignalCore main
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/export-final-main.yml
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Export tracked source
+        shell: bash
+        run: |
+          set -euo pipefail
+          tar --exclude=.git --exclude=.github/workflows/export-final-main.yml -czf signalcore-final-main.tar.gz .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: signalcore-final-main
+          path: signalcore-final-main.tar.gz
+          retention-days: 1
