@@ -2,9 +2,13 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 import tempfile
 import time
 from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
 
 from signalcore_runtime.evidence import EvidenceStore
 from signalcore_runtime.tool_externalization import ExternalizationPolicy, ToolOutputExternalizer, ToolPayload
