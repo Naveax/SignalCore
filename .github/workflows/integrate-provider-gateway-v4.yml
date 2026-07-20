@@ -1,0 +1,195 @@
+name: Integrate Provider Gateway V4
+
+on:
+  push:
+    branches:
+      - agent/adaptive-context-v04
+    paths:
+      - .github/workflows/integrate-provider-gateway-v4.yml
+
+permissions:
+  contents: write
+
+jobs:
+  integrate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/adaptive-context-v04
+          fetch-depth: 0
+      - name: Integrate provider gateway into MCP and profiles
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          mcp = Path('signalcore_runtime/mcp_server.py')
+          text = mcp.read_text(encoding='utf-8')
+          import_anchor = 'from .process_broker import ProcessBroker\n'
+          if 'from .provider_gateway import ProviderGateway, ProviderPlan\n' not in text:
+              if import_anchor not in text:
+                  raise SystemExit('provider import anchor missing')
+              text = text.replace(
+                  import_anchor,
+                  import_anchor + 'from .provider_gateway import ProviderGateway, ProviderPlan\n',
+                  1,
+              )
+          init_anchor = '''        self.usage_ledger = UsageReceiptLedger(state_root / "usage-receipts.sqlite3")
+        self.output_pipeline = HostOutputPipeline(
+'''
+          init_replacement = '''        self.usage_ledger = UsageReceiptLedger(state_root / "usage-receipts.sqlite3")
+        self.provider_gateway = ProviderGateway(
+            state_root / "provider-gateway.sqlite3",
+            evidence=self.evidence,
+            usage_ledger=self.usage_ledger,
+        )
+        self.output_pipeline = HostOutputPipeline(
+'''
+          if init_anchor not in text:
+              raise SystemExit('provider initialization anchor missing')
+          text = text.replace(init_anchor, init_replacement, 1)
+          tool_anchor = '''            tool(
+                "signalcore.fabric.profile", "Select a minimal task-conditioned MCP tool surface",
+'''
+          provider_tools = '''            tool(
+                "signalcore.provider.capabilities", "Inspect provider cache and usage capabilities",
+                {"provider": {"type": "string"}},
+            ),
+            tool(
+                "signalcore.provider.prepare", "Prepare a cache-stable exact provider request",
+                {
+                    "provider": {"type": "string"}, "request": {"type": "object"},
+                    "model": {"type": "string"}, "cache_policy": {"type": "string"},
+                    "replay_ttl_seconds": {"type": "integer"},
+                    "prompt_cache_ttl_seconds": {"type": "integer"},
+                    "explicit_cache_name": {"type": "string"},
+                    "allow_tool_replay": {"type": "boolean"},
+                }, ["provider", "request"],
+            ),
+            tool(
+                "signalcore.provider.capture", "Capture an exact provider response with optional receipt and replay",
+                {
+                    "plan": {"type": "object"}, "response": {"type": "object"},
+                    "store_replay": {"type": "boolean"},
+                    "replay_ttl_seconds": {"type": "integer"},
+                    "preview_bytes": {"type": "integer"}, "receipt": {"type": "object"},
+                }, ["plan", "response"],
+            ),
+            tool(
+                "signalcore.provider.replay", "Replay an exact deterministic provider response",
+                {"plan": {"type": "object"}, "cache_key": {"type": "string"}},
+            ),
+            tool("signalcore.provider.stats", "Inspect provider gateway request and replay statistics"),
+            tool("signalcore.provider.verify", "Verify provider request and response evidence integrity"),
+'''
+          if tool_anchor not in text:
+              raise SystemExit('provider tool anchor missing')
+          text = text.replace(tool_anchor, provider_tools + tool_anchor, 1)
+          call_anchor = '''        if name == "signalcore.fabric.profile":
+'''
+          provider_calls = '''        if name == "signalcore.provider.capabilities":
+            return self.provider_gateway.capabilities(arguments.get("provider"))
+        if name == "signalcore.provider.prepare":
+            return asdict(self.provider_gateway.prepare(
+                str(arguments["provider"]), dict(arguments["request"]),
+                model=str(arguments.get("model", "")),
+                cache_policy=str(arguments.get("cache_policy", "auto")),
+                replay_ttl_seconds=int(arguments.get("replay_ttl_seconds", 900)),
+                prompt_cache_ttl_seconds=int(arguments.get("prompt_cache_ttl_seconds", 300)),
+                explicit_cache_name=str(arguments.get("explicit_cache_name", "")),
+                allow_tool_replay=bool(arguments.get("allow_tool_replay", False)),
+            ))
+        if name == "signalcore.provider.capture":
+            return asdict(self.provider_gateway.capture(
+                ProviderPlan(**dict(arguments["plan"])), dict(arguments["response"]),
+                store_replay=bool(arguments.get("store_replay", True)),
+                replay_ttl_seconds=int(arguments.get("replay_ttl_seconds", 900)),
+                preview_bytes=int(arguments.get("preview_bytes", 4096)),
+                receipt=arguments.get("receipt"),
+            ))
+        if name == "signalcore.provider.replay":
+            target = ProviderPlan(**dict(arguments["plan"])) if arguments.get("plan") else str(arguments.get("cache_key", ""))
+            return self.provider_gateway.replay(target)
+        if name == "signalcore.provider.stats":
+            return self.provider_gateway.stats()
+        if name == "signalcore.provider.verify":
+            return self.provider_gateway.verify()
+'''
+          if call_anchor not in text:
+              raise SystemExit('provider call anchor missing')
+          text = text.replace(call_anchor, provider_calls + call_anchor, 1)
+          mcp.write_text(text, encoding='utf-8')
+
+          fabric = Path('signalcore_runtime/competitive_fabric.py')
+          text = fabric.read_text(encoding='utf-8')
+          optimized_anchor = '''            "signalcore.fabric.compact", "signalcore.fabric.cache_align",
+            "signalcore.fabric.insights", "signalcore.fabric.platform_plan",
+'''
+          optimized_replacement = '''            "signalcore.fabric.compact", "signalcore.fabric.cache_align",
+            "signalcore.fabric.insights", "signalcore.fabric.platform_plan",
+            "signalcore.provider.capabilities", "signalcore.provider.prepare",
+            "signalcore.provider.capture", "signalcore.provider.replay",
+            "signalcore.provider.stats", "signalcore.provider.verify",
+'''
+          if optimized_anchor not in text:
+              raise SystemExit('optimized profile anchor missing')
+          text = text.replace(optimized_anchor, optimized_replacement, 1)
+          intent_anchor = '''    (re.compile(r"(?i)\\b(token|context|cache|profile|manifest|compression)\\b"),
+     ("signalcore.compress", "signalcore.expand", "signalcore.context.evaluate", "signalcore.fabric.profile", "signalcore.fabric.cache_align")),
+'''
+          intent_replacement = intent_anchor + '''    (re.compile(r"(?i)\\b(provider|model api|openai|anthropic|claude|gemini|prompt cache|usage receipt|llm gateway)\\b"),
+     ("signalcore.provider.capabilities", "signalcore.provider.prepare", "signalcore.provider.capture", "signalcore.provider.replay", "signalcore.provider.verify")),
+'''
+          if intent_anchor not in text:
+              raise SystemExit('provider intent anchor missing')
+          text = text.replace(intent_anchor, intent_replacement, 1)
+          future_anchor = '''            selected.extend(name for name in available if name.startswith("signalcore.fabric.") and name not in selected)
+'''
+          future_replacement = '''            selected.extend(
+                name for name in available
+                if name.startswith(("signalcore.fabric.", "signalcore.provider.")) and name not in selected
+            )
+'''
+          if future_anchor not in text:
+              raise SystemExit('future surface anchor missing')
+          text = text.replace(future_anchor, future_replacement, 1)
+          fabric.write_text(text, encoding='utf-8')
+
+          Path('.github/workflows/integrate-provider-gateway-v4.yml').unlink()
+          PY
+      - name: Regenerate manifest
+        run: |
+          python - <<'PY'
+          import hashlib
+          from pathlib import Path
+          root = Path('.')
+          generated = {'fusion-release-smoke.json','release-smoke.json','platform-registry.json','native-dry-run.json'}
+          rows = []
+          for path in root.rglob('*'):
+              if not path.is_file():
+                  continue
+              relative = path.relative_to(root)
+              if any(part in {'.git','.signalcore','__pycache__','.pytest_cache'} for part in relative.parts):
+                  continue
+              if (path.name == 'MANIFEST.sha256' and path.parent == root) or path.name in generated or path.suffix == '.pyc':
+                  continue
+              rows.append((relative.as_posix(), hashlib.sha256(path.read_bytes()).hexdigest()))
+          Path('MANIFEST.sha256').write_text(
+              ''.join(f'{digest}  {name}\n' for name, digest in sorted(rows)), encoding='utf-8'
+          )
+          PY
+      - name: Validate provider gateway integration
+        run: |
+          python -m py_compile signalcore_runtime/provider_gateway.py signalcore_runtime/mcp_server.py signalcore_runtime/competitive_fabric.py
+          python -m unittest tests.runtime.test_provider_gateway_v4 -v
+          python -m unittest tests.runtime.test_provider_mcp_v4 -v
+          python -m unittest tests.runtime.test_competitive_mcp_v4 -v
+          python -m unittest discover -s tests/runtime -p 'test_*.py' -v
+          python tools/validate.py
+      - name: Commit integration
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -A
+          git commit -m "integrate provider gateway into competitive fabric"
+          git push origin HEAD:agent/adaptive-context-v04
