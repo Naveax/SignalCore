@@ -112,7 +112,8 @@ The existing Roblox Studio orchestration profile remains hidden and fail-closed.
 
 ## Status
 
-- Version: **0.3.0 pre-release**
+- Version: **0.3.0**
+- Main integration: **MERGED**
 - Unified implementation: **directly tested**
-- Cross-platform release validation: **required before merge**
-- External competitor superiority: **not proven**
+- Cross-platform release validation: **PASS** on Ubuntu, Windows and macOS with Python 3.11, 3.12 and 3.13
+- Public efficiency claim: **`5X_NOT_PROVEN`**
