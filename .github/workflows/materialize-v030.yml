@@ -1,0 +1,113 @@
+name: Materialize verified SignalCore v0.3.0 source
+
+on:
+  push:
+    branches: [agent/signalcore-v0.3.0-unified]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  PYTHONDONTWRITEBYTECODE: "1"
+  PYTHONWARNINGS: "error::ResourceWarning"
+  OPENBLAS_NUM_THREADS: "1"
+  OMP_NUM_THREADS: "1"
+  MKL_NUM_THREADS: "1"
+  NUMEXPR_NUM_THREADS: "1"
+
+jobs:
+  materialize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/signalcore-v0.3.0-unified
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Verify immutable patch parts
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > /tmp/v030-parts.sha256 <<'EOF'
+          3e6b64e728abca963a0cfb9926cba4029ee8407feb26c9b3b649a07a34306d90  .signalcore-transfer-v030/part-000.diff
+          334b812bd8be9912586a80d19ae2b511e6b40133057dd8d87b87f6947ccbd0ad  .signalcore-transfer-v030/part-001.diff
+          e48ff66185ed5ace695dc63aa64fb1bb1a0f59fa4a07775ecb9f3fe183881f7a  .signalcore-transfer-v030/part-002.diff
+          3a4b68cc67aa9f1b74f331cdbfe79d32ca23e9da0fe75603bebdbbaa6bc9781c  .signalcore-transfer-v030/part-003.diff
+          5738530e2c529df6336dd937fbf70655e6d14b32eba7dca95399306286b01a6c  .signalcore-transfer-v030/part-004.diff
+          2159d18c527336350bcf304a36ae3d78a14ef3c1bef91570515b681ed5aabb4f  .signalcore-transfer-v030/part-005.diff
+          24c57c0d5bddcd629272beacca5e5a6508fd96d48229dc54c3323491b8fd28d6  .signalcore-transfer-v030/part-006.diff
+          22b39f78a282245cbc229a5f605f803283f12f2a1ced8c66a3a7bd4842a758af  .signalcore-transfer-v030/part-007.diff
+          8f2325500a3d8abea72f488edb31bab0c68a44a0eeb812fdccc8b530917ab54a  .signalcore-transfer-v030/part-008.diff
+          3f57876eea1185f0c059e3a84169515f4d70bf64545bc45ae5c823c33db43f23  .signalcore-transfer-v030/part-009.diff
+          47545aa4ca9b0e629bed4bbfc30f400e746e2294021a7269db35c2ae1daa9e51  .signalcore-transfer-v030/part-010.diff
+          801e6341a4be972d56548b4350e8b3d33fd687dc15a5a89735ec5384af30fc12  .signalcore-transfer-v030/part-011.diff
+          7de561fbfd2e91009cedd64f37cc6bed323b4f970455537859cc804f24df05b8  .signalcore-transfer-v030/part-012.diff
+          43ee5c5e4e9daa6b553445f116dcf784313668b727b011b65c966c5ff087cced  .signalcore-transfer-v030/part-013.diff
+          c5539704fdeb42bbb0a77a7077db0df2748a89371453a56bde0e3de729637cf5  .signalcore-transfer-v030/part-014.diff
+          913f00d0aac809df10a80838e5bf9c45efd14ad8a0d1195fc8becc5d42785150  .signalcore-transfer-v030/part-015.diff
+          896e5ed3c56f635476e95295e7bba70fedfb1023ec524827fe2c714ed2ff38a4  .signalcore-transfer-v030/part-016.diff
+          183d136bd5c52d80f2dea1b7ca2e097c1c8aac2fe6c14ca8612e8b9927c9abfe  .signalcore-transfer-v030/part-017.diff
+          d501fe72050c6958f9eaaf2fd4e33a1eff492cd62ca61de91a50c380a9f1c397  .signalcore-transfer-v030/part-018.diff
+          645e92aff328cb67640aa7baabae3d2a0cf22fdc360dee50a65e2f69b8f20fe0  .signalcore-transfer-v030/part-019.diff
+          f7d115c77b809ca215c2911c815c6f6262bf403ebd395911603f9f4a057228b1  .signalcore-transfer-v030/part-020.diff
+          0aa8b3b639ff89e854909ad1d41baa4ed903c4e290984a500542a81caeaef665  .signalcore-transfer-v030/part-021.diff
+          fb02f76844c236ade77bc9af372a4f3356aa186e291165c268c81631c371112a  .signalcore-transfer-v030/part-022.diff
+          acf3b0cdd649a9ab17878eabd2aad47fce2b27fbacf454c7e5c48e5f57842219  .signalcore-transfer-v030/part-023.diff
+          8baaf8d34d6a377987c1074384db29620cd4f945f09984b7d6d93bae37491735  .signalcore-transfer-v030/part-024.diff
+          46bd6ac35227958fb3ef73b5bd0ca1eb106a0593e90680cb93c1ddefa6371c17  .signalcore-transfer-v030/part-025.diff
+          55347676b1fa5d152f9f561597ef2c3cc9a2393455d9b334702fec6616c569c1  .signalcore-transfer-v030/part-026.diff
+          09f6e257bf0f35ef05b63d0faa13bc6ce1663bb3221c59b7d34a4b3c14112d4a  .signalcore-transfer-v030/part-027.diff
+          EOF
+          sha256sum -c /tmp/v030-parts.sha256
+          cat .signalcore-transfer-v030/part-*.diff > /tmp/signalcore-v030.patch
+          echo '0e8ee4cc75e05aaab4d8dfe5d391879a3a6a44b8f8f3cb01c7d9e9d1ecf87747  /tmp/signalcore-v030.patch' | sha256sum -c -
+          test "$(wc -c < /tmp/signalcore-v030.patch)" -eq 324540
+      - name: Apply ordinary source and remove transfer surface
+        shell: bash
+        run: |
+          set -euo pipefail
+          git apply --check /tmp/signalcore-v030.patch
+          git apply --index /tmp/signalcore-v030.patch
+          git rm -r .signalcore-transfer-v030
+          git rm .github/workflows/export-v030-source.yml
+          git rm .github/workflows/materialize-v030.yml
+          test ! -e .signalcore-transfer-v030
+          test ! -e .github/workflows/export-v030-source.yml
+          test ! -e .github/workflows/materialize-v030.yml
+      - name: Validate unified v0.3.0 source
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m compileall -q signalcore_runtime skills/signal-core tools tests benchmarks
+          python -m unittest discover -s tests/runtime -q
+          python -m unittest tests.test_platforms tests.test_roblox_profile_gate -q
+          python -m unittest discover -s tests/roblox_profile -q
+          python tools/validate.py
+          python tools/validate_runtime.py
+          python tools/validate_roblox_profile.py
+          python tools/verify_claims.py
+          python tools/validate_release.py --profile 5x --smoke --output release-smoke.json
+          python benchmarks/runtime_v03_benchmark.py --output runtime-v03-internal.json
+          python -m pip wheel --no-build-isolation --no-deps . -w dist
+          python -m venv /tmp/signalcore-wheel
+          /tmp/signalcore-wheel/bin/python -m pip install --no-index dist/signalcore_runtime-0.3.0-py3-none-any.whl
+          cd /tmp
+          /tmp/signalcore-wheel/bin/signalcore --help >/dev/null
+          /tmp/signalcore-wheel/bin/python - <<'PY'
+          from signalcore_runtime.cli import skill_root
+          assert (skill_root() / 'SKILL.md').is_file()
+          PY
+      - name: Commit ordinary v0.3.0 source
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd "$GITHUB_WORKSPACE"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git diff --cached --check
+          git commit -m 'Implement SignalCore 0.3.0 unified runtime'
+          git push origin HEAD:agent/signalcore-v0.3.0-unified
