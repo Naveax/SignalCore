@@ -8,7 +8,14 @@ from pathlib import Path
 from typing import Any, Iterable
 
 from .compression import ContentRouter
+from .evidence import EvidenceStore
+from .host_output_pipeline import HostOutputPipeline
 from .models import HookDecision
+from .session_runtime import SessionRuntime
+from .tool_externalization import ToolOutputExternalizer
+from .tool_externalization_types import ExternalizationPolicy
+from .usage_receipt_ledger import UsageReceiptLedger
+from .util import stable_project_id
 
 
 LONG_RUNNING_MARKERS = {
@@ -37,11 +44,27 @@ class HookEngine:
         broker_prefix: tuple[str, ...] = ("signalcore", "run", "--background", "--"),
         sandbox_prefix: tuple[str, ...] = ("signalcore", "sandbox", "execute", "--"),
         compressor: ContentRouter | None = None,
+        state_root: Path | None = None,
+        output_pipeline: HostOutputPipeline | None = None,
+        auto_externalize: bool = True,
     ):
         self.project_root = project_root.resolve(strict=True)
         self.broker_prefix = broker_prefix
         self.sandbox_prefix = sandbox_prefix
         self.compressor = compressor
+        self.output_pipeline = output_pipeline
+        if self.output_pipeline is None and auto_externalize:
+            active_state = Path(state_root).resolve(strict=False) if state_root else self.project_root / '.signalcore' / 'runtime-v3'
+            project_id = stable_project_id(self.project_root)
+            evidence = EvidenceStore(active_state / 'evidence', project_id=project_id)
+            externalizer = ToolOutputExternalizer(
+                active_state / 'tool-externalization.sqlite3',
+                evidence=evidence,
+                policy=ExternalizationPolicy.for_profile('balanced'),
+            )
+            usage = UsageReceiptLedger(active_state / 'usage-receipts.sqlite3')
+            sessions = SessionRuntime(active_state / 'sessions.sqlite3', project_id=project_id)
+            self.output_pipeline = HostOutputPipeline(externalizer, usage_ledger=usage, sessions=sessions)
 
     def _cwd(self, payload: dict[str, Any]) -> Path:
         cwd = Path(payload.get("cwd") or self.project_root).resolve(strict=False)
@@ -89,6 +112,8 @@ class HookEngine:
         return HookDecision(True, "allow", command)
 
     def post_tool(self, payload: dict[str, Any]) -> dict[str, Any]:
+        if self.output_pipeline is not None:
+            return self.output_pipeline.capture_hook_payload(payload)
         result = payload.get("result") or {}
         if isinstance(result, str):
             if self.compressor and len(result.encode("utf-8")) > 4096:

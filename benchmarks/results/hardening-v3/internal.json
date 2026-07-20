@@ -1,0 +1,109 @@
+{
+  "boundary": "Internal hardening benchmark. Real repository tasks and external competitor arms are intentionally zero and cannot satisfy the 10/10 gate.",
+  "claim": "SUPERIORITY_NOT_PROVEN",
+  "concurrency": {
+    "all_roundtrips": true,
+    "all_searches": true,
+    "completed_artifacts": 64,
+    "errors": [],
+    "p95_proxy_ms": 170.40454263281245,
+    "requested_artifacts": 64,
+    "seconds": 7.270593818999998,
+    "success_rate": 1.0,
+    "workers": 8
+  },
+  "externalization_stats": {
+    "artifacts": 64,
+    "delta_artifacts": 0,
+    "families": {
+      "log": 64
+    },
+    "fts5_enabled": true,
+    "injection_risks": 0,
+    "original_bytes": 2678140,
+    "quality_passes": 64,
+    "reduction_ratio": 0.9888751148184934,
+    "repeat_reads_elided": 0,
+    "segments": 256,
+    "visible_bytes": 29794
+  },
+  "host_interception": {
+    "blocked": false,
+    "captures": 1,
+    "mode": "externalized"
+  },
+  "provider_receipt_ledger": {
+    "attestation": "HMAC",
+    "entries": 30,
+    "last_chain_hash": "c4b7add652c9fd5ddb47a7b12fdcad14889e1a7f7d8f298b95ff14f069905bf8",
+    "ok": true,
+    "reasons": []
+  },
+  "readiness_gate": {
+    "evidence": {
+      "competitor_arms": 0,
+      "concurrency_success_rate": 1.0,
+      "exact_roundtrip_rate": 1.0,
+      "host_interception_coverage": 1.0,
+      "p95_latency_ms": 170.40454263281245,
+      "pass_rate_delta": 0.0,
+      "provider_receipt_coverage": 1.0,
+      "real_repository_tasks": 0,
+      "security_regressions": 0,
+      "semantic_recall_at_5": 1.0,
+      "temporal_truth_accuracy": 1.0,
+      "valid_paired_repetitions": 0
+    },
+    "failed": [
+      "real-task-corpus",
+      "competitor-arms",
+      "paired-repetitions"
+    ],
+    "grade": "7.50/10",
+    "passed": [
+      "host-interception",
+      "provider-receipts",
+      "semantic-recall",
+      "temporal-truth",
+      "concurrency",
+      "exact-roundtrip",
+      "zero-security-regression",
+      "no-pass-rate-regression",
+      "latency"
+    ],
+    "score": 7.5,
+    "ten_of_ten": false
+  },
+  "schema_version": 1,
+  "security_scan": {
+    "injection_risk": true,
+    "redaction_pass": true,
+    "secret_types": [
+      "generic-assignment"
+    ]
+  },
+  "semantic_temporal_retrieval": {
+    "ok": true,
+    "top_hit": {
+      "event_type": "decision",
+      "payload": {
+        "decision": "refresh once then re-authenticate",
+        "decision_id": "v2",
+        "subject": "auth-refresh",
+        "supersedes": "v1"
+      },
+      "reasons": [
+        "semantic-alias-overlap",
+        "character-semantic-similarity",
+        "high-value-event-type",
+        "current-temporal-truth"
+      ],
+      "score": 12.846153846038087,
+      "sequence": 3,
+      "session_id": "s",
+      "subject": "subject:auth-refresh",
+      "temporal_status": "current",
+      "text": "subject=auth-refresh\ndecision=refresh once then re-authenticate\nsupersedes=v1\ndecision_id=v2"
+    }
+  }
+}

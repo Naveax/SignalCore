@@ -9,12 +9,13 @@ import time
 from contextlib import contextmanager
 from dataclasses import asdict
 from pathlib import Path
-from typing import Any, Iterable, Mapping
+from typing import Any, Iterable, Mapping, Sequence
 
 from .state import StateDB
+from .security_scan import scan_bytes
 from .tool_externalization_analysis import ExternalizationAnalysisMixin
 from .tool_externalization_types import (
-    EvidenceLike, ExternalizationPolicy, ExternalizedArtifact, RevealPage,
+    EvidenceLike, ExternalizationPolicy, ExternalizedArtifact, RevealPage, SearchPack,
     SegmentHit, ToolPayload, _INJECTION, _Segment, _canonical, _merkle,
     _merkle_proof, _sha256, _verify_merkle_proof,
 )
@@ -126,7 +127,8 @@ class ToolOutputExternalizer(ExternalizationAnalysisMixin):
         merkle_root = _merkle(segment_hashes)
         exact_handle = self.evidence.put(raw, kind=f"tool-output:{family}", metadata={"artifact_id": artifact_id, "path": payload.path})
         facets = self._facets(family, raw, segments, payload.path)
-        injection_risk = bool(_INJECTION.search(raw.decode("utf-8", errors="replace"))) if family != "binary" else False
+        security = scan_bytes(raw) if family != 'binary' else None
+        injection_risk = bool(security and security.injection_risk)
         summary = self._redact(self._summary(family, raw, facets, segments))
 
         baseline = self._latest(payload.scope_key, stream_key) if self.policy.delta_enabled else None
@@ -189,6 +191,11 @@ class ToolOutputExternalizer(ExternalizationAnalysisMixin):
             "policy": asdict(self.policy),
             "changed_segment_indexes": changed_indexes,
             "unchanged_segment_ratio": unchanged_ratio,
+            "security_scan": {
+                "secret_types": list(security.secret_types) if security else [],
+                "injection_reasons": list(security.injection_reasons) if security else [],
+                "encoded_payloads_checked": security.encoded_payloads_checked if security else 0,
+            },
             **payload.metadata,
         }
         now = time.time()
@@ -467,28 +474,76 @@ class ToolOutputExternalizer(ExternalizationAnalysisMixin):
             "artifact_handle": value["exact_handle"],
         }
 
-    def search_pack(self, query: str, *, scope_key: str | None = None, artifact_id: str | None = None, budget_bytes: int = 8192, limit: int = 32) -> dict[str, Any]:
+    @staticmethod
+    def verify_segment_proof(leaf_hash: str, proof: Sequence[Mapping[str, str]], merkle_root: str) -> bool:
+        return _verify_merkle_proof(leaf_hash, proof, merkle_root)
+
+    def lineage(self, artifact_id: str, *, limit: int = 128) -> list[dict[str, Any]]:
+        output: list[dict[str, Any]] = []
+        seen: set[str] = set()
+        current: str | None = artifact_id
+        while current and len(output) < max(1, limit):
+            if current in seen:
+                raise ValueError("artifact lineage cycle detected")
+            seen.add(current)
+            value = self.artifact(current)
+            output.append({
+                "artifact_id": current,
+                "baseline_artifact_id": value["baseline_artifact_id"],
+                "content_hash": value["content_hash"],
+                "mode": value["mode"],
+                "original_bytes": value["original_bytes"],
+                "created_at": value["created_at"],
+            })
+            current = value["baseline_artifact_id"]
+        return output
+
+    def search_pack(
+        self,
+        query: str,
+        *,
+        artifact_id: str | None = None,
+        scope_key: str | None = None,
+        budget_bytes: int = 4096,
+        limit: int = 32,
+    ) -> SearchPack:
+        if budget_bytes < 256:
+            raise ValueError("search pack budget too small")
         hits = self.search(query, artifact_id=artifact_id, scope_key=scope_key, limit=limit)
-        output: list[str] = []
-        handles: list[str] = []
+        sections: list[str] = []
         used = 0
-        seen: set[tuple[str, int]] = set()
+        selected: list[SegmentHit] = []
+        fingerprints: set[str] = set()
+        complete = True
         for hit in hits:
-            key = (hit.artifact_id, hit.segment_index)
-            if key in seen:
+            normalized = re.sub(r"\b(?:0x[0-9a-f]+|\d+(?:\.\d+)?)\b", "<n>", hit.text, flags=re.I)
+            fingerprint = _sha256(normalized.encode("utf-8"))
+            if fingerprint in fingerprints:
                 continue
-            seen.add(key)
-            section = f"[artifact={hit.artifact_id} segment={hit.segment_index} lines={hit.start_line}-{hit.end_line} kind={hit.kind} score={hit.score:.2f}]\n{hit.text}"
+            fingerprints.add(fingerprint)
+            section = (
+                f"[artifact={hit.artifact_id} segment={hit.segment_index} "
+                f"lines={hit.start_line}-{hit.end_line} kind={hit.kind} score={hit.score:.2f}]\n"
+                f"{self._redact(hit.text)}"
+            )
             encoded = section.encode("utf-8")
-            separator = b"\n---\n" if output else b""
+            separator = b"\n---\n" if sections else b""
             if used + len(separator) + len(encoded) > budget_bytes:
-                remaining = budget_bytes - used - len(separator)
-                if remaining > 80:
-                    section = encoded[:remaining].decode("utf-8", errors="ignore")
-                    output.append(section); used += len(separator) + len(section.encode("utf-8")); handles.append(hit.segment_handle)
+                complete = False
                 break
-            output.append(section); handles.append(hit.segment_handle); used += len(separator) + len(encoded)
-        return {"query": query, "content": "\n---\n".join(output), "visible_bytes": used, "segment_handles": handles, "hit_count": len(output), "exact_artifact_handles": sorted({hit.artifact_handle for hit in hits})}
+            sections.append(section)
+            selected.append(hit)
+            used += len(separator) + len(encoded)
+        content = "\n---\n".join(sections)
+        return SearchPack(
+            query,
+            content,
+            len(content.encode("utf-8")),
+            len(selected),
+            tuple(dict.fromkeys(hit.artifact_id for hit in selected)),
+            tuple(dict.fromkeys(hit.segment_handle for hit in selected)),
+            complete,
+        )
 
     def stats(self) -> dict[str, Any]:
         with self._db() as db:

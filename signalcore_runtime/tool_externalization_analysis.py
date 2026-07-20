@@ -10,6 +10,8 @@ from collections import Counter
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
+from .security_scan import redact_text, scan_text
+
 from .tool_externalization_types import (
     ToolPayload, _Segment, _CODE_SUFFIXES, _ERROR, _INJECTION, _LOCATION,
     _SECRET, _TEST_COMMAND, _TIMESTAMP, _UNSAFE_SHELL, _WARNING, _sha256,
@@ -75,7 +77,7 @@ class ExternalizationAnalysisMixin:
 
     @staticmethod
     def _redact(text: str) -> str:
-        return _SECRET.sub(lambda match: f"{match.group(1)}=<redacted>", text)
+        return redact_text(text)
 
     @staticmethod
     def _bounded(text: str, budget: int) -> str:
@@ -124,7 +126,7 @@ class ExternalizationAnalysisMixin:
         if family == "code":
             return bool(re.match(r"^\s*(?:class |def |async def |function |export |pub fn |fn |interface |struct |enum |impl )", text))
         if family == "log":
-            return bool(_ERROR.search(text) or _INJECTION.search(text))
+            return bool(_ERROR.search(text) or scan_text(text, inspect_encoded=False).injection_risk)
         if family == "search-list":
             return False
         return False
@@ -133,7 +135,7 @@ class ExternalizationAnalysisMixin:
     def _segment_kind(cls, family: str, text: str) -> tuple[str, float, bool]:
         error = bool(_ERROR.search(text))
         warning = bool(_WARNING.search(text))
-        injection = bool(_INJECTION.search(text))
+        injection = scan_text(text, inspect_encoded=False).injection_risk
         location = bool(_LOCATION.search(text))
         if family == "binary":
             return "binary-slice", 1.0, False
