@@ -1,0 +1,385 @@
+{
+  "boundary": "Internal deterministic mixed-fixture benchmark; no competitor or live provider arm was executed.",
+  "claim": "SUPERIORITY_NOT_PROVEN",
+  "profiles": [
+    {
+      "aggregate": {
+        "all_quality_gates": true,
+        "all_roundtrips": true,
+        "all_search_queries_found": true,
+        "peak_python_bytes": 3264064,
+        "raw_bytes": 1146460,
+        "repeat_mode": "dedup-reference",
+        "repeat_visible_bytes": 153,
+        "savings_ratio": 0.9914728817403137,
+        "seconds": 1.673138520000009,
+        "visible_bytes": 9776
+      },
+      "engine_stats": {
+        "captures": 7,
+        "families": {
+          "code": 1,
+          "diff": 1,
+          "git-status": 1,
+          "json": 1,
+          "log": 1,
+          "search-list": 1,
+          "test-output": 1
+        },
+        "fts5_enabled": true,
+        "original_bytes": 1084331,
+        "quality_passes": 7,
+        "repeat_reads_elided": 1,
+        "savings_ratio": 0.9911254035898632,
+        "visible_bytes": 9623
+      },
+      "profile": "compact",
+      "rows": [
+        {
+          "chunks": 3,
+          "family": "diff",
+          "mode": "command-compact",
+          "name": "git-diff",
+          "quality_gate": true,
+          "raw_bytes": 23949,
+          "roundtrip": true,
+          "savings_ratio": 0.914484947179423,
+          "search_hit": true,
+          "verification_reasons": [],
+          "visible_bytes": 2048
+        },
+        {
+          "chunks": 2,
+          "family": "test-output",
+          "mode": "command-compact",
+          "name": "pytest",
+          "quality_gate": true,
+          "raw_bytes": 12987,
+          "roundtrip": true,
+          "savings_ratio": 0.9353199353199353,
+          "search_hit": true,
+          "verification_reasons": [],
+          "visible_bytes": 840
+        },
+        {
+          "chunks": 62,
+          "family": "json",
+          "mode": "externalized",
+          "name": "json-issues",
+          "quality_gate": true,
+          "raw_bytes": 504380,
+          "roundtrip": true,
+          "savings_ratio": 0.9959435346365836,
+          "search_hit": true,
+          "verification_reasons": [],
+          "visible_bytes": 2046
+        },
+        {
+          "chunks": 45,
+          "family": "log",
+          "mode": "externalized",
+          "name": "service-log",
+          "quality_gate": true,
+          "raw_bytes": 365992,
+          "roundtrip": true,
+          "savings_ratio": 0.9985245579138342,
+          "search_hit": true,
+          "verification_reasons": [],
+          "visible_bytes": 540
+        },
+        {
+          "chunks": 8,
+          "family": "code",
+          "mode": "externalized",
+          "name": "code-read",
+          "quality_gate": true,
+          "raw_bytes": 62129,
+          "roundtrip": true,
+          "savings_ratio": 0.9670363276408762,
+          "search_hit": true,
+          "verification_reasons": [],
+          "visible_bytes": 2048
+        },
+        {
+          "chunks": 15,
+          "family": "search-list",
+          "mode": "command-compact",
+          "name": "search-list",
+          "quality_gate": true,
+          "raw_bytes": 114841,
+          "roundtrip": true,
+          "savings_ratio": 0.9821666478000017,
+          "search_hit": true,
+          "verification_reasons": [],
+          "visible_bytes": 2048
+        },
+        {
+          "chunks": 1,
+          "family": "git-status",
+          "mode": "passthrough-captured",
+          "name": "small",
+          "quality_gate": true,
+          "raw_bytes": 53,
+          "roundtrip": true,
+          "savings_ratio": 0.0,
+          "search_hit": true,
+          "verification_reasons": [],
+          "visible_bytes": 53
+        }
+      ]
+    },
+    {
+      "aggregate": {
+        "all_quality_gates": true,
+        "all_roundtrips": true,
+        "all_search_queries_found": true,
+        "peak_python_bytes": 3216342,
+        "raw_bytes": 1146460,
+        "repeat_mode": "dedup-reference",
+        "repeat_visible_bytes": 153,
+        "savings_ratio": 0.9849327495071786,
+        "seconds": 1.4685173299999974,
+        "visible_bytes": 17274
+      },
+      "engine_stats": {
+        "captures": 7,
+        "families": {
+          "code": 1,
+          "diff": 1,
+          "git-status": 1,
+          "json": 1,
+          "log": 1,
+          "search-list": 1,
+          "test-output": 1
+        },
+        "fts5_enabled": true,
+        "original_bytes": 1084331,
+        "quality_passes": 7,
+        "repeat_reads_elided": 1,
+        "savings_ratio": 0.9842105408772782,
+        "visible_bytes": 17121
+      },
+      "profile": "balanced",
+      "rows": [
+        {
+          "chunks": 2,
+          "family": "diff",
+          "mode": "command-compact",
+          "name": "git-diff",
+          "quality_gate": true,
+          "raw_bytes": 23949,
+          "roundtrip": true,
+          "savings_ratio": 0.829136915946386,
+          "search_hit": true,
+          "verification_reasons": [],
+          "visible_bytes": 4092
+        },
+        {
+          "chunks": 1,
+          "family": "test-output",
+          "mode": "command-compact",
+          "name": "pytest",
+          "quality_gate": true,
+          "raw_bytes": 12987,
+          "roundtrip": true,
+          "savings_ratio": 0.9353199353199353,
+          "search_hit": true,
+          "verification_reasons": [],
+          "visible_bytes": 840
+        },
+        {
+          "chunks": 31,
+          "family": "json",
+          "mode": "externalized",
+          "name": "json-issues",
+          "quality_gate": true,
+          "raw_bytes": 504380,
+          "roundtrip": true,
+          "savings_ratio": 0.9918791387445973,
+          "search_hit": true,
+          "verification_reasons": [],
+          "visible_bytes": 4096
+        },
+        {
+          "chunks": 23,
+          "family": "log",
+          "mode": "externalized",
+          "name": "service-log",
+          "quality_gate": true,
+          "raw_bytes": 365992,
+          "roundtrip": true,
+          "savings_ratio": 0.9985245579138342,
+          "search_hit": true,
+          "verification_reasons": [],
+          "visible_bytes": 540
+        },
+        {
+          "chunks": 4,
+          "family": "code",
+          "mode": "externalized",
+          "name": "code-read",
+          "quality_gate": true,
+          "raw_bytes": 62129,
+          "roundtrip": true,
+          "savings_ratio": 0.9340726552817524,
+          "search_hit": true,
+          "verification_reasons": [],
+          "visible_bytes": 4096
+        },
+        {
+          "chunks": 8,
+          "family": "search-list",
+          "mode": "command-compact",
+          "name": "search-list",
+          "quality_gate": true,
+          "raw_bytes": 114841,
+          "roundtrip": true,
+          "savings_ratio": 0.970359018120706,
+          "search_hit": true,
+          "verification_reasons": [],
+          "visible_bytes": 3404
+        },
+        {
+          "chunks": 1,
+          "family": "git-status",
+          "mode": "passthrough-captured",
+          "name": "small",
+          "quality_gate": true,
+          "raw_bytes": 53,
+          "roundtrip": true,
+          "savings_ratio": 0.0,
+          "search_hit": true,
+          "verification_reasons": [],
+          "visible_bytes": 53
+        }
+      ]
+    },
+    {
+      "aggregate": {
+        "all_quality_gates": true,
+        "all_roundtrips": true,
+        "all_search_queries_found": true,
+        "peak_python_bytes": 3228294,
+        "raw_bytes": 1146460,
+        "repeat_mode": "dedup-reference",
+        "repeat_visible_bytes": 153,
+        "savings_ratio": 0.9756441567957016,
+        "seconds": 1.4179493019999967,
+        "visible_bytes": 27923
+      },
+      "engine_stats": {
+        "captures": 7,
+        "families": {
+          "code": 1,
+          "diff": 1,
+          "git-status": 1,
+          "json": 1,
+          "log": 1,
+          "search-list": 1,
+          "test-output": 1
+        },
+        "fts5_enabled": true,
+        "original_bytes": 1084331,
+        "quality_passes": 7,
+        "repeat_reads_elided": 1,
+        "savings_ratio": 0.9743897389265824,
+        "visible_bytes": 27770
+      },
+      "profile": "audit",
+      "rows": [
+        {
+          "chunks": 1,
+          "family": "diff",
+          "mode": "command-compact",
+          "name": "git-diff",
+          "quality_gate": true,
+          "raw_bytes": 23949,
+          "roundtrip": true,
+          "savings_ratio": 0.6579397887176918,
+          "search_hit": true,
+          "verification_reasons": [],
+          "visible_bytes": 8192
+        },
+        {
+          "chunks": 1,
+          "family": "test-output",
+          "mode": "command-compact",
+          "name": "pytest",
+          "quality_gate": true,
+          "raw_bytes": 12987,
+          "roundtrip": true,
+          "savings_ratio": 0.9353199353199353,
+          "search_hit": true,
+          "verification_reasons": [],
+          "visible_bytes": 840
+        },
+        {
+          "chunks": 16,
+          "family": "json",
+          "mode": "externalized",
+          "name": "json-issues",
+          "quality_gate": true,
+          "raw_bytes": 504380,
+          "roundtrip": true,
+          "savings_ratio": 0.9837582774891946,
+          "search_hit": true,
+          "verification_reasons": [],
+          "visible_bytes": 8192
+        },
+        {
+          "chunks": 12,
+          "family": "log",
+          "mode": "externalized",
+          "name": "service-log",
+          "quality_gate": true,
+          "raw_bytes": 365992,
+          "roundtrip": true,
+          "savings_ratio": 0.9985245579138342,
+          "search_hit": true,
+          "verification_reasons": [],
+          "visible_bytes": 540
+        },
+        {
+          "chunks": 2,
+          "family": "code",
+          "mode": "externalized",
+          "name": "code-read",
+          "quality_gate": true,
+          "raw_bytes": 62129,
+          "roundtrip": true,
+          "savings_ratio": 0.8945902879492669,
+          "search_hit": true,
+          "verification_reasons": [],
+          "visible_bytes": 6549
+        },
+        {
+          "chunks": 4,
+          "family": "search-list",
+          "mode": "command-compact",
+          "name": "search-list",
+          "quality_gate": true,
+          "raw_bytes": 114841,
+          "roundtrip": true,
+          "savings_ratio": 0.970359018120706,
+          "search_hit": true,
+          "verification_reasons": [],
+          "visible_bytes": 3404
+        },
+        {
+          "chunks": 1,
+          "family": "git-status",
+          "mode": "passthrough-captured",
+          "name": "small",
+          "quality_gate": true,
+          "raw_bytes": 53,
+          "roundtrip": true,
+          "savings_ratio": 0.0,
+          "search_hit": true,
+          "verification_reasons": [],
+          "visible_bytes": 53
+        }
+      ]
+    }
+  ],
+  "schema_version": 1
+}
