@@ -1,0 +1,118 @@
+diff --git a/src/attr/validators.py b/src/attr/validators.py
+index 0b1a294..bee09c9 100755
+--- a/src/attr/validators.py
++++ b/src/attr/validators.py
+@@ -4,6 +4,7 @@
+ Commonly useful validators.
+ """
+ 
++import json
+ import operator
+ import re
+ 
+@@ -329,6 +330,51 @@ def is_callable():
+     return _IsCallableValidator()
+ 
+ 
++def _contextualize_validator_error(exc, attr, path):
++    """Add an item path to a nested validation error in place."""
++    previous_path = getattr(exc, "_attrs_validation_path", attr.name)
++    previous_attr = getattr(exc, "_attrs_validation_attribute", attr)
++    suffix = (
++        previous_path[len(attr.name) :]
++        if previous_path.startswith(attr.name)
++        else ""
++    )
++    full_path = f"{path}{suffix}"
++    path_attr = attr.evolve(name=full_path)
++    old_single = f"'{previous_path}'"
++    new_single = f"'{full_path}'"
++    old_double = f'"{previous_path}"'
++    new_double = f'"{full_path}"'
++
++    def contextualize(part):
++        if part is attr or part is previous_attr:
++            return path_attr
++        if isinstance(part, str):
++            return part.replace(old_single, new_single).replace(
++                old_double, new_double
++            )
++        return part
++
++    exc.args = tuple(contextualize(part) for part in exc.args)
++    if isinstance(getattr(exc, "msg", None), str):
++        try:
++            exc.msg = contextualize(exc.msg)
++        except AttributeError:
++            pass
++    try:
++        exc._attrs_validation_path = full_path
++        exc._attrs_validation_attribute = path_attr
++    except AttributeError:
++        pass
++
++
++def _format_mapping_key(key):
++    """Render mapping keys unambiguously inside an attribute path."""
++    if isinstance(key, str):
++        return json.dumps(key, ensure_ascii=False)
++    return repr(key)
++
++
+ @attrs(repr=False, slots=True, unsafe_hash=True)
+ class _DeepIterable:
+     member_validator = attrib(validator=is_callable())
+@@ -343,8 +389,25 @@ class _DeepIterable:
+         if self.iterable_validator is not None:
+             self.iterable_validator(inst, attr, value)
+ 
+-        for member in value:
+-            self.member_validator(inst, attr, member)
++        if type(value) in (list, tuple):
++            try:
++                for index in range(len(value)):
++                    self.member_validator(inst, attr, value[index])
++            except (TypeError, ValueError) as exc:
++                _contextualize_validator_error(
++                    exc, attr, f"{attr.name}[{index}]"
++                )
++                raise
++            return
++
++        for index, member in enumerate(value):
++            try:
++                self.member_validator(inst, attr, member)
++            except (TypeError, ValueError) as exc:
++                _contextualize_validator_error(
++                    exc, attr, f"{attr.name}[{index}]"
++                )
++                raise
+ 
+     def __repr__(self):
+         iterable_identifier = (
+@@ -399,9 +462,23 @@ class _DeepMapping:
+ 
+         for key in value:
+             if self.key_validator is not None:
+-                self.key_validator(inst, attr, key)
++                try:
++                    self.key_validator(inst, attr, key)
++                except (TypeError, ValueError) as exc:
++                    key_path = (
++                        f"{attr.name}.keys()"
++                        f"[{_format_mapping_key(key)}]"
++                    )
++                    _contextualize_validator_error(exc, attr, key_path)
++                    raise
+             if self.value_validator is not None:
+-                self.value_validator(inst, attr, value[key])
++                try:
++                    self.value_validator(inst, attr, value[key])
++                except (TypeError, ValueError) as exc:
++                    _contextualize_validator_error(
++                        exc, attr, f"{attr.name}[{_format_mapping_key(key)}]"
++                    )
++                    raise
+ 
+     def __repr__(self):
+         return f"<deep_mapping validator for objects mapping {self.key_validator!r} to {self.value_validator!r}>"
