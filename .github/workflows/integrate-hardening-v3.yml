@@ -31,10 +31,10 @@ jobs:
         run: python tools/apply_hardening_v3.py
       - name: Compile source
         run: python -m compileall -q signalcore_runtime tools tests benchmarks
-      - name: Security and provider normalization gates
-        run: |
-          python tests/runtime/test_signalcore_hardening_v3.py SignalCoreHardeningV3Tests.test_security_scan_redacts_structured_secrets_and_encoded_injection -v
-          python tests/runtime/test_signalcore_hardening_v3.py SignalCoreHardeningV3Tests.test_provider_usage_normalization -v
+      - name: Security scan gate
+        run: python tests/runtime/test_signalcore_hardening_v3.py SignalCoreHardeningV3Tests.test_security_scan_redacts_structured_secrets_and_encoded_injection -v
+      - name: Provider usage normalization gate
+        run: python tests/runtime/test_signalcore_hardening_v3.py SignalCoreHardeningV3Tests.test_provider_usage_normalization -v
       - name: Provider ledger tamper gate
         run: python tests/runtime/test_signalcore_hardening_v3.py SignalCoreHardeningV3Tests.test_usage_receipt_ledger_is_hmac_attested_and_tamper_evident -v
       - name: Semantic temporal truth gate
