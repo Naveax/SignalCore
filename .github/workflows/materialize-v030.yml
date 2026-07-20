@@ -29,6 +29,57 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
+      - name: Repair deterministic transport layout
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from __future__ import annotations
+
+          import base64
+          import hashlib
+          from pathlib import Path
+
+          root = Path('.signalcore-transfer-v030')
+          original = {path.name: path.read_bytes() for path in root.glob('part-*.diff')}
+
+          required = {
+              'part-000.diff', 'part-003.diff', 'part-008.diff', 'part-010.diff',
+              'part-014.diff', 'part-022.diff', 'part-024.diff', 'part-026.diff'
+          }
+          missing = sorted(required - set(original))
+          if missing:
+              raise SystemExit(f'missing repair sources: {missing}')
+
+          # Recover pieces that were concatenated or assigned to the next filename
+          # by the earlier transport attempt. No semantic source transformation occurs.
+          (root / 'part-009.diff').write_bytes(original['part-008.diff'])
+          (root / 'part-023.diff').write_bytes(original['part-022.diff'][12000:24000])
+          (root / 'part-025.diff').write_bytes(original['part-024.diff'][12009:24009])
+
+          for number in ('000', '003', '014', '022', '026'):
+              (root / f'part-{number}.diff').write_bytes(original[f'part-{number}.diff'][:12000])
+
+          (root / 'part-010.diff').write_bytes(original['part-010.diff'] + b'\n')
+
+          repaired_024 = original['part-022.diff'][24000:]
+          repaired_024 = repaired_024[:4690] + b'\\' + repaired_024[4690:]
+          (root / 'part-024.diff').write_bytes(repaired_024)
+
+          encoded = ''.join(
+              (root / f'repair-008-{index}.b64').read_text(encoding='utf-8').strip()
+              for index in range(4)
+          )
+          repaired_008 = base64.b64decode(encoded, validate=True)
+          if len(repaired_008) != 12000:
+              raise SystemExit(f'part-008 wrong size: {len(repaired_008)}')
+          if hashlib.sha256(repaired_008).hexdigest() != '8f2325500a3d8abea72f488edb31bab0c68a44a0eeb812fdccc8b530917ab54a':
+              raise SystemExit('part-008 hash mismatch after decode')
+          (root / 'part-008.diff').write_bytes(repaired_008)
+
+          for path in root.glob('repair-008-*.b64'):
+              path.unlink()
+          PY
       - name: Verify immutable patch parts
         shell: bash
         run: |
@@ -76,9 +127,11 @@ jobs:
           git rm -r .signalcore-transfer-v030
           git rm .github/workflows/export-v030-source.yml
           git rm .github/workflows/materialize-v030.yml
+          git rm .github/workflows/diagnose-v030-parts.yml
           test ! -e .signalcore-transfer-v030
           test ! -e .github/workflows/export-v030-source.yml
           test ! -e .github/workflows/materialize-v030.yml
+          test ! -e .github/workflows/diagnose-v030-parts.yml
       - name: Validate unified v0.3.0 source
         shell: bash
         run: |
@@ -103,6 +156,7 @@ jobs:
           assert (skill_root() / 'SKILL.md').is_file()
           PY
       - name: Commit ordinary v0.3.0 source
+        if: github.event_name == 'push'
         shell: bash
         run: |
           set -euo pipefail
