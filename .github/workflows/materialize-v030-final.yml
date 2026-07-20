@@ -108,6 +108,7 @@ jobs:
           python tools/verify_claims.py
           python tools/validate_release.py --profile 5x --smoke --output release-smoke.json
           python benchmarks/runtime_v03_benchmark.py --output runtime-v03-internal.json
+          python -m pip install --disable-pip-version-check 'setuptools>=69' wheel
           python -m pip wheel --no-build-isolation --no-deps . -w dist
           python -m venv /tmp/signalcore-wheel
           /tmp/signalcore-wheel/bin/python -m pip install --no-index dist/signalcore_runtime-0.3.0-py3-none-any.whl
