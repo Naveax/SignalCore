@@ -1,4 +1,4 @@
-name: Validate SignalCore Runtime 0.2
+name: Validate SignalCore Runtime 0.3
 
 on:
   pull_request:
@@ -12,6 +12,10 @@ permissions:
 env:
   PYTHONDONTWRITEBYTECODE: "1"
   PYTHONWARNINGS: "error::ResourceWarning"
+  OPENBLAS_NUM_THREADS: "1"
+  OMP_NUM_THREADS: "1"
+  MKL_NUM_THREADS: "1"
+  NUMEXPR_NUM_THREADS: "1"
 
 jobs:
   runtime-matrix:
@@ -36,24 +40,69 @@ jobs:
         run: python tools/validate_runtime.py
       - name: Package integrity validation
         run: python tools/validate.py
-      - name: Fail-closed release and benchmark smoke
-        run: python tools/validate_release.py --profile 5x --smoke --output fusion-release-smoke.json
-      - name: CLI enforcement smoke
+      - name: Unified internal benchmark and fail-closed release smoke
+        run: python tools/validate_release.py --profile 5x --smoke --output release-smoke.json
+      - name: CLI unified-surface smoke
         shell: bash
         run: |
-          python -m signalcore_runtime --project . context evaluate --used 60 --window 100 > context.json
-          python -m signalcore_runtime --project . --host claude-code hook pre --payload '{"tool":"shell","command":"pytest -q"}' > hook.json
-          python -m signalcore_runtime --project . --host codex host > host.json
+          python -m signalcore_runtime --project . doctor > doctor.json
+          python -m signalcore_runtime --project . install --all --dry-run > install.json
+          python -m signalcore_runtime --project . inspect stats > structural.json
+          python -m signalcore_runtime --project . sandbox backends > sandbox.json
+          python -m signalcore_runtime --project . output profiles > output.json
+          python -m signalcore_runtime --project . signalbench validate --tasks benchmarks/signalbench/tasks.example.json --arms benchmarks/signalbench/arms.example.json > signalbench.json || true
           python - <<'PY'
           import json
           from pathlib import Path
-          context = json.loads(Path('context.json').read_text(encoding='utf-8'))
-          hook = json.loads(Path('hook.json').read_text(encoding='utf-8'))
-          host = json.loads(Path('host.json').read_text(encoding='utf-8'))
-          assert context['utilization'] == 0.6
-          assert hook['allowed'] is True and hook['mode'] == 'replace'
-          assert host['mode'] == 'MCP_CONTROLLED'
+          doctor=json.loads(Path('doctor.json').read_text())
+          install=json.loads(Path('install.json').read_text())
+          sandbox=json.loads(Path('sandbox.json').read_text())
+          output=json.loads(Path('output.json').read_text())
+          signalbench=json.loads(Path('signalbench.json').read_text())
+          assert doctor['runtime']['details']['version'] == '0.3.0'
+          assert install['ok'] is True and install['dry_run'] is True
+          assert 'local-restricted' in sandbox
+          assert 'compact' in output
+          assert signalbench['ok'] is True
           PY
+
+  wheel-install:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install wheel build backend
+        run: python -m pip install --disable-pip-version-check 'setuptools>=69' wheel
+      - name: Build wheel without network isolation
+        run: python -m pip wheel --no-build-isolation --no-deps . -w dist
+      - name: Install wheel into clean environment
+        shell: bash
+        run: |
+          python -m venv /tmp/signalcore-wheel
+          /tmp/signalcore-wheel/bin/python -m pip install --no-index dist/signalcore_runtime-0.3.0-py3-none-any.whl
+          cd /tmp
+          /tmp/signalcore-wheel/bin/signalcore --help >/dev/null
+          /tmp/signalcore-wheel/bin/python - <<'PY'
+          from signalcore_runtime.cli import skill_root
+          assert (skill_root() / 'SKILL.md').is_file()
+          PY
+
+  internal-benchmark:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Run committed v0.3 component benchmark
+        run: python benchmarks/runtime_v03_benchmark.py --output runtime-v03-internal.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: runtime-v03-internal
+          path: runtime-v03-internal.json
+          retention-days: 14
 
   profile-compatibility:
     runs-on: ubuntu-latest
