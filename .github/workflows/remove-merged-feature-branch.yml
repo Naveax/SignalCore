@@ -1,0 +1,29 @@
+name: Remove merged SignalCore feature branch
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Delete merged feature branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api --method DELETE repos/${{ github.repository }}/git/refs/heads/feature%2Fsignalcore-v0.2-runtime
+      - name: Remove this workflow
+        run: |
+          git rm .github/workflows/remove-merged-feature-branch.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Remove merged SignalCore feature branch cleanup'
+          git push origin HEAD:main
