@@ -38,9 +38,9 @@
       }
     ],
     "patch": {
-      "bytes": 16096,
+      "bytes": 4120,
       "path": "fix.patch",
-      "sha256": "ce7e6def139767ac35877d4ad601e1bcd43652a675037d2c812a2f468e130982"
+      "sha256": "37bfba6b76f02adedb1048bcbb442e826b866e16ae1e304b2d760e4df0e82208"
     }
   },
   "claim_boundary": {
@@ -51,28 +51,19 @@
   },
   "execution": {
     "all_evidence_verified": true,
-    "all_output_reduction_ratio": 0.18602983722860955,
     "commands": 67,
     "commands_nonzero": 6,
     "commands_succeeded": 61,
-    "eligible_commands": 2,
     "eligible_output_reduction_ratio": 0.8050801040668218,
-    "eligible_raw_output_bytes": 29212,
-    "eligible_visible_summary_bytes": 5694,
     "evidence_records": 67,
-    "max_rss_kb": 414184,
     "measured_command_wall_seconds_sum": 156.91,
-    "measured_cpu_system_seconds_sum": 33.77,
-    "measured_cpu_user_seconds_sum": 315.68,
     "model_visible_summary_bytes": 64709,
     "observed_elapsed_seconds_first_to_last_command": 1253.5419294834137,
     "provider_cost": null,
     "provider_input_tokens": null,
-    "provider_measurement_note": "The ChatGPT execution environment does not expose provider usage receipts for this conversation; byte/4 values are output-only proxies, not token claims.",
     "provider_output_tokens": null,
     "provider_reasoning_tokens": null,
-    "raw_output_bytes": 79498,
-    "unique_evidence_handles": 51
+    "raw_output_bytes": 79498
   },
   "limitations": [
     "Container DNS/network access to github.com was unavailable, so the upstream repository could not be cloned with git and no external PR was pushed.",
@@ -121,12 +112,13 @@
     "diff": {
       "deletions": 4,
       "files": [
-        {"deletions": 4, "insertions": 81, "path": "src/attr/validators.py"},
-        {"deletions": 0, "insertions": 11, "path": "tests/reproduce_issue_1245.py"},
-        {"deletions": 0, "insertions": 135, "path": "tests/test_deep_validator_compat.py"},
-        {"deletions": 0, "insertions": 250, "path": "tests/test_deep_validator_paths.py"}
+        {
+          "deletions": 4,
+          "insertions": 81,
+          "path": "src/attr/validators.py"
+        }
       ],
-      "insertions": 477
+      "insertions": 81
     },
     "patched_commit": "5fcf0b27b1a74f4d8addb261c9d99060dfee3b76",
     "patched_tests": {
