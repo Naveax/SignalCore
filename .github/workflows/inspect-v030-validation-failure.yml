@@ -1,0 +1,29 @@
+name: Inspect SignalCore v0.3 validation failure
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download failed finalizer job log
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh api /repos/${{ github.repository }}/actions/jobs/88332069972/logs > v030-finalizer.log
+          tail -n 220 v030-finalizer.log > v030-finalizer-tail.log
+          grep -nEi 'error|failed|failure|traceback|assert|no such|not found|manifest|mismatch' v030-finalizer.log > v030-finalizer-errors.log || true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: v030-finalizer-diagnostic
+          path: |
+            v030-finalizer-tail.log
+            v030-finalizer-errors.log
+          retention-days: 1
