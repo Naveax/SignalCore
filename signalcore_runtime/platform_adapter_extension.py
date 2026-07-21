@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
+from typing import Any
 
 
 def install() -> None:
@@ -16,7 +17,51 @@ def install() -> None:
         current = host_adapters.KNOWN_HOSTS[host]
         host_adapters.KNOWN_HOSTS[host] = replace(current, config_path="")
 
+    # A generic editor executable or project directory is not proof that its AI
+    # extension is installed. Only integration-specific files may trigger setup.
+    vscode = host_adapters.KNOWN_HOSTS["vscode-copilot"]
+    host_adapters.KNOWN_HOSTS["vscode-copilot"] = replace(
+        vscode,
+        project_markers=(".vscode/mcp.json", ".github/copilot-instructions.md"),
+        user_markers=(),
+    )
+    jetbrains = host_adapters.KNOWN_HOSTS["jetbrains-copilot"]
+    host_adapters.KNOWN_HOSTS["jetbrains-copilot"] = replace(
+        jetbrains,
+        project_markers=(".idea/mcp.json", ".github/copilot-instructions.md"),
+        user_markers=(),
+    )
+
+    original_find_executable = host_adapters._find_executable
+
+    def strict_find_executable(host: str) -> str | None:
+        if host in {"vscode-copilot", "jetbrains-copilot"}:
+            return None
+        return original_find_executable(host)
+
+    host_adapters._find_executable = strict_find_executable
+
     replacements = {
+        "vscode-copilot": product_surface.PlatformAdapter(
+            "vscode-copilot",
+            (),
+            (".vscode/mcp.json", ".github/copilot-instructions.md"),
+            "instructions+mcp",
+            True,
+            False,
+            False,
+            "integration-marker-contract-tested",
+        ),
+        "jetbrains-copilot": product_surface.PlatformAdapter(
+            "jetbrains-copilot",
+            (),
+            (".idea/mcp.json", ".github/copilot-instructions.md"),
+            "instructions+mcp",
+            True,
+            False,
+            False,
+            "integration-marker-contract-tested",
+        ),
         "kiro": product_surface.PlatformAdapter(
             "kiro",
             ("kiro", "kiro-cli", "q"),
