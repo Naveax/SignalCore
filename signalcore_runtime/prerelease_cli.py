@@ -9,6 +9,7 @@ from typing import Any
 
 from .infinite_context import CONTEXT_TIERS, UnboundedContextCoordinator
 from .integration_matrix import IntegrationMatrix
+from .long_context_quality import LongContextQualityGate, LongContextReceipt, manifest as long_context_manifest
 from .product_surface import (
     MCP_PROFILES,
     MeasuredBenchmarkGate,
@@ -42,6 +43,14 @@ def _load_json_argument(value: str) -> Any:
     if path.is_file():
         return json.loads(path.read_text(encoding="utf-8"))
     return json.loads(value)
+
+
+def _load_long_context_receipts(path: Path) -> list[LongContextReceipt]:
+    value = json.loads(path.read_text(encoding="utf-8"))
+    rows = value.get("receipts", value) if isinstance(value, dict) else value
+    if not isinstance(rows, list):
+        raise ValueError("long-context receipt file must contain a list or {'receipts': [...]} object")
+    return [LongContextReceipt.from_mapping(item) for item in rows if isinstance(item, dict)]
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -79,6 +88,7 @@ def _parser() -> argparse.ArgumentParser:
     prove_sub.add_parser("plan")
     receipts = prove_sub.add_parser("receipts"); receipts.add_argument("path")
     benchmark = prove_sub.add_parser("benchmark"); benchmark.add_argument("path")
+    long_context = prove_sub.add_parser("long-context"); long_context.add_argument("path", nargs="?")
     readiness = prove_sub.add_parser("readiness"); readiness.add_argument("--receipts")
     schema = prove_sub.add_parser("schema"); schema.add_argument("--output", default="schemas/provider-usage-receipt-v1.json")
 
@@ -155,6 +165,7 @@ def main(argv: list[str] | None = None) -> int:
                 "channel": "pre-release",
                 "receipt_schema": "signalcore prove schema",
                 "workloads": ProductSurface.manifest()["proof"]["workloads"],
+                "long_context": long_context_manifest(),
                 "measured_fields": ProductSurface.manifest()["proof"]["measured_fields"],
                 "minimums": {
                     "paired_runs": MeasuredBenchmarkGate.minimum_pairs,
@@ -169,6 +180,13 @@ def main(argv: list[str] | None = None) -> int:
             output = Path(args.output)
             _emit({"ok": True, "output": str(output), "schema": write_receipt_schema(output)})
             return 0
+        if args.action == "long-context":
+            if not args.path:
+                _emit(long_context_manifest())
+                return 0
+            value = LongContextQualityGate.evaluate(_load_long_context_receipts(Path(args.path)))
+            _emit(value)
+            return 0 if value["ok"] else 4
         receipt_path = Path(args.path) if hasattr(args, "path") else Path(args.receipts) if args.receipts else None
         rows = ReceiptValidator.load(receipt_path) if receipt_path else []
         if args.action == "receipts":
