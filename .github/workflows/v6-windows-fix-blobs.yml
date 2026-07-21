@@ -1,0 +1,137 @@
+name: V6 Windows Fix Blobs
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  PYTHONDONTWRITEBYTECODE: "1"
+  PYTHONWARNINGS: "error::ResourceWarning"
+
+jobs:
+  validate-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/v6-windows-fix
+          fetch-depth: 1
+          show-progress: false
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Apply deterministic lifecycle fix
+        run: python tools/v6_windows_lifecycle_fix.py
+
+      - name: Install runtime dependencies
+        run: python -m pip install --disable-pip-version-check -e .
+
+      - name: Compile ordinary source
+        run: python -m compileall -q signalcore_runtime skills/signal-core tools tests benchmarks
+
+      - name: Run complete Windows runtime tests
+        run: python -m unittest discover -s tests/runtime -q
+
+      - name: Validate runtime and release package
+        run: |
+          python tools/validate_runtime.py
+          python tools/validate.py
+
+      - name: Build wheel
+        run: |
+          python -m pip install --disable-pip-version-check "setuptools>=69" wheel
+          python -m pip wheel --no-deps --no-build-isolation . -w wheelhouse
+
+      - name: Upload verified fixed files
+        uses: actions/upload-artifact@v4
+        with:
+          name: v6-windows-fix-files
+          path: |
+            signalcore_runtime/evidence.py
+            tools/validate.py
+            MANIFEST.sha256
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0
+
+  create-blobs:
+    needs: validate-windows
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: v6-windows-fix-files
+          path: /tmp/v6-windows-fix
+
+      - name: Create exact verified Git blobs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPOSITORY: ${{ github.repository }}
+        run: |
+          python - <<'PY'
+          import base64
+          import hashlib
+          import json
+          import os
+          import urllib.error
+          import urllib.request
+          from pathlib import Path
+
+          root = Path('/tmp/v6-windows-fix')
+          expected = {
+              'signalcore_runtime/evidence.py': '72febdd5e40af28ffac3075c96ceb3fde717f96c',
+              'tools/validate.py': '80b9dd27390fb3b337dcce8e59951ebf3c5a0610',
+              'MANIFEST.sha256': '12374739d96eda9901eda0ed4a0257509b1d05a9',
+          }
+          result = {}
+          endpoint = f"https://api.github.com/repos/{os.environ['GH_REPOSITORY']}/git/blobs"
+          for relative, wanted in expected.items():
+              data = (root / relative).read_bytes()
+              local = hashlib.sha1(f'blob {len(data)}\0'.encode() + data).hexdigest()
+              if local != wanted:
+                  raise SystemExit(f'local blob mismatch for {relative}: {local}')
+              payload = json.dumps({
+                  'content': base64.b64encode(data).decode('ascii'),
+                  'encoding': 'base64',
+              }, separators=(',', ':')).encode('utf-8')
+              request = urllib.request.Request(
+                  endpoint,
+                  data=payload,
+                  headers={
+                      'Accept': 'application/vnd.github+json',
+                      'Authorization': f"Bearer {os.environ['GH_TOKEN']}",
+                      'Content-Type': 'application/json',
+                      'X-GitHub-Api-Version': '2022-11-28',
+                      'User-Agent': 'signalcore-v6-windows-fix',
+                  },
+                  method='POST',
+              )
+              try:
+                  with urllib.request.urlopen(request, timeout=120) as response:
+                      remote = json.loads(response.read())['sha']
+              except urllib.error.HTTPError as exc:
+                  raise SystemExit(exc.read().decode('utf-8', errors='replace')) from exc
+              if remote != wanted:
+                  raise SystemExit(f'remote blob mismatch for {relative}: {remote}')
+              result[relative] = remote
+
+          receipt = {'blobs': result, 'expected_tree': 'fd030709b17f861e8e69bb6558ccab403918d424'}
+          output = Path('/tmp/v6-windows-fix-receipt.json')
+          output.write_text(json.dumps(receipt, sort_keys=True, separators=(',', ':')) + '\n', encoding='utf-8', newline='\n')
+          print(receipt)
+          PY
+
+      - name: Upload blob receipt
+        uses: actions/upload-artifact@v4
+        with:
+          name: v6-windows-fix-receipt-${{ github.sha }}
+          path: /tmp/v6-windows-fix-receipt.json
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0
