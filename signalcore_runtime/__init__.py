@@ -8,12 +8,14 @@ from .provider_proxy_extension import install as _install_provider_proxy_extensi
 from .ecosystem_mcp_extension import install as _install_ecosystem_mcp_extension
 from .product_v5_extension import install as _install_product_v5_extension
 from .v6_extension import install as _install_v6_extension
+from .mcp_enforcement_extension import install as _install_mcp_enforcement_extension
 
 _install_provider_mcp_extension()
 _install_provider_proxy_extension()
 _install_ecosystem_mcp_extension()
 _install_product_v5_extension()
 _install_v6_extension()
+_install_mcp_enforcement_extension()
 
 from .mcp_server import MCPServer as _MCPServer
 from . import cli as _legacy_cli
@@ -27,6 +29,7 @@ del _install_provider_proxy_extension
 del _install_ecosystem_mcp_extension
 del _install_product_v5_extension
 del _install_v6_extension
+del _install_mcp_enforcement_extension
 
 from .arm_runner import ArmExecutionPolicy, ArmRunReceipt, SecureArmRunner
 from .backup import BackupResult, StateBackupManager
@@ -39,6 +42,7 @@ from .integration_matrix import IntegrationMatrix, IntegrationSpec
 from .job_scheduler import DurableJobScheduler, JobSpec
 from .long_context_quality import LongContextQualityGate, LongContextReceipt
 from .long_session_planner import ContextPlanPolicy, LongSessionPlanner
+from .mcp_policy import MCPAuthorizationDecision, MCPToolPolicy
 from .policy_rollout import PolicyRolloutManager, VerifiedPolicyObservation
 from .policy_tuner import AdaptivePolicyTuner, PolicyObservation, PolicyRecommendation
 from .product_maturity import DistributionReceipt, OnboardingReceipt, ProductMaturityGate, ReleaseReceipt
@@ -72,11 +76,12 @@ __all__ = [
     "ConfigSnapshot", "ContextPlanPolicy", "DataRoutePolicy", "DataRouteResult", "DataRouter",
     "DistributionReceipt", "DurableJobScheduler", "EvidenceStore", "GraphEdge", "GraphNode",
     "IntegrationMatrix", "IntegrationSpec", "JobSpec", "LongContextQualityGate", "LongContextReceipt",
-    "LongSessionPlanner", "MCPProfile", "MeasuredBenchmarkGate", "OnboardingReceipt", "PairedSchedule",
-    "PlatformAdapter", "PlatformAdapterRegistry", "PolicyObservation", "PolicyRecommendation",
-    "PolicyRolloutManager", "Principal", "ProductMaturityGate", "ProductSurface",
-    "ProviderProxyServiceManager", "ProviderUsageReceipt", "ProxyPreset", "ProxyProductRegistry",
-    "PublicProofGate", "ReceiptValidator", "RecursiveExecutionEngine", "RecursiveTask", "ReleaseIdentity",
+    "LongSessionPlanner", "MCPAuthorizationDecision", "MCPProfile", "MCPToolPolicy",
+    "MeasuredBenchmarkGate", "OnboardingReceipt", "PairedSchedule", "PlatformAdapter",
+    "PlatformAdapterRegistry", "PolicyObservation", "PolicyRecommendation", "PolicyRolloutManager",
+    "Principal", "ProductMaturityGate", "ProductSurface", "ProviderProxyServiceManager",
+    "ProviderUsageReceipt", "ProxyPreset", "ProxyProductRegistry", "PublicProofGate",
+    "ReceiptValidator", "RecursiveExecutionEngine", "RecursiveTask", "ReleaseIdentity",
     "ReleaseReceipt", "SDKInvocation", "SecureArmRunner", "ServicePlan", "ServiceSpec",
     "SessionAnalyticsStore", "SessionContinuityController", "SignalCoreClient", "StateBackupManager",
     "StructuralGraphV2", "SuperiorityGate", "ToolRouteDecision", "ToolRoutingEnforcer",
