@@ -9,13 +9,25 @@ from typing import Any
 
 from .infinite_context import CONTEXT_TIERS, UnboundedContextCoordinator
 from .integration_matrix import IntegrationMatrix
+from .product_surface import (
+    MCP_PROFILES,
+    MeasuredBenchmarkGate,
+    PlatformAdapterRegistry,
+    ProductSurface,
+    ReceiptValidator,
+    SessionAnalyticsStore,
+    ToolRoutingEnforcer,
+    write_receipt_schema,
+)
 from .public_proof import PublicProofGate
 from .release_identity import VERSION, identity, validate_repository_identity
 from .signalbench_v2 import CodingCorpusPlanner, PairedSchedule, SuperiorityGate, default_arms
 from .structural_v2 import GraphEdge, GraphNode, StructuralGraphV2
 from .zero_friction import ZeroFrictionManager
 
+
 PRE_RELEASE_COMMANDS = {
+    "setup", "status", "run", "prove",
     "version", "install", "wrap", "doctor", "stats", "upgrade", "repair",
     "integrations", "context-stress", "signalbench2", "proof", "structural-v2",
 }
@@ -25,17 +37,58 @@ def _emit(value: Any) -> None:
     print(json.dumps(value, ensure_ascii=False, indent=2, sort_keys=True, default=str))
 
 
+def _load_json_argument(value: str) -> Any:
+    path = Path(value)
+    if path.is_file():
+        return json.loads(path.read_text(encoding="utf-8"))
+    return json.loads(value)
+
+
 def _parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="signalcore", description="SignalCore v0.0.1 pre-release dominance runtime")
+    parser = argparse.ArgumentParser(
+        prog="signalcore",
+        description="SignalCore v0.0.1 pre-release daily coding-agent product",
+        epilog="Primary workflow: setup -> status -> run -> prove",
+    )
     parser.add_argument("--project", default=".")
     parser.add_argument("--state-root")
     sub = parser.add_subparsers(dest="command", required=True)
+
+    setup = sub.add_parser("setup", help="install or repair SignalCore")
+    setup.add_argument("--apply", action="store_true")
+    setup.add_argument("--all", action="store_true")
+    setup.add_argument("--mcp-profile", choices=tuple(MCP_PROFILES), default="minimal")
+
+    status = sub.add_parser("status", help="show one health and usage snapshot")
+    status.add_argument("--receipts")
+
+    run = sub.add_parser("run", help="plan an enforced agent operation")
+    run_sub = run.add_subparsers(dest="action", required=True)
+    run_sub.add_parser("manifest")
+    route = run_sub.add_parser("route")
+    route.add_argument("tool")
+    route.add_argument("--profile", choices=tuple(MCP_PROFILES), default="minimal")
+    route.add_argument("--sandboxed", action="store_true")
+    route.add_argument("--no-exact-evidence", action="store_true")
+    route.add_argument("--user-authorized", action="store_true")
+    record = run_sub.add_parser("record")
+    record.add_argument("event", help="JSON object or path to a JSON object")
+
+    prove = sub.add_parser("prove", help="validate measured external evidence")
+    prove_sub = prove.add_subparsers(dest="action", required=True)
+    prove_sub.add_parser("plan")
+    receipts = prove_sub.add_parser("receipts"); receipts.add_argument("path")
+    benchmark = prove_sub.add_parser("benchmark"); benchmark.add_argument("path")
+    readiness = prove_sub.add_parser("readiness"); readiness.add_argument("--receipts")
+    schema = prove_sub.add_parser("schema"); schema.add_argument("--output", default="schemas/provider-usage-receipt-v1.json")
+
     sub.add_parser("version")
     install = sub.add_parser("install")
     install.add_argument("--auto", action="store_true")
     install.add_argument("--all", action="store_true")
     install.add_argument("--apply", action="store_true")
     install.add_argument("--dry-run", action="store_true")
+    install.add_argument("--mcp-profile", choices=tuple(MCP_PROFILES), default="minimal")
     wrap = sub.add_parser("wrap"); wrap.add_argument("host"); wrap.add_argument("--output")
     sub.add_parser("doctor")
     sub.add_parser("stats")
@@ -62,12 +115,74 @@ def main(argv: list[str] | None = None) -> int:
     state = Path(args.state_root).resolve(strict=False) if args.state_root else project / ".signalcore" / "pre-release"
     manager = ZeroFrictionManager(project, state)
 
+    if args.command == "setup":
+        value = manager.install(all_hosts=args.all, dry_run=not args.apply, profile=args.mcp_profile)
+        _emit(value)
+        return 0 if value["ok"] else 2
+    if args.command == "status":
+        receipt_rows = ReceiptValidator.load(Path(args.receipts)) if args.receipts else []
+        value = {
+            "doctor": manager.doctor(),
+            "stats": manager.stats(),
+            "readiness": ProductSurface.readiness(state, receipt_rows),
+            "primary_workflow": ["setup", "status", "run", "prove"],
+        }
+        _emit(value)
+        return 0 if value["doctor"]["ok"] else 2
+    if args.command == "run":
+        if args.action == "manifest":
+            _emit(ProductSurface.manifest())
+            return 0
+        if args.action == "route":
+            decision = ToolRoutingEnforcer.decide(
+                args.tool,
+                profile=args.profile,
+                sandboxed=args.sandboxed,
+                exact_evidence=not args.no_exact_evidence,
+                explicit_user_authorization=args.user_authorized,
+            )
+            _emit(asdict(decision))
+            return 0 if decision.allowed else 5
+        event = _load_json_argument(args.event)
+        if not isinstance(event, dict):
+            raise ValueError("analytics event must be a JSON object")
+        _emit(SessionAnalyticsStore(state / "analytics" / "events.jsonl").record(event))
+        return 0
+    if args.command == "prove":
+        if args.action == "plan":
+            _emit({
+                "version": VERSION,
+                "channel": "pre-release",
+                "receipt_schema": "signalcore prove schema",
+                "workloads": ProductSurface.manifest()["proof"]["workloads"],
+                "measured_fields": ProductSurface.manifest()["proof"]["measured_fields"],
+                "minimums": {
+                    "paired_runs": MeasuredBenchmarkGate.minimum_pairs,
+                    "repositories": MeasuredBenchmarkGate.minimum_repositories,
+                    "tasks": MeasuredBenchmarkGate.minimum_tasks,
+                    "workload_families": MeasuredBenchmarkGate.minimum_workload_families,
+                },
+                "claim": "EXTERNAL_SUPERIORITY_NOT_PROVEN",
+            })
+            return 0
+        if args.action == "schema":
+            output = Path(args.output)
+            _emit({"ok": True, "output": str(output), "schema": write_receipt_schema(output)})
+            return 0
+        receipt_path = Path(args.path) if hasattr(args, "path") else Path(args.receipts) if args.receipts else None
+        rows = ReceiptValidator.load(receipt_path) if receipt_path else []
+        if args.action == "receipts":
+            value = ReceiptValidator.evaluate(rows); _emit(value); return 0 if value["ok"] else 4
+        if args.action == "benchmark":
+            value = MeasuredBenchmarkGate.evaluate(rows); _emit(value); return 0 if value["ok"] else 4
+        value = ProductSurface.readiness(state, rows); _emit(value); return 0 if value["ok"] else 4
+
     if args.command == "version":
         _emit({"identity": identity().to_dict(), "repository": validate_repository_identity(project)})
         return 0
     if args.command == "install":
         dry_run = bool(args.dry_run or not args.apply)
-        _emit(manager.install(all_hosts=args.all, dry_run=dry_run))
+        _emit(manager.install(all_hosts=args.all, dry_run=dry_run, profile=args.mcp_profile))
         return 0
     if args.command == "wrap":
         output = Path(args.output) if args.output else state / "wrappers" / (args.host + (".cmd" if os.name == "nt" else ""))
@@ -82,7 +197,12 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "repair":
         _emit(manager.repair(apply=args.apply)); return 0
     if args.command == "integrations":
-        _emit({"coverage": IntegrationMatrix.validate(), "integrations": IntegrationMatrix.records(args.family)}); return 0
+        _emit({
+            "coverage": IntegrationMatrix.validate(),
+            "integrations": IntegrationMatrix.records(args.family),
+            "platform_adapters": PlatformAdapterRegistry.validate(),
+        })
+        return 0
     if args.command == "context-stress":
         reports = [row for row in UnboundedContextCoordinator.stress_tiers(active_budget=args.budget) if row["tier_tokens"] <= args.max_tier]
         result = {"ok": bool(reports) and all(row["within_budget"] and row["all_referenced"] and not row["forced_restart"] for row in reports), "tiers": reports}
@@ -91,7 +211,7 @@ def main(argv: list[str] | None = None) -> int:
         if args.action == "plan":
             tasks = CodingCorpusPlanner.generate_slots(); schedule = PairedSchedule(tasks, default_arms(), repetitions=args.repetitions)
             _emit({"corpus": {"tasks": len(tasks), "live": False}, "schedule": {"runs": schedule.count, "repetitions": args.repetitions}, "manifest": schedule.manifest()}); return 0
-        receipts = json.loads(Path(args.receipts).read_text(encoding="utf-8")); value = SuperiorityGate.evaluate(receipts); _emit(value); return 0 if value["ok"] else 4
+        receipts_value = json.loads(Path(args.receipts).read_text(encoding="utf-8")); value = SuperiorityGate.evaluate(receipts_value); _emit(value); return 0 if value["ok"] else 4
     if args.command == "proof":
         _emit({"release": PublicProofGate.release_readiness(sbom=False, provenance=False, reproducible_build=False, signed_tags=False, migration_guides=True, rollback=True), "workloads": PublicProofGate.workload_manifest(), "maturity": "PUBLIC_PRODUCT_MATURITY_NOT_PROVEN"}); return 0
     if args.command == "structural-v2":
