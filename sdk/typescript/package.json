@@ -22,6 +22,9 @@
     "check": "tsc -p tsconfig.json --noEmit",
     "test": "node --test"
   },
+  "devDependencies": {
+    "typescript": "6.0.3"
+  },
   "sideEffects": false,
   "engines": {"node": ">=18"},
   "publishConfig": {"provenance": true, "access": "public", "tag": "next"},
