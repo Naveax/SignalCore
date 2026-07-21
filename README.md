@@ -1,6 +1,6 @@
 # SignalCore v0.0.1 — Pre-Release Coding-Agent Runtime
 
-SignalCore is a local-first control plane for coding agents. It combines a credential-isolated provider proxy, bounded context, exact session history, tool-routing enforcement, platform adapters, Python/TypeScript libraries and receipt-based benchmarking.
+SignalCore is a local-first control plane for coding agents. It combines a credential-isolated provider proxy, bounded context, exact session history, enforced MCP routing, platform adapters, Python/TypeScript libraries and receipt-based benchmarking.
 
 > **Version lock:** the repository and packages remain **0.0.1 / pre-release** until the owner explicitly authorizes another version.
 >
@@ -27,7 +27,19 @@ signalcore setup --apply --mcp-profile minimal
 signalcore status
 ```
 
-The installer is backup-first and records its measured wall-time. `minimal` is the default MCP profile for daily coding-agent use; `balanced` and `audit` expose progressively broader tool surfaces.
+`setup` is backup-first, transactional and measured. By default it mutates only coding-agent hosts that are actually detected. `--all` is an explicit request to install every concrete supported adapter. Each host mutation is verified, recorded in the installation receipt and rolled back when a later host in the same batch fails.
+
+## MCP profiles
+
+The installed profile file is the runtime default; `SIGNALCORE_MCP_PROFILE` may override it for one process.
+
+| Profile | Enforced tools | Use |
+|---|---:|---|
+| `minimal` | exactly 8 | Daily coding-agent hot loop |
+| `balanced` | exactly 36 | Repository work, sessions and provider telemetry |
+| `audit` | complete registered catalog | Evidence, migration, release and security review |
+
+Filtering `tools/list` is not treated as security. Every JSON-RPC `tools/call` is checked again. Unlisted tools fail closed. Destructive, network and execution operations require an authorization receipt; unsandboxed process submission is disabled unless the operator separately enables it.
 
 ## Daily workflow
 
@@ -46,6 +58,11 @@ signalcore run route terminal.exec --sandboxed --user-authorized
 signalcore run proxy-plan openai
 signalcore run proxy-plan azure-openai --upstream https://YOUR-RESOURCE.openai.azure.com
 
+# Plan/install/verify a user-scoped proxy service
+signalcore run proxy-service plan openai
+signalcore run proxy-service install openai --apply --activate
+signalcore run proxy-service verify openai
+
 # Open, append, compact and restore a durable session
 signalcore run session-open --session-id my-session --metadata '{"goal":"repair repository"}'
 signalcore run session-append my-session decision '{"decision":"run focused tests"}'
@@ -62,7 +79,8 @@ SignalCore's proxy enforces:
 - remote bindings require TLS;
 - streaming uses commit-before-forward semantics;
 - exact response evidence is committed before client delivery;
-- provider token/cost usage can be attached to claim-bearing receipts.
+- provider token/cost usage can be attached to claim-bearing receipts;
+- systemd, launchd and Windows Task Scheduler descriptors are user-scoped and reversible.
 
 Ten provider families have explicit presets. OpenAI, Anthropic, Gemini and compatible API families can use direct proxy paths. SigV4, OAuth2 and non-compatible request families are marked adapter-required rather than presented as zero-code support.
 
@@ -118,9 +136,7 @@ The current contract matrix contains:
 - **18 coding-agent hosts**;
 - **18 concrete platform-adapter contracts**.
 
-Platform records include command detection and candidate config paths for Claude Code, Codex, Gemini CLI, GitHub Copilot, Cursor, Windsurf, OpenCode, Cline, Roo Code, Qwen Code, Kiro, Zed, Pi, OMP, OpenClaw, Aider and Continue.
-
-A contract is not a live certification. `signalcore integrations` reports this boundary explicitly.
+Host detection uses host-specific executables or markers rather than generic repository files. Kiro uses project MCP plus native skills. Pi, Oh My Pi and OpenClaw use verified native-skill directories and do not receive invented MCP/config keys. A contract is not a live certification; `signalcore integrations` reports this boundary explicitly.
 
 ## Sessions, async compaction and continuity
 
@@ -146,7 +162,8 @@ It is not a claim that a provider accepts infinite prompt tokens.
 
 `signalcore status` and `signalcore stats` expose:
 
-- onboarding wall-time;
+- onboarding and host-installation wall-time;
+- host verification results;
 - input, cached-input, billable-input and output tokens;
 - provider cost and request wall-time;
 - session and repository counts;
@@ -164,12 +181,15 @@ signalcore prove schema
 signalcore prove receipts receipts.json
 signalcore prove benchmark receipts.json
 signalcore prove long-context long-context-receipts.json
+signalcore prove maturity maturity-evidence.json
 python benchmarks/measured_agent_benchmark.py receipts.json --output result.json
 ```
 
 Claim-bearing coding-agent runs require paired baseline/SignalCore provider receipts with measured tokens, cost, wall-time, success and quality. The committed gate requires at least 30 pairs, 5 repositories, 10 tasks and 3 workload families, with quality and success non-inferiority.
 
 The OOLONG-like long-context gate measures required-fact recall, stale-fact rejection, evidence precision, exact recovery, session continuity, tokens and wall-time. A manifest or synthetic run cannot open the gate.
+
+The maturity gate requires external onboarding, rollback, live-integration, operating-system, package-adoption and signed release-cadence evidence. Repository-generated fixtures never count as public adoption.
 
 ## What is not yet externally proven
 
@@ -187,6 +207,7 @@ These remain measurable external gates, not README claims.
 ```bash
 python -m compileall -q signalcore_runtime skills/signal-core tools tests benchmarks
 python -m unittest discover -s tests/runtime -q
+python tools/refresh_manifest.py
 python tools/validate.py
 python tools/validate_runtime.py
 
@@ -203,6 +224,7 @@ CI runs Python tests across Ubuntu, Windows and macOS on Python 3.11–3.13, val
 - `docs/architecture/DAILY_AGENT_PRODUCT_001.md`
 - `docs/benchmark/MEASURED_AGENT_PROOF_001.md`
 - `schemas/provider-usage-receipt-v1.json`
+- `schemas/product-maturity-evidence-v1.json`
 
 ## Version policy
 
