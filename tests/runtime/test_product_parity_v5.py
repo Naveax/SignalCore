@@ -96,11 +96,12 @@ class ProductParityV5Tests(unittest.TestCase):
     def test_service_plans_are_user_scoped_and_byte_verifiable(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             manager = ProviderProxyServiceManager(temp)
+            canonical_home = Path(temp).resolve(strict=False)
             spec = ServiceSpec("signalcore-proxy", (sys.executable, "-m", "signalcore_runtime.product_v5_cli", "--help"))
             for platform in ("linux", "darwin", "windows"):
                 plan = manager.plan(spec, platform_name=platform)
                 self.assertTrue(plan.user_scoped)
-                self.assertTrue(str(Path(plan.descriptor_path)).startswith(str(Path(temp))))
+                self.assertTrue(Path(plan.descriptor_path).resolve(strict=False).is_relative_to(canonical_home))
                 self.assertTrue(plan.descriptor_hash)
                 self.assertIn(spec.name, plan.descriptor_path)
             installed = manager.install(spec, platform_name="linux", activate=False)
