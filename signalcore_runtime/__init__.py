@@ -3,6 +3,7 @@
 __version__ = "0.0.1"
 __release_channel__ = "pre-release"
 
+from .platform_adapter_extension import install as _install_platform_adapter_extension
 from .provider_mcp_extension import install as _install_provider_mcp_extension
 from .provider_proxy_extension import install as _install_provider_proxy_extension
 from .ecosystem_mcp_extension import install as _install_ecosystem_mcp_extension
@@ -10,6 +11,7 @@ from .product_v5_extension import install as _install_product_v5_extension
 from .v6_extension import install as _install_v6_extension
 from .mcp_enforcement_extension import install as _install_mcp_enforcement_extension
 
+_install_platform_adapter_extension()
 _install_provider_mcp_extension()
 _install_provider_proxy_extension()
 _install_ecosystem_mcp_extension()
@@ -24,6 +26,7 @@ _legacy_cli.VERSION = __version__
 
 del _MCPServer
 del _legacy_cli
+del _install_platform_adapter_extension
 del _install_provider_mcp_extension
 del _install_provider_proxy_extension
 del _install_ecosystem_mcp_extension
