@@ -43,12 +43,13 @@ def install() -> None:
         previous = os.environ.get("SIGNALCORE_MCP_PROFILE")
         os.environ["SIGNALCORE_MCP_PROFILE"] = policy.legacy_profile
         try:
-            selected = list(original_exposed(self))
+            discovered = list(original_exposed(self))
         finally:
             if previous is None:
                 os.environ.pop("SIGNALCORE_MCP_PROFILE", None)
             else:
                 os.environ["SIGNALCORE_MCP_PROFILE"] = previous
+        selected = policy.filter_catalog(discovered)
         self.product_mcp_policy = policy
         return selected
 
