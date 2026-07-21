@@ -1,116 +1,209 @@
-# SignalCore v0.0.1 — Pre-Release Unified Agent Runtime
+# SignalCore v0.0.1 — Pre-Release Coding-Agent Runtime
 
-SignalCore is a local-first control plane for AI coding agents. The repository version is intentionally locked to **0.0.1** and the release channel remains **pre-release / pre-alpha** until the owner explicitly authorizes a change.
+SignalCore is a local-first control plane for coding agents. It combines a credential-isolated provider proxy, bounded context, exact session history, tool-routing enforcement, platform adapters, Python/TypeScript libraries and receipt-based benchmarking.
 
-> **Public competitor claim: `EXTERNAL_SUPERIORITY_NOT_PROVEN`.** Internal tests and benchmark machinery are not external competitor evidence.
+> **Version lock:** the repository and packages remain **0.0.1 / pre-release** until the owner explicitly authorizes another version.
 >
-> **Context claim:** `UNBOUNDED_EXTERNAL_HISTORY_WITH_BOUNDED_ACTIVE_WINDOW`. SignalCore does not claim that a model provider accepts infinite prompt tokens.
->
-> **Product maturity claim:** `PUBLIC_PRODUCT_MATURITY_NOT_PROVEN` until real 90-day external receipts pass the maturity gate.
+> **Claim boundary:** external superiority, public adoption, live certification, SWE-bench performance, OOLONG performance and production maturity are **not proven** without external receipts.
 
-## Unified capabilities
-
-### Zero-friction product surface
-
-- Plan-first and backup-first `install`, `wrap`, `doctor`, `stats`, `upgrade`, and `repair` commands.
-- Ten provider contracts, fifteen framework contracts, eighteen host contracts, and at least fourteen automatic host plans.
-- Version-locked upgrades: a target other than `0.0.1` fails closed.
-- Live integration certification requires external receipts; internal contracts are not mislabeled as live production proof.
-
-### Structural Intelligence V2
-
-- Multi-language nodes with exact evidence ranges.
-- Calls, imports, inheritance, implementations, overrides, reads/writes, data flow, taint flow, tests, build targets, dependencies, stack traces, ownership, rename history, and change-frequency signals.
-- Query-adaptive lexical, path, ownership, centrality, and change ranking.
-- Reverse impact and affected-test traversal.
-
-### Secure execution and reversible context
-
-- Encrypted exact evidence and byte-exact restoration.
-- Authenticated provider control plane and commit-before-forward streaming.
-- Docker, Podman, bubblewrap, and explicitly degraded local-restricted sandbox contracts.
-- Bounded model-visible output with exact recovery references.
-
-### Unbounded external session history
-
-- Immutable exact history and recursive summary DAGs.
-- A strictly bounded active model window over externally stored history.
-- Current temporal truth selection and exact reference fallback.
-- Recursive map/reduce workers with duplicate suppression, retry bounds, per-worker evidence, and global provenance.
-- Committed stress tiers: 32K, 64K, 128K, 256K, 512K, 1M, 2M, and 10M virtual history tokens.
-
-### SignalBench 2.0
-
-- 150 coding-task slots across nine task categories and ten languages.
-- Six isolated external arms: plain baseline, SignalCore, Token Savior, Context Mode, Headroom, and Volt/LCM.
-- Thirty deterministic paired repetitions, producing 27,000 scheduled runs.
-- Identical model, provider, reasoning, context, permission, verifier, and repository-tree requirements.
-- Synthetic slots and missing provider receipts cannot open a superiority claim.
-
-### Public proof and release discipline
-
-- Twelve workload families covering coding, operations, structured data, retrieval, agents, long context, and multimodal documents.
-- Distribution targets for PyPI, npm, GHCR, Homebrew, Winget, and standalone binaries.
-- SBOM, provenance, reproducibility, signed-tag, migration, and rollback gates.
-- Ninety-day, 1,000-receipt, 100-repository, 50-user fail-closed maturity gate.
-
-## Quick start
+## The product in four commands
 
 ```bash
-signalcore version
-signalcore install --auto
-signalcore doctor
-signalcore integrations
-signalcore context-stress --max-tier 10000000
-signalcore signalbench2 plan --repetitions 30
-signalcore proof status
+signalcore setup   # detect, plan, install or repair
+signalcore status  # health, sessions, metrics and proof gates
+signalcore run     # proxy, routing and session operations
+signalcore prove   # receipt and benchmark validation
 ```
 
-Existing compatibility commands remain available:
+Legacy commands remain available for compatibility, but these four commands are the primary mental model.
+
+## Install from the repository
 
 ```bash
-signalcore inspect map "authentication failure" --token-budget 2000
-signalcore sandbox plan --network none -- pytest -q
-signalcore compress put build.log --budget 4096
-signalcore session open --metadata '{"goal":"release audit"}'
-signalcore output govern --profile compact --contract implementation --payload result.json
+git clone https://github.com/Naveax/SignalCore.git
+cd SignalCore
+python -m pip install -e .
+signalcore setup --apply --mcp-profile minimal
+signalcore status
 ```
+
+The installer is backup-first and records its measured wall-time. `minimal` is the default MCP profile for daily coding-agent use; `balanced` and `audit` expose progressively broader tool surfaces.
+
+## Daily workflow
+
+```bash
+# Show the exact product surface
+signalcore run manifest
+
+# Verify that a read tool is allowed
+signalcore run route repo.search
+
+# An execution tool fails closed without sandbox + explicit authorization
+signalcore run route terminal.exec
+signalcore run route terminal.exec --sandboxed --user-authorized
+
+# Plan a credential-isolated provider proxy
+signalcore run proxy-plan openai
+signalcore run proxy-plan azure-openai --upstream https://YOUR-RESOURCE.openai.azure.com
+
+# Open, append, compact and restore a durable session
+signalcore run session-open --session-id my-session --metadata '{"goal":"repair repository"}'
+signalcore run session-append my-session decision '{"decision":"run focused tests"}'
+signalcore run session-compact my-session
+signalcore run session-continuity my-session
+```
+
+## Proxy product surface
+
+SignalCore's proxy enforces:
+
+- provider credentials remain transport-only;
+- control endpoints require a separate token;
+- remote bindings require TLS;
+- streaming uses commit-before-forward semantics;
+- exact response evidence is committed before client delivery;
+- provider token/cost usage can be attached to claim-bearing receipts.
+
+Ten provider families have explicit presets. OpenAI, Anthropic, Gemini and compatible API families can use direct proxy paths. SigV4, OAuth2 and non-compatible request families are marked adapter-required rather than presented as zero-code support.
+
+## Python library
+
+```python
+from signalcore_runtime import (
+    ProviderUsageReceipt,
+    ReceiptValidator,
+    SessionContinuityController,
+    SignalCoreClient,
+    ToolRoutingEnforcer,
+)
+
+route = ToolRoutingEnforcer.decide("repo.search")
+assert route.allowed
+
+client = SignalCoreClient(".signalcore/sdk", project=".")
+```
+
+The dependency-free Python SDK accepts caller-supplied sync or async provider transports and adds request stabilization, exact evidence, safe replay and normalized usage capture.
+
+## TypeScript library
+
+```bash
+cd sdk/typescript
+npm install
+npm run check
+npm run build
+```
+
+```ts
+import { SignalCoreClient } from "@signalcore/client";
+import {
+  validateProviderUsageReceipt,
+  type ProviderUsageReceipt
+} from "@signalcore/client/receipts";
+
+const client = new SignalCoreClient({
+  baseUrl: "http://127.0.0.1:8787",
+  controlToken: process.env.SIGNALCORE_PROXY_CONTROL_TOKEN
+});
+```
+
+The package includes typed proxy calls, SSE parsing, retries, timeouts, control-plane health methods and receipt validation.
+
+## Platform and framework coverage
+
+The current contract matrix contains:
+
+- **10 provider families**;
+- **15 framework surfaces**;
+- **18 coding-agent hosts**;
+- **18 concrete platform-adapter contracts**.
+
+Platform records include command detection and candidate config paths for Claude Code, Codex, Gemini CLI, GitHub Copilot, Cursor, Windsurf, OpenCode, Cline, Roo Code, Qwen Code, Kiro, Zed, Pi, OMP, OpenClaw, Aider and Continue.
+
+A contract is not a live certification. `signalcore integrations` reports this boundary explicitly.
+
+## Sessions, async compaction and continuity
+
+The session engine provides:
+
+- append-only hash-chained events;
+- recursive summary DAGs with exact source ranges;
+- background compaction that does not block foreground appends;
+- checkpoints, fork, merge, export and import;
+- bounded active context over exact external history;
+- measured compaction wall-time and continuity receipts;
+- exact summary expansion with no forced restart claim.
+
+The architecture claim is:
+
+```text
+UNBOUNDED_EXTERNAL_HISTORY_WITH_BOUNDED_ACTIVE_WINDOW
+```
+
+It is not a claim that a provider accepts infinite prompt tokens.
+
+## Metrics and analytics
+
+`signalcore status` and `signalcore stats` expose:
+
+- onboarding wall-time;
+- input, cached-input, billable-input and output tokens;
+- provider cost and request wall-time;
+- session and repository counts;
+- compaction wall-time and continuity restores;
+- denied tool routes;
+- unresolved proof-gate reasons.
+
+The default analytics log is local and content-free. Prompt and response bodies are not written to the analytics stream.
+
+## Real benchmark protocol
+
+```bash
+signalcore prove plan
+signalcore prove schema
+signalcore prove receipts receipts.json
+signalcore prove benchmark receipts.json
+signalcore prove long-context long-context-receipts.json
+python benchmarks/measured_agent_benchmark.py receipts.json --output result.json
+```
+
+Claim-bearing coding-agent runs require paired baseline/SignalCore provider receipts with measured tokens, cost, wall-time, success and quality. The committed gate requires at least 30 pairs, 5 repositories, 10 tasks and 3 workload families, with quality and success non-inferiority.
+
+The OOLONG-like long-context gate measures required-fact recall, stale-fact rejection, evidence precision, exact recovery, session continuity, tokens and wall-time. A manifest or synthetic run cannot open the gate.
+
+## What is not yet externally proven
+
+- real competitor superiority;
+- public SWE-bench success rate;
+- public OOLONG quality result;
+- live certification for every platform/provider adapter;
+- public package adoption and user count;
+- 90-day operational maturity.
+
+These remain measurable external gates, not README claims.
 
 ## Validation
 
 ```bash
 python -m compileall -q signalcore_runtime skills/signal-core tools tests benchmarks
 python -m unittest discover -s tests/runtime -q
-python -m unittest tests.test_platforms tests.test_roblox_profile_gate -q
-python -m unittest discover -s tests/roblox_profile -q
 python tools/validate.py
 python tools/validate_runtime.py
-python benchmarks/v001_pre_release_benchmark.py --output benchmarks/results/v001-pre-release/internal.json
+
+cd sdk/typescript
+npm install --ignore-scripts --no-audit --no-fund
+npm run check
+npm run build
 ```
 
-CI runs the combined suite on Ubuntu, Windows, and macOS with Python 3.11, 3.12, and 3.13.
+CI runs Python tests across Ubuntu, Windows and macOS on Python 3.11–3.13, validates the four-command workflow, builds the wheel in a clean environment, type-checks the TypeScript SDK and creates pre-release artifact/SBOM bundles.
 
-## Benchmark boundary
+## Documentation
 
-The committed v0.0.1 benchmark validates integration targets, Structural Intelligence V2, a 150-task/30-repetition schedule, recursive execution, and 32K–10M context planning. It does not execute external competitor products and therefore cannot prove competitor superiority.
+- `docs/architecture/DAILY_AGENT_PRODUCT_001.md`
+- `docs/benchmark/MEASURED_AGENT_PROOF_001.md`
+- `schemas/provider-usage-receipt-v1.json`
 
 ## Version policy
 
-`VERSION`, Python, TypeScript, skill, marketplace, extension, CodeMeta, CLI, and validation metadata must remain synchronized at **0.0.1**. Packages must remain marked as pre-release until the owner explicitly changes this policy.
-
-## Roblox Studio governed profile
-
-The Roblox Studio orchestration profile remains hidden and fail-closed. Internal and simulated results do not establish live Studio execution, generic provider savings, or competitor superiority.
-
-| Capability | Governed maturity | Boundary |
-|---|---|---|
-| Signed activation [claim:roblox.activation] | **INTERNALLY_VERIFIED** | Process attestation is exercised through the injected test contract. |
-| TaskState V2 [claim:roblox.task_state] | **INTERNALLY_VERIFIED** | Deterministic schema and migration behavior are covered by profile tests. |
-| Capability graph [claim:roblox.capabilities] | **INTERNALLY_VERIFIED** | Planner, execution, and validation records remain governed by the artifact registry. |
-| Simulated orchestration [claim:roblox.simulated] | **SIMULATED** | The committed benchmark artifact uses simulated external engines. |
-| Transcript adapter [claim:roblox.transcript] | **IMPLEMENTED** | The contract exists; no sanitized real transcript is claimed. |
-| Live Studio bridge [claim:roblox.live] | **PLANNED** | Live execution remains disabled. |
-| DataStore migration execution [claim:roblox.datastore] | **PLANNED** | External validation boundary only. |
-| Asset, animation, and Blender engines [claim:roblox.external_engines] | **PLANNED** | External engine contracts only. |
-| Profile test suite [claim:roblox.tests] | **INTERNALLY_VERIFIED** | The governed profile test suite remains bound to the artifact registry. |
-
+`VERSION`, Python, TypeScript, skill, marketplace, extension, CodeMeta, CLI, workflows and artifact metadata must remain synchronized at **0.0.1** and **pre-release** until the owner explicitly changes the version policy.
