@@ -38,6 +38,22 @@ class PreReleaseCLIProductV001Tests(unittest.TestCase):
             self.assertEqual(code, 0)
             self.assertTrue(proxy["ok"])
 
+            code, proxy_service = self._run([
+                *common,
+                "run",
+                "proxy-service",
+                "plan",
+                "openai",
+                "--platform",
+                "linux",
+                "--home",
+                str(root / "home"),
+            ])
+            self.assertEqual(code, 0)
+            self.assertTrue(proxy_service["ok"])
+            self.assertTrue(proxy_service["plan"]["user_scoped"])
+            self.assertIn("OPENAI_API_KEY", proxy_service["spec"]["command"])
+
             code, opened = self._run([*common, "run", "session-open", "--session-id", "cli-session"])
             self.assertEqual(code, 0)
             self.assertTrue(opened["ok"])
