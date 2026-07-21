@@ -29,6 +29,12 @@ jobs:
       - name: Apply deterministic lifecycle fix
         run: python tools/v6_windows_lifecycle_fix.py
 
+      - name: Remove temporary validation scaffolding
+        shell: pwsh
+        run: |
+          Remove-Item -Force .github/workflows/v6-windows-fix-blobs.yml
+          Remove-Item -Force tools/v6_windows_lifecycle_fix.py
+
       - name: Install runtime dependencies
         run: python -m pip install --disable-pip-version-check -e .
 
