@@ -33,7 +33,9 @@ class OfficialPlatformAdaptersV001Tests(unittest.TestCase):
         self.assertIn(".omp/skills/signal-core/SKILL.md", records["omp"]["config_candidates"])
         self.assertIn("skills/signal-core/SKILL.md", records["openclaw"]["config_candidates"])
         self.assertEqual(records["vscode-copilot"]["detection_commands"], ())
+        self.assertEqual(records["vscode-copilot"]["config_candidates"], (".vscode/mcp.json",))
         self.assertEqual(records["jetbrains-copilot"]["detection_commands"], ())
+        self.assertEqual(records["jetbrains-copilot"]["config_candidates"], (".idea/mcp.json",))
 
     def test_skill_only_hosts_install_without_writing_unverified_config(self) -> None:
         cases = (
@@ -73,6 +75,7 @@ class OfficialPlatformAdaptersV001Tests(unittest.TestCase):
             project = Path(directory)
             (project / ".github").mkdir()
             (project / ".vscode").mkdir()
+            (project / ".idea").mkdir()
             (project / "AGENTS.md").write_text("# Generic agents file\n", encoding="utf-8")
             with patch("shutil.which", return_value=None):
                 detected = {row["host"] for row in detect_hosts(project, home=project / "empty-home")}
@@ -82,20 +85,23 @@ class OfficialPlatformAdaptersV001Tests(unittest.TestCase):
             self.assertNotIn("aider", detected)
             self.assertNotIn("sourcegraph-cody", detected)
 
-    def test_copilot_specific_marker_enables_detection(self) -> None:
+    def test_host_specific_copilot_mcp_marker_enables_only_that_host(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            project = Path(directory)
+            vscode_marker = project / ".vscode" / "mcp.json"
+            vscode_marker.parent.mkdir()
+            vscode_marker.write_text("{}\n", encoding="utf-8")
+            with patch("shutil.which", return_value=None):
+                detected = {row["host"] for row in detect_hosts(project, home=project / "home")}
+            self.assertIn("vscode-copilot", detected)
+            self.assertNotIn("jetbrains-copilot", detected)
+
+    def test_shared_instructions_or_editor_executable_do_not_trigger_copilot_mutation(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             project = Path(directory)
             marker = project / ".github" / "copilot-instructions.md"
             marker.parent.mkdir()
-            marker.write_text("# Copilot instructions\n", encoding="utf-8")
-            with patch("shutil.which", return_value=None):
-                detected = {row["host"] for row in detect_hosts(project, home=project / "home")}
-            self.assertIn("vscode-copilot", detected)
-            self.assertIn("jetbrains-copilot", detected)
-
-    def test_editor_executable_or_github_cli_alone_does_not_false_detect_copilot(self) -> None:
-        with tempfile.TemporaryDirectory() as directory:
-            project = Path(directory)
+            marker.write_text("# Shared Copilot instructions\n", encoding="utf-8")
 
             def which(name: str) -> str | None:
                 return f"/usr/bin/{name}" if name in {"gh", "code", "idea"} else None
