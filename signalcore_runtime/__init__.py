@@ -39,6 +39,13 @@ from .backup import BackupResult, StateBackupManager
 from .config_v6 import ConfigManager, ConfigSnapshot
 from .data_router import DataRoutePolicy, DataRouteResult, DataRouter
 from .evidence import EvidenceStore
+from .external_benchmarks import (
+    ExternalBenchmarkGate,
+    ExternalBenchmarkReceipt,
+    ExternalSuiteRegistry,
+    ExternalSuiteRunner,
+    ExternalSuiteSpec,
+)
 from .identity import Authorizer, CapabilityTokenIssuer, Principal
 from .infinite_context import ActiveContextPlan, RecursiveExecutionEngine, RecursiveTask, UnboundedContextCoordinator
 from .integration_matrix import IntegrationMatrix, IntegrationSpec
@@ -77,17 +84,18 @@ __all__ = [
     "ArmExecutionPolicy", "ArmRunReceipt", "Authorizer", "BackupResult", "BetaReceipt",
     "CanonicalRequestEnvelope", "CapabilityTokenIssuer", "CodingCorpusPlanner", "ConfigManager",
     "ConfigSnapshot", "ContextPlanPolicy", "DataRoutePolicy", "DataRouteResult", "DataRouter",
-    "DistributionReceipt", "DurableJobScheduler", "EvidenceStore", "GraphEdge", "GraphNode",
-    "IntegrationMatrix", "IntegrationSpec", "JobSpec", "LongContextQualityGate", "LongContextReceipt",
-    "LongSessionPlanner", "MCPAuthorizationDecision", "MCPProfile", "MCPToolPolicy",
-    "MeasuredBenchmarkGate", "OnboardingReceipt", "PairedSchedule", "PlatformAdapter",
-    "PlatformAdapterRegistry", "PolicyObservation", "PolicyRecommendation", "PolicyRolloutManager",
-    "Principal", "ProductMaturityGate", "ProductSurface", "ProviderProxyServiceManager",
-    "ProviderUsageReceipt", "ProxyPreset", "ProxyProductRegistry", "PublicProofGate",
-    "ReceiptValidator", "RecursiveExecutionEngine", "RecursiveTask", "ReleaseIdentity",
-    "ReleaseReceipt", "SDKInvocation", "SecureArmRunner", "ServicePlan", "ServiceSpec",
-    "SessionAnalyticsStore", "SessionContinuityController", "SignalCoreClient", "StateBackupManager",
-    "StructuralGraphV2", "SuperiorityGate", "ToolRouteDecision", "ToolRoutingEnforcer",
-    "UnifiedRuntimePipeline", "UnboundedContextCoordinator", "VerifiedPolicyObservation",
-    "VersionLockError", "WorkloadSpec", "ZeroFrictionManager",
+    "DistributionReceipt", "DurableJobScheduler", "EvidenceStore", "ExternalBenchmarkGate",
+    "ExternalBenchmarkReceipt", "ExternalSuiteRegistry", "ExternalSuiteRunner", "ExternalSuiteSpec",
+    "GraphEdge", "GraphNode", "IntegrationMatrix", "IntegrationSpec", "JobSpec",
+    "LongContextQualityGate", "LongContextReceipt", "LongSessionPlanner", "MCPAuthorizationDecision",
+    "MCPProfile", "MCPToolPolicy", "MeasuredBenchmarkGate", "OnboardingReceipt", "PairedSchedule",
+    "PlatformAdapter", "PlatformAdapterRegistry", "PolicyObservation", "PolicyRecommendation",
+    "PolicyRolloutManager", "Principal", "ProductMaturityGate", "ProductSurface",
+    "ProviderProxyServiceManager", "ProviderUsageReceipt", "ProxyPreset", "ProxyProductRegistry",
+    "PublicProofGate", "ReceiptValidator", "RecursiveExecutionEngine", "RecursiveTask",
+    "ReleaseIdentity", "ReleaseReceipt", "SDKInvocation", "SecureArmRunner", "ServicePlan",
+    "ServiceSpec", "SessionAnalyticsStore", "SessionContinuityController", "SignalCoreClient",
+    "StateBackupManager", "StructuralGraphV2", "SuperiorityGate", "ToolRouteDecision",
+    "ToolRoutingEnforcer", "UnifiedRuntimePipeline", "UnboundedContextCoordinator",
+    "VerifiedPolicyObservation", "VersionLockError", "WorkloadSpec", "ZeroFrictionManager",
 ]
