@@ -21,6 +21,17 @@ def _installed_profile(state_root: Any) -> str:
     return str(value.get("name") or "minimal")
 
 
+def _sanitized_call_message(message: dict[str, Any], arguments: dict[str, Any]) -> dict[str, Any]:
+    sanitized_arguments = dict(arguments)
+    sanitized_arguments.pop("_signalcore_authorization", None)
+    sanitized_arguments.pop("_approved", None)
+    params = dict(message.get("params") or {})
+    params["arguments"] = sanitized_arguments
+    sanitized = dict(message)
+    sanitized["params"] = params
+    return sanitized
+
+
 def install() -> None:
     from .mcp_server import MCPServer
 
@@ -96,7 +107,7 @@ def install() -> None:
                 },
             }
 
-        response = original_handle(self, message)
+        response = original_handle(self, _sanitized_call_message(message, arguments))
         if response and "result" in response and isinstance(response["result"], dict):
             metadata = response["result"].setdefault("_meta", {})
             if isinstance(metadata, dict):
