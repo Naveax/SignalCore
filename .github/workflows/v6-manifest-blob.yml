@@ -1,0 +1,112 @@
+name: V6 Manifest Blob
+
+on:
+  push:
+    branches: [agent/v6-manifest-gen]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/v6-manifest-gen
+          fetch-depth: 1
+          show-progress: false
+
+      - name: Generate and store exact manifest blob
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPOSITORY: ${{ github.repository }}
+          EXPECTED_BLOB_SHA: 70c20fd36dba6b9f1f9990abb986fec36aad4272
+        run: |
+          python - <<'PY'
+          import base64
+          import hashlib
+          import json
+          import os
+          import urllib.error
+          import urllib.request
+          from pathlib import Path
+
+          root = Path.cwd()
+          generated = {
+              "fusion-release-smoke.json",
+              "release-smoke.json",
+              "platform-registry.json",
+              "native-dry-run.json",
+          }
+          excluded = {".github/workflows/v6-manifest-blob.yml"}
+          candidates = []
+          for path in root.rglob("*"):
+              if not path.is_file():
+                  continue
+              relative = path.relative_to(root)
+              if any(
+                  part in {".git", ".signalcore", "__pycache__", ".pytest_cache", "build", "dist"}
+                  or part.endswith(".egg-info")
+                  for part in relative.parts
+              ):
+                  continue
+              if relative.as_posix() in excluded:
+                  continue
+              if (path.name == "MANIFEST.sha256" and path.parent == root) or path.name in generated or path.suffix == ".pyc":
+                  continue
+              candidates.append(path)
+
+          lines = []
+          for path in sorted(candidates, key=lambda value: value.relative_to(root).as_posix()):
+              digest = hashlib.sha256(path.read_bytes()).hexdigest()
+              lines.append(f"{digest}  {path.relative_to(root).as_posix()}")
+          data = ("\n".join(lines) + "\n").encode("utf-8")
+          expected = os.environ["EXPECTED_BLOB_SHA"]
+          local_sha = hashlib.sha1(f"blob {len(data)}\0".encode() + data).hexdigest()
+          if local_sha != expected:
+              raise SystemExit(f"manifest blob mismatch: expected={expected} actual={local_sha}")
+
+          payload = json.dumps({
+              "content": base64.b64encode(data).decode("ascii"),
+              "encoding": "base64",
+          }, separators=(",", ":")).encode("utf-8")
+          request = urllib.request.Request(
+              f"https://api.github.com/repos/{os.environ['GH_REPOSITORY']}/git/blobs",
+              data=payload,
+              headers={
+                  "Accept": "application/vnd.github+json",
+                  "Authorization": f"Bearer {os.environ['GH_TOKEN']}",
+                  "Content-Type": "application/json",
+                  "X-GitHub-Api-Version": "2022-11-28",
+                  "User-Agent": "signalcore-v6-manifest",
+              },
+              method="POST",
+          )
+          try:
+              with urllib.request.urlopen(request, timeout=120) as response:
+                  remote_sha = json.loads(response.read())["sha"]
+          except urllib.error.HTTPError as exc:
+              raise SystemExit(exc.read().decode("utf-8", errors="replace")) from exc
+          if remote_sha != expected:
+              raise SystemExit(f"remote manifest blob mismatch: expected={expected} actual={remote_sha}")
+
+          receipt = {
+              "blob_sha": remote_sha,
+              "entries": len(lines),
+              "manifest_sha256": hashlib.sha256(data).hexdigest(),
+          }
+          output = Path("/tmp/v6-manifest-receipt.json")
+          output.write_text(json.dumps(receipt, sort_keys=True, separators=(",", ":")) + "\n", encoding="utf-8", newline="\n")
+          print(receipt)
+          PY
+
+      - name: Upload manifest receipt
+        uses: actions/upload-artifact@v4
+        with:
+          name: v6-manifest-${{ github.sha }}
+          path: /tmp/v6-manifest-receipt.json
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0
