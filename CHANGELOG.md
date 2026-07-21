@@ -1,46 +1,27 @@
 # Changelog
 
-## 0.6.0 — Unified Production Core
+## 0.0.1 — Current pre-release
 
-- Encrypt exact evidence at rest with authenticated project-scoped keys and lifecycle controls.
-- Guarantee parseable typed data envelopes; byte truncation can no longer corrupt JSON.
-- Require control authentication on loopback and TLS for remote proxy bindings.
-- Commit and DLP-scan streams before delivery, preventing partial unverified responses.
-- Require immutable digest-pinned, non-root container sandbox execution.
-- Add canonical configuration, migrations, observability, backup, identity, retention,
-  durable scheduling, policy rollout, schema, retrieval and plugin production layers.
-- Consolidate the public CLI and harden the TypeScript SDK with TLS, timeout, retry and SSE parsing.
+SignalCore remains version-locked to **0.0.1** until the repository owner explicitly authorizes a version change. Earlier 0.1–0.6 labels were internal development milestones and are not active package versions.
 
-## 0.3.0 — Unified pre-release
+### Unified P0–P2.3 and milestone scope
 
-- Added ten-language structural parser registry, semantic snapshot ingestion, transitive typed impact traversal and token-budgeted repository maps.
-- Added fifteen-host capability registry, idempotent backup-first installer, lifecycle hooks and one-command doctor/install/uninstall surfaces.
-- Added Docker, Podman, bubblewrap and degraded local-restricted sandbox backends with explicit policy guarantees.
-- Added reversible universal content routing with exact and chunk restoration receipts.
-- Added durable session runtime with hash-chain events, recursive summary DAG, checkpoints, fork/merge, export/import and background compaction.
-- Added compact/balanced/detailed/audit output contracts.
-- Added external-arm SignalBench protocol and strengthened superiority claims to require at least ten valid paired runs.
-- Fixed installer rollback across repeated installations and unsafe local RLIMIT_NPROC behavior.
-- Retained the public `5X_NOT_PROVEN` claim boundary.
+- Added a one-command, backup-first product surface with install, wrap, doctor, stats, upgrade, repair, and rollback planning.
+- Added ten provider contracts, fifteen framework contracts, eighteen host contracts, and automatic installation plans for at least fourteen hosts.
+- Added Structural Intelligence V2 with exact-evidence multi-graph navigation, data/taint flow, test/build/dependency/stacktrace/ownership/change relations, adaptive ranking, impact analysis, and affected-test traversal.
+- Added SignalBench 2.0 with 150 coding-task slots, six external arms, thirty paired repetitions, identical-arm enforcement, provider receipt requirements, and fail-closed superiority gates.
+- Added unbounded external history with a bounded active window, recursive summary planning, temporal current-truth selection, exact recovery references, and recursive map/reduce execution with provenance.
+- Added committed 32K–10M virtual history stress tiers with no forced restart.
+- Added twelve public workload families and pre-release distribution, SBOM, provenance, reproducibility, migration, rollback, and 90-day maturity gates.
+- Retained encrypted exact evidence, authenticated provider streaming, valid typed data envelopes, secure sandboxing, durable scheduling, transactional migrations, observability, retention, backup, policy rollout, and permissioned plugins.
+- Locked Python, TypeScript, skill, marketplace, extension, CodeMeta, CLI, and validation identity to 0.0.1.
 
-## 0.2.0 — Pre-release
+### Claim boundaries
 
-- Rebuilt structural indexing with Python AST support, multi-language lexical fallback, qualified symbols, transitive reverse-call impact, graph ranking and affected-test discovery.
-- Replaced full-log reads with streaming content-addressed evidence and bounded output summaries.
-- Added dependency-aware mandatory context packing and pressure-aware controlled handoff.
-- Added scoped FTS5 memory relations, expiry, tags, confidence, provenance and supersession.
-- Added immutable recursive summary DAGs with one canonical exact-recovery root.
-- Added durable completion cursors and fixed background-worker project-scope identity.
-- Added hook enforcement and a dependency-free MCP stdio server.
-- Corrected fresh-token accounting when total input includes cached tokens.
-- Separated configured workload difficulty from observed claim-bearing difficulty.
-- Required at least ten fair paired repetitions, actual quota telemetry and a 95% bootstrap lower bound for any 5X receipt.
-- Added adversarial runtime tests and an internal implementation benchmark. Public competitor superiority remains unproven.
+- Competitor superiority: `EXTERNAL_SUPERIORITY_NOT_PROVEN`
+- Public product maturity: `PUBLIC_PRODUCT_MATURITY_NOT_PROVEN`
+- Context: `UNBOUNDED_EXTERNAL_HISTORY_WITH_BOUNDED_ACTIVE_WINDOW`
 
-## 0.1.0 — Fusion Runtime
+## Retired internal milestone labels
 
-- Added the first directly reviewable process broker, exact evidence, bounded output, rollout tailer, structural index, persistent memory, immutable history, context thresholds, verifier graph and fail-closed benchmark receipt foundation.
-
-## 0.0.1 — Initial pre-release
-
-- Established the canonical Agent Skill, platform adapters, SQLite state/evidence foundation and hidden signed-session Roblox Studio profile.
+The former 0.1.0, 0.2.0, 0.3.0, and 0.6.0 labels described implementation phases. Their capabilities are consolidated into the current 0.0.1 pre-release and they must not be used as current release identities.

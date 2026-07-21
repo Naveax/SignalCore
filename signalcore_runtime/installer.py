@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any, Iterable
 
 from .host_adapters import KNOWN_HOSTS, detect_hosts, host_spec, negotiate
+from .release_identity import CHANNEL, VERSION
 from .util import atomic_write_json, sha256_bytes
 
 
@@ -75,7 +76,7 @@ class HostInstaller:
             "command": self.executable[0],
             "args": [*self.executable[1:], "--project", str(self.project), "mcp", "serve"],
             "cwd": str(self.project),
-            "env": {"SIGNALCORE_PROJECT": str(self.project)},
+            "env": {"SIGNALCORE_PROJECT": str(self.project), "SIGNALCORE_VERSION": VERSION, "SIGNALCORE_CHANNEL": CHANNEL},
         }
 
     def _hook_entry(self, phase: str) -> dict[str, Any]:
@@ -92,8 +93,7 @@ class HostInstaller:
         value = json.loads(json.dumps(existing))
         spec = host_spec(host)
         if spec.supports_mcp:
-            key = "mcpServers"
-            servers = value.setdefault(key, {})
+            servers = value.setdefault("mcpServers", {})
             servers["signalcore"] = self._mcp_entry()
         if spec.supports_pre_tool_hook or spec.supports_post_tool_hook:
             hooks = value.setdefault("hooks", {})
@@ -107,7 +107,9 @@ class HostInstaller:
                 hooks["PostToolUse"] = entries
         value.setdefault("signalcore", {}).update({
             "managed": True,
-            "version": "0.6.0",
+            "version": VERSION,
+            "release_channel": CHANNEL,
+            "version_locked": True,
             "project": str(self.project),
             "mode": negotiate(host)["mode"],
         })
@@ -139,7 +141,7 @@ class HostInstaller:
         block = (
             f"{marker_start}\n"
             "# SignalCore\n"
-            "Use the local SignalCore runtime before broad repository reads, long-running commands, "
+            "Use the local SignalCore pre-release runtime before broad repository reads, long-running commands, "
             "large tool outputs, context compaction, or verifier reuse. Run `signalcore doctor` when enforcement is uncertain.\n"
             f"{marker_end}\n"
         )
@@ -175,6 +177,8 @@ class HostInstaller:
         if unknown:
             raise InstallerError(f"unknown hosts: {', '.join(unknown)}")
         return {
+            "version": VERSION,
+            "release_channel": CHANNEL,
             "scope": scope,
             "hosts": resolved,
             "changes": [
@@ -193,11 +197,7 @@ class HostInstaller:
         if dry_run:
             return {"ok": True, "dry_run": True, **plan}
         previous = self._load_json(self.manifest_path) if self.manifest_path.is_file() else {}
-        original_by_path = {
-            str(row.get("path")): row
-            for row in previous.get("changes", [])
-            if row.get("path")
-        }
+        original_by_path = {str(row.get("path")): row for row in previous.get("changes", []) if row.get("path")}
         observed: list[InstallChange] = []
         for host in plan["hosts"]:
             if change := self._install_skill(host, scope=scope):
@@ -209,14 +209,13 @@ class HostInstaller:
             row = asdict(change)
             prior = merged_by_path.get(change.path)
             if prior is not None:
-                # Reinstallation must preserve the first pre-SignalCore backup so
-                # uninstall remains a true rollback rather than restoring a
-                # previously managed configuration.
                 row["backup"] = prior.get("backup", "")
             merged_by_path[change.path] = row
         manifest = {
             "schema_version": 2,
-            "version": "0.6.0",
+            "version": VERSION,
+            "release_channel": CHANNEL,
+            "version_locked": True,
             "project": str(self.project),
             "scope": scope,
             "changes": list(merged_by_path.values()),
@@ -258,11 +257,14 @@ class HostInstaller:
             "skill_root": self.skill_root.is_dir() and (self.skill_root / "SKILL.md").is_file(),
             "project_writable": os.access(self.project, os.W_OK),
             "state_writable": self.state_root.exists() or os.access(self.state_root.parent, os.W_OK),
-            "manifest_valid": installed is None or installed.get("version") == "0.6.0",
+            "manifest_valid": installed is None or installed.get("version") == VERSION,
+            "release_channel": installed is None or installed.get("release_channel") == CHANNEL,
         }
         return {
             "ok": all(checks.values()),
             "checks": checks,
+            "version": VERSION,
+            "release_channel": CHANNEL,
             "detected_hosts": detected,
             "installed": installed,
             "available_hosts": sorted(KNOWN_HOSTS),

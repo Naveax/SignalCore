@@ -15,11 +15,12 @@ from .job_scheduler import DurableJobScheduler
 from .migrations import MigrationManager
 from .observability import Observability
 from .plugin_sdk import PluginRegistry
+from .prerelease_cli import PRE_RELEASE_COMMANDS, main as prerelease_main
 from .runtime_pipeline import UnifiedRuntimePipeline
 from .util import stable_project_id
 
 
-V6_COMMANDS = {"config", "backup", "maintenance", "pipeline", "plugins", "scheduler", "telemetry", "migrate"}
+CORE_COMMANDS = {"config", "backup", "maintenance", "pipeline", "plugins", "scheduler", "telemetry", "migrate"}
 
 
 def _jsonable(value: Any) -> Any:
@@ -48,7 +49,7 @@ def _global(argv: list[str]) -> tuple[Path, Path, list[str]]:
     parser.add_argument("--json", action="store_true")
     values, rest = parser.parse_known_args(argv)
     project = Path(values.project).resolve(strict=False)
-    state = Path(values.state_root).resolve(strict=False) if values.state_root else project / ".signalcore" / "runtime-v3"
+    state = Path(values.state_root).resolve(strict=False) if values.state_root else project / ".signalcore" / "pre-release"
     return project, state, rest
 
 
@@ -59,8 +60,8 @@ def _find_command(rest: list[str]) -> tuple[str, int]:
     return "", -1
 
 
-def _v6_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="signalcore", description="SignalCore 0.6.0 Unified Production Core")
+def _core_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(prog="signalcore", description="SignalCore v0.0.1 pre-release unified production core")
     parser.add_argument("--project", default=".")
     parser.add_argument("--state-root")
     parser.add_argument("--skill-root")
@@ -112,10 +113,10 @@ def _v6_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def _v6_main(argv: list[str]) -> int:
-    args = _v6_parser().parse_args(argv)
+def _core_main(argv: list[str]) -> int:
+    args = _core_parser().parse_args(argv)
     project = Path(args.project).resolve(strict=False)
-    state = Path(args.state_root).resolve(strict=False) if args.state_root else project / ".signalcore" / "runtime-v3"
+    state = Path(args.state_root).resolve(strict=False) if args.state_root else project / ".signalcore" / "pre-release"
     project_id = stable_project_id(project)
     evidence = EvidenceStore(state / "evidence", project_id=project_id)
 
@@ -163,7 +164,7 @@ def _v6_main(argv: list[str]) -> int:
         return 0
 
     if args.command == "scheduler":
-        scheduler = DurableJobScheduler(state / "scheduler-v6.sqlite3")
+        scheduler = DurableJobScheduler(state / "scheduler-v001.sqlite3")
         if args.action == "stats": _emit(scheduler.stats())
         elif args.action == "list": _emit({"jobs": scheduler.list(states=args.state, limit=args.limit)})
         else: _emit({"reaped": scheduler.reap()})
@@ -190,8 +191,10 @@ def main(argv: list[str] | None = None) -> int:
     values = list(sys.argv[1:] if argv is None else argv)
     _, _, rest = _global(values)
     command, _ = _find_command(rest)
-    if command in V6_COMMANDS:
-        return _v6_main(values)
+    if command in PRE_RELEASE_COMMANDS:
+        return int(prerelease_main(values))
+    if command in CORE_COMMANDS:
+        return _core_main(values)
     if command == "evidence" and len(rest) > 1 and rest[1] in {"stats", "gc", "rotate-key"}:
         project, state, _ = _global(values)
         store = EvidenceStore(state / "evidence", project_id=stable_project_id(project))
@@ -208,6 +211,4 @@ def main(argv: list[str] | None = None) -> int:
 
 
 def product_compat_main(argv: list[str] | None = None) -> int:
-    # Compatibility entrypoint only. New installations should use `signalcore`.
-    from .product_v5_cli import main as product_main
-    return int(product_main(sys.argv[1:] if argv is None else argv))
+    return int(main(sys.argv[1:] if argv is None else argv))

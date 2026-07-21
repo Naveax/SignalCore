@@ -14,6 +14,7 @@ from .mcp_registry import MCPToolRegistry, ToolDefinition
 from .observability import Observability
 from .plugin_sdk import PluginRegistry
 from .policy_rollout import PolicyRolloutManager
+from .release_identity import CHANNEL, VERSION
 from .runtime_pipeline import UnifiedRuntimePipeline
 from .schema_registry import SchemaDefinition, SchemaRegistry
 from .util import stable_project_id
@@ -30,11 +31,13 @@ def _build_registry() -> MCPToolRegistry:
     registry = MCPToolRegistry()
     registry.register(ToolDefinition(
         "signalcore.v6.capabilities",
-        "Inspect Unified Production Core security, lifecycle and extensibility capabilities",
+        "Inspect the pre-release production-core security, lifecycle and extensibility capabilities",
         _object_schema(),
         lambda server, _: {
             "schema_version": 1,
-            "runtime": "0.6.0",
+            "runtime": VERSION,
+            "release_channel": CHANNEL,
+            "version_locked": True,
             "canonical_pipeline": True,
             "encrypted_evidence": True,
             "authenticated_streaming_proxy": True,
@@ -45,10 +48,12 @@ def _build_registry() -> MCPToolRegistry:
             "retention_gc": True,
             "plugin_registry": True,
             "durable_scheduler": True,
+            "unbounded_external_history": True,
+            "bounded_active_window": True,
         },
     ))
     registry.register(ToolDefinition(
-        "signalcore.pipeline.describe", "Describe the canonical V6 request/output pipeline", _object_schema(),
+        "signalcore.pipeline.describe", "Describe the canonical request/output pipeline", _object_schema(),
         lambda server, _: server.v6_pipeline.describe(), permissions=("evidence-read",),
     ))
     registry.register(ToolDefinition(
@@ -77,12 +82,12 @@ def _build_registry() -> MCPToolRegistry:
         permissions=("admin", "evidence-write"), approval_required=True, timeout_seconds=3600,
     ))
     registry.register(ToolDefinition(
-        "signalcore.observability.metrics", "Read local structured V6 metrics", _object_schema({"format": {"type": "string"}}),
+        "signalcore.observability.metrics", "Read local structured metrics", _object_schema({"format": {"type": "string"}}),
         lambda server, args: server.v6_observability.metrics.prometheus() if args.get("format") == "prometheus" else server.v6_observability.metrics.snapshot(),
         permissions=("admin",),
     ))
     registry.register(ToolDefinition(
-        "signalcore.plugins.list", "List permissioned V6 plugins and quarantine state", _object_schema(),
+        "signalcore.plugins.list", "List permissioned plugins and quarantine state", _object_schema(),
         lambda server, _: server.v6_plugins.records(), permissions=("admin",),
     ))
     registry.register(ToolDefinition(
@@ -111,7 +116,7 @@ def install() -> None:
 
     install_provider()
     install_sandbox()
-    if getattr(MCPServer, "_signalcore_v6_unified_extension", False):
+    if getattr(MCPServer, "_signalcore_v001_unified_extension", False):
         return
     registry = _build_registry()
     original_init = MCPServer.__init__
@@ -132,9 +137,9 @@ def install() -> None:
         self.v6_janitor.register("evidence", lambda dry: self.evidence.gc(
             ttl_seconds=30 * 24 * 60 * 60, dry_run=dry,
         ))
-        self.v6_scheduler = DurableJobScheduler(self.state_root / "scheduler-v6.sqlite3")
+        self.v6_scheduler = DurableJobScheduler(self.state_root / "scheduler-v001.sqlite3")
         rollout_key = os.environ.get("SIGNALCORE_POLICY_SIGNING_KEY", "").encode("utf-8") or None
-        self.v6_rollout = PolicyRolloutManager(self.state_root / "policy-rollout-v6.sqlite3", signing_key=rollout_key)
+        self.v6_rollout = PolicyRolloutManager(self.state_root / "policy-rollout-v001.sqlite3", signing_key=rollout_key)
         self.v6_backup = StateBackupManager(self.state_root, project_id=project_id)
         self.v6_schemas = SchemaRegistry()
         self.v6_schemas.register(SchemaDefinition(
@@ -178,5 +183,5 @@ def install() -> None:
     MCPServer.tools = staticmethod(extended_tools)
     MCPServer.exposed_tools = extended_exposed
     MCPServer.call_tool = extended_call
-    MCPServer._signalcore_v6_unified_extension = True
+    MCPServer._signalcore_v001_unified_extension = True
     MCPServer.V6_TOOL_REGISTRY = registry

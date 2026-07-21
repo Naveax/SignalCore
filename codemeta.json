@@ -2,8 +2,9 @@
   "@context": "https://doi.org/10.5063/schema/codemeta-2.0",
   "@type": "SoftwareSourceCode",
   "name": "SignalCore",
-  "version": "0.6.0",
-  "description": "Unified local-first structural intelligence, secure execution, reversible context and long-session control plane for coding agents.",
+  "version": "0.0.1",
+  "developmentStatus": "pre-alpha",
+  "description": "Pre-release local-first structural intelligence, secure execution, reversible context and unbounded external-history control plane for coding agents.",
   "codeRepository": "https://github.com/Naveax/SignalCore",
   "programmingLanguage": "Python",
   "runtimePlatform": "Python 3.11+",
@@ -25,11 +26,13 @@
     "mcp",
     "output-firewall",
     "persistent-memory",
+    "pre-release",
     "process-broker",
     "reversible-compression",
     "sandbox",
     "signalbench",
     "sqlite",
-    "token-optimization"
+    "token-optimization",
+    "unbounded-context"
   ]
 }

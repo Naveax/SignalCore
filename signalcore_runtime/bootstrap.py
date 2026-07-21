@@ -9,6 +9,7 @@ from typing import Any
 from .evidence import EvidenceStore
 from .host_adapters import negotiate
 from .models import RuntimeHealth
+from .release_identity import CHANNEL, VERSION
 from .rollout import discover_rollouts
 from .state import StateDB
 from .util import atomic_write_json, stable_project_id
@@ -55,12 +56,17 @@ def runtime_health(
         "hook_engine": "hooks.py",
         "mcp_server": "mcp_server.py",
         "structural_intelligence": "structural_parsers.py",
+        "structural_intelligence_v2": "structural_v2.py",
         "host_installer": "installer.py",
+        "zero_friction": "zero_friction.py",
         "secure_sandbox": "sandbox.py",
         "reversible_compression": "compression.py",
         "long_session_runtime": "session_runtime.py",
+        "unbounded_context": "infinite_context.py",
         "output_governor": "output_governor.py",
         "signalbench": "signalbench.py",
+        "signalbench_v2": "signalbench_v2.py",
+        "public_proof": "public_proof.py",
     }
     checks["skill_installed"] = (skill_root / "SKILL.md").is_file()
     checks["runtime_package"] = (package / "__init__.py").is_file()
@@ -73,8 +79,9 @@ def runtime_health(
         checks["state_store"] = False
     try:
         evidence = EvidenceStore(state_root / "evidence", project_id=stable_project_id(project))
-        handle = evidence.put(b"signalcore-health-v3", kind="health")
-        checks["evidence_store"] = evidence.get(handle) == b"signalcore-health-v3"
+        marker = b"signalcore-health-v001-pre-release"
+        handle = evidence.put(marker, kind="health")
+        checks["evidence_store"] = evidence.get(handle) == marker
     except Exception:
         checks["evidence_store"] = False
     negotiation = negotiate(host, runtime_available=checks["runtime_package"])
@@ -104,12 +111,13 @@ def runtime_health(
         checks,
         tuple(reasons),
         {
-            "version": "0.6.0",
+            "version": VERSION,
+            "release_channel": CHANNEL,
             "host": host,
             "host_negotiation": negotiation,
             "rollout_candidates": [str(path) for path in rollouts[:5]],
             "enforcement_boundary": negotiation["mode"],
-            "runtime_plane": "unified-v3",
+            "runtime_plane": "pre-release-001",
         },
     )
 
@@ -124,7 +132,7 @@ def start_runtime(
     host: str = "codex",
 ) -> dict[str, Any]:
     project = project.resolve(strict=True)
-    state_root = state_root or project / ".signalcore" / "runtime-v3"
+    state_root = state_root or project / ".signalcore" / "pre-release"
     health = runtime_health(
         project=project,
         skill_root=skill_root,
@@ -136,6 +144,8 @@ def start_runtime(
     session_id = f"sc-{int(time.time())}-{os.getpid()}"
     payload = {
         "schema_version": 3,
+        "version": VERSION,
+        "release_channel": CHANNEL,
         "session_id": session_id,
         "task": task,
         "project": str(project),

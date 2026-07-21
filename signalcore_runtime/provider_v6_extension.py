@@ -5,13 +5,14 @@ from dataclasses import replace
 from typing import Any, Mapping
 
 from .provider_registry import cache_identity
+from .release_identity import VERSION
 from .util import canonical_json, sha256_bytes
 
 
 def install() -> None:
     from .provider_gateway import ProviderGateway
 
-    if getattr(ProviderGateway, "_signalcore_v6_cache_identity", False):
+    if getattr(ProviderGateway, "_signalcore_v001_cache_identity", False):
         return
     original_prepare = ProviderGateway.prepare
 
@@ -38,7 +39,7 @@ def install() -> None:
             system_fingerprint=str((cache_identity_fields or {}).get("system_fingerprint") or ""),
             tool_implementation_hash=str((cache_identity_fields or {}).get("tool_implementation_hash") or os.environ.get("SIGNALCORE_TOOL_IMPLEMENTATION_HASH", "")),
             security_policy_hash=str((cache_identity_fields or {}).get("security_policy_hash") or os.environ.get("SIGNALCORE_SECURITY_POLICY_HASH", "")),
-            runtime_version=str((cache_identity_fields or {}).get("runtime_version") or os.environ.get("SIGNALCORE_RUNTIME_VERSION", "0.6.0")),
+            runtime_version=str((cache_identity_fields or {}).get("runtime_version") or os.environ.get("SIGNALCORE_RUNTIME_VERSION", VERSION)),
         )
         enriched = dict(request)
         enriched["signalcore_cache_identity"] = fields
@@ -63,4 +64,4 @@ def install() -> None:
         )
 
     ProviderGateway.prepare = prepare
-    ProviderGateway._signalcore_v6_cache_identity = True
+    ProviderGateway._signalcore_v001_cache_identity = True

@@ -10,7 +10,8 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 SKILL = ROOT / "skills" / "signal-core"
-EXPECTED_VERSION = "0.6.0"
+EXPECTED_VERSION = "0.0.1"
+EXPECTED_CHANNEL = "pre-release"
 
 REQUIRED = [
     ROOT / "README.md",
@@ -24,9 +25,13 @@ REQUIRED = [
     ROOT / ".claude-plugin" / "marketplace.json",
     ROOT / "pyproject.toml",
     ROOT / "BENCHMARKS.md",
+    ROOT / "release" / "pre-release.json",
+    ROOT / "docs" / "architecture" / "PRE_RELEASE_DOMINANCE_001.md",
+    ROOT / "docs" / "benchmark" / "INFINITE_CONTEXT_001.md",
     ROOT / "docs" / "benchmark" / "PROTOCOL.md",
     ROOT / "docs" / "security" / "THREAT_MODEL.md",
     ROOT / "benchmarks" / "runtime_v03_benchmark.py",
+    ROOT / "benchmarks" / "v001_pre_release_benchmark.py",
     ROOT / "benchmarks" / "signalbench" / "README.md",
     ROOT / "benchmarks" / "signalbench" / "tasks.example.json",
     ROOT / "benchmarks" / "signalbench" / "arms.example.json",
@@ -45,6 +50,15 @@ REQUIRED = [
     ROOT / "signalcore_runtime" / "policy_rollout.py",
     ROOT / "signalcore_runtime" / "streaming.py",
     ROOT / "signalcore_runtime" / "unified_cli.py",
+    ROOT / "signalcore_runtime" / "prerelease_cli.py",
+    ROOT / "signalcore_runtime" / "release_identity.py",
+    ROOT / "signalcore_runtime" / "integration_matrix.py",
+    ROOT / "signalcore_runtime" / "zero_friction.py",
+    ROOT / "signalcore_runtime" / "structural_v2.py",
+    ROOT / "signalcore_runtime" / "signalbench_v2.py",
+    ROOT / "signalcore_runtime" / "infinite_context.py",
+    ROOT / "signalcore_runtime" / "public_proof.py",
+    ROOT / "tests" / "runtime" / "test_v001_pre_release_dominance.py",
     ROOT / "docs" / "operations" / "INSTALLER_AND_SANDBOX.md",
     ROOT / "docs" / "benchmark" / "SIGNALBENCH.md",
     SKILL / "SKILL.md",
@@ -70,12 +84,8 @@ REQUIRED = [
     ROOT / "tools" / "validate_release.py",
 ]
 
-ACTUAL_SECRET = re.compile(
-    r"(?:sk-[A-Za-z0-9_-]{20,}|gh[pousr]_[A-Za-z0-9]{20,}|AIza[A-Za-z0-9_-]{20,})"
-)
-MATERIALIZER_WORKFLOW = re.compile(
-    r"(?i)(materializ|reconstruct|source[-_]?transfer|payload[-_]?apply|import[-_]?bundle)"
-)
+ACTUAL_SECRET = re.compile(r"(?:sk-[A-Za-z0-9_-]{20,}|gh[pousr]_[A-Za-z0-9]{20,}|AIza[A-Za-z0-9_-]{20,})")
+MATERIALIZER_WORKFLOW = re.compile(r"(?i)(materializ|reconstruct|source[-_]?transfer|payload[-_]?apply|import[-_]?bundle)")
 
 
 def _json(path: Path) -> dict[str, Any]:
@@ -92,33 +102,19 @@ def _source_files() -> list[Path]:
     return sorted({path for base in roots if base.exists() for path in base.rglob("*.py")})
 
 
-def _scan_files() -> list[Path]:
-    skipped_suffixes = {".pyc", ".sqlite3", ".db", ".log", ".zip", ".gz", ".xz", ".png", ".jpg", ".jpeg", ".webp"}
-    return [
-        path
-        for path in ROOT.rglob("*")
-        if path.is_file()
-        and not _is_generated_path(path.relative_to(ROOT))
-        and path.suffix.casefold() not in skipped_suffixes
-    ]
-
-
-GENERATED_FILES = {
-    "fusion-release-smoke.json",
-    "release-smoke.json",
-    "platform-registry.json",
-    "native-dry-run.json",
-}
+GENERATED_FILES = {"fusion-release-smoke.json", "release-smoke.json", "platform-registry.json", "native-dry-run.json"}
 
 
 def _is_generated_path(relative: Path) -> bool:
     parts = relative.parts
     return (
         bool(parts) and parts[0] in {".git", ".signalcore", "build", "dist"}
-    ) or any(
-        part in {"__pycache__", ".pytest_cache"} or part.endswith(".egg-info")
-        for part in parts
-    )
+    ) or any(part in {"__pycache__", ".pytest_cache"} or part.endswith(".egg-info") for part in parts)
+
+
+def _scan_files() -> list[Path]:
+    skipped_suffixes = {".pyc", ".sqlite3", ".db", ".log", ".zip", ".gz", ".xz", ".png", ".jpg", ".jpeg", ".webp"}
+    return [path for path in ROOT.rglob("*") if path.is_file() and not _is_generated_path(path.relative_to(ROOT)) and path.suffix.casefold() not in skipped_suffixes]
 
 
 def _manifest_candidates() -> list[Path]:
@@ -136,6 +132,7 @@ def _manifest_candidates() -> list[Path]:
 
 
 def _verify_manifest() -> tuple[bool, str]:
+    import hashlib
     manifest = ROOT / "MANIFEST.sha256"
     failures: list[str] = []
     entries: dict[str, str] = {}
@@ -155,54 +152,47 @@ def _verify_manifest() -> tuple[bool, str]:
         if not path.is_file():
             failures.append(f"missing:{relative}")
             continue
-        import hashlib
         actual = hashlib.sha256(path.read_bytes()).hexdigest()
         if actual != digest:
             failures.append(f"hash-mismatch:{relative}")
     expected = {path.relative_to(ROOT).as_posix() for path in _manifest_candidates()}
     present = set(entries)
-    for relative in sorted(expected - present):
-        failures.append(f"unlisted:{relative}")
-    for relative in sorted(present - expected):
-        failures.append(f"unexpected:{relative}")
+    failures.extend(f"unlisted:{relative}" for relative in sorted(expected - present))
+    failures.extend(f"unexpected:{relative}" for relative in sorted(present - expected))
     return not failures, ", ".join(failures[:20])
 
 
 def main() -> int:
     checks: list[tuple[str, bool, str]] = []
-
     missing = [str(path.relative_to(ROOT)) for path in REQUIRED if not path.is_file()]
     checks.append(("required_files", not missing, ", ".join(missing)))
 
     version = (ROOT / "VERSION").read_text(encoding="utf-8").strip()
     skill_text = (SKILL / "SKILL.md").read_text(encoding="utf-8")
+    bundled_skill = (ROOT / "signalcore_runtime" / "bundled_skill" / "SKILL.md").read_text(encoding="utf-8")
     pyproject = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
     marketplace = _json(ROOT / ".claude-plugin" / "marketplace.json")
     gemini = _json(ROOT / "gemini-extension.json")
     codemeta = _json(ROOT / "codemeta.json")
+    typescript = _json(ROOT / "sdk" / "typescript" / "package.json")
+    prerelease = _json(ROOT / "release" / "pre-release.json")
 
     versions = {
         "VERSION": version,
         "skill": _skill_version(skill_text),
+        "bundled_skill": _skill_version(bundled_skill),
         "pyproject": pyproject.get("project", {}).get("version"),
+        "typescript": typescript.get("version"),
         "marketplace": marketplace.get("version"),
         "gemini": gemini.get("version"),
         "codemeta": codemeta.get("version"),
+        "prerelease": prerelease.get("version"),
     }
-    checks.append((
-        "version_consistency",
-        all(value == EXPECTED_VERSION for value in versions.values()),
-        json.dumps(versions, sort_keys=True),
-    ))
-    checks.append(("skill_identity", "name: signal-core" in skill_text, "canonical skill name"))
-    bundled_skill = (ROOT / "signalcore_runtime" / "bundled_skill" / "SKILL.md").read_text(encoding="utf-8")
-    checks.append(("bundled_skill", 'version: "0.6.0"' in bundled_skill, "wheel-installable skill"))
+    checks.append(("version_consistency", all(value == EXPECTED_VERSION for value in versions.values()), json.dumps(versions, sort_keys=True)))
+    checks.append(("pre_release_identity", prerelease.get("channel") == EXPECTED_CHANNEL and prerelease.get("publish_as_prerelease") is True and prerelease.get("version_locked") is True and prerelease.get("stable") is False, json.dumps(prerelease, sort_keys=True)))
+    checks.append(("pre_alpha_classifier", "Development Status :: 2 - Pre-Alpha" in pyproject.get("project", {}).get("classifiers", []), "PEP 301 pre-alpha"))
+    checks.append(("skill_identity", "name: signal-core" in skill_text and "version_locked: true" in skill_text, "canonical locked skill"))
     checks.append(("build_backend", pyproject.get("build-system", {}).get("build-backend") == "setuptools.build_meta", "PEP 517 wheel"))
-    checks.append((
-        "compatibility_link",
-        "../../COMPATIBILITY.md" in skill_text and "../../../COMPATIBILITY.md" not in skill_text,
-        "canonical compatibility link",
-    ))
 
     platforms = _json(SKILL / "data" / "platforms.json")
     ids = [item["id"] for item in platforms["platforms"]]
@@ -224,11 +214,7 @@ def main() -> int:
             continue
         if path.name == ".signalcore-direct" or path.name == ".signalcore-transfer" or path.match("payload-*.b64"):
             forbidden_paths.append(str(relative))
-    workflow_violations = [
-        str(path.relative_to(ROOT))
-        for path in (ROOT / ".github" / "workflows").glob("*")
-        if path.is_file() and MATERIALIZER_WORKFLOW.search(path.name)
-    ]
+    workflow_violations = [str(path.relative_to(ROOT)) for path in (ROOT / ".github" / "workflows").glob("*") if path.is_file() and MATERIALIZER_WORKFLOW.search(path.name)]
     checks.append(("no_transfer_payloads", not forbidden_paths, ", ".join(forbidden_paths)))
     checks.append(("no_source_materializers", not workflow_violations, ", ".join(workflow_violations)))
 
@@ -237,7 +223,7 @@ def main() -> int:
             py_compile.compile(str(path), doraise=True)
         compile_ok = True
         compile_detail = f"compiled={len(_source_files())}"
-    except Exception as exc:  # pragma: no cover - emitted for CI diagnostics
+    except Exception as exc:
         compile_ok = False
         compile_detail = f"{type(exc).__name__}: {exc}"
     checks.append(("python_compile", compile_ok, compile_detail))
@@ -265,14 +251,11 @@ def main() -> int:
 
     manifest_ok, manifest_detail = _verify_manifest()
     checks.append(("release_manifest", manifest_ok, manifest_detail))
-
     result = {
         "ok": all(passed for _, passed, _ in checks),
         "version": version,
-        "checks": [
-            {"name": name, "passed": passed, **({"detail": detail} if detail else {})}
-            for name, passed, detail in checks
-        ],
+        "release_channel": EXPECTED_CHANNEL,
+        "checks": [{"name": name, "passed": passed, **({"detail": detail} if detail else {})} for name, passed, detail in checks],
     }
     print(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True))
     return 0 if result["ok"] else 2

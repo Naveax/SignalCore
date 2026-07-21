@@ -1,0 +1,129 @@
+{
+  "elapsed_ms": 672.4599289999844,
+  "identity": {
+    "channel": "pre-release",
+    "infinite_context_claim": "UNBOUNDED_EXTERNAL_HISTORY_WITH_BOUNDED_ACTIVE_WINDOW",
+    "public_superiority_claim": "EXTERNAL_SUPERIORITY_NOT_PROVEN",
+    "stability": "pre-alpha",
+    "version": "0.0.1",
+    "version_locked": true
+  },
+  "infinite_context": {
+    "all_passed": true,
+    "max_tier": 10000000,
+    "tiers": [
+      {
+        "active_tokens": 384,
+        "all_referenced": true,
+        "forced_restart": false,
+        "history_tokens": 32000,
+        "segments": 16,
+        "summary_levels": 2,
+        "tier_tokens": 32000,
+        "within_budget": true
+      },
+      {
+        "active_tokens": 768,
+        "all_referenced": true,
+        "forced_restart": false,
+        "history_tokens": 64000,
+        "segments": 32,
+        "summary_levels": 2,
+        "tier_tokens": 64000,
+        "within_budget": true
+      },
+      {
+        "active_tokens": 1512,
+        "all_referenced": true,
+        "forced_restart": false,
+        "history_tokens": 128000,
+        "segments": 63,
+        "summary_levels": 2,
+        "tier_tokens": 128000,
+        "within_budget": true
+      },
+      {
+        "active_tokens": 3000,
+        "all_referenced": true,
+        "forced_restart": false,
+        "history_tokens": 256000,
+        "segments": 125,
+        "summary_levels": 3,
+        "tier_tokens": 256000,
+        "within_budget": true
+      },
+      {
+        "active_tokens": 4080,
+        "all_referenced": true,
+        "forced_restart": false,
+        "history_tokens": 512000,
+        "segments": 250,
+        "summary_levels": 3,
+        "tier_tokens": 512000,
+        "within_budget": true
+      },
+      {
+        "active_tokens": 4080,
+        "all_referenced": true,
+        "forced_restart": false,
+        "history_tokens": 1000000,
+        "segments": 489,
+        "summary_levels": 3,
+        "tier_tokens": 1000000,
+        "within_budget": true
+      },
+      {
+        "active_tokens": 4080,
+        "all_referenced": true,
+        "forced_restart": false,
+        "history_tokens": 2000000,
+        "segments": 977,
+        "summary_levels": 4,
+        "tier_tokens": 2000000,
+        "within_budget": true
+      },
+      {
+        "active_tokens": 4092,
+        "all_referenced": true,
+        "forced_restart": false,
+        "history_tokens": 10000000,
+        "segments": 4883,
+        "summary_levels": 5,
+        "tier_tokens": 10000000,
+        "within_budget": true
+      }
+    ]
+  },
+  "integration_coverage": {
+    "automatic_hosts": 18,
+    "frameworks": 15,
+    "hosts": 18,
+    "live_certification_boundary": "external receipts are required before VERIFIED_LIVE",
+    "ok": true,
+    "providers": 10,
+    "reasons": []
+  },
+  "ok": true,
+  "public_proof": {
+    "maturity": "PUBLIC_PRODUCT_MATURITY_NOT_PROVEN",
+    "workloads": 12
+  },
+  "recursive_execution": {
+    "duplicates_suppressed": 0,
+    "provenance": "3aacb50e2a2e0af8e607bf8ee069bd387c5469825983e5bd475f5ff0cbf1e326",
+    "tasks": 256
+  },
+  "signalbench2": {
+    "arms": 6,
+    "claim": "EXTERNAL_SUPERIORITY_NOT_PROVEN",
+    "repetitions": 30,
+    "scheduled_runs": 27000,
+    "tasks": 150
+  },
+  "structural_v2": {
+    "edges": 999,
+    "nodes": 1000,
+    "query_ms": 9.443858999986787,
+    "top_result": "n999"
+  }
+}

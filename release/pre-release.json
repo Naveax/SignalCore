@@ -1,0 +1,14 @@
+{
+  "channel": "pre-release",
+  "claim_boundaries": {
+    "competitor_superiority": "EXTERNAL_SUPERIORITY_NOT_PROVEN",
+    "infinite_context": "UNBOUNDED_EXTERNAL_HISTORY_WITH_BOUNDED_ACTIVE_WINDOW",
+    "public_product_maturity": "PUBLIC_PRODUCT_MATURITY_NOT_PROVEN"
+  },
+  "development_status": "pre-alpha",
+  "publish_as_prerelease": true,
+  "stable": false,
+  "version": "0.0.1",
+  "version_change_requires_owner_instruction": true,
+  "version_locked": true
+}

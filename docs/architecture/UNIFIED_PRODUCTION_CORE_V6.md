@@ -1,4 +1,4 @@
-# SignalCore 0.6.0 — Unified Production Core
+# SignalCore 0.0.1 — Unified Production Core
 
 ## Canonical pipeline
 

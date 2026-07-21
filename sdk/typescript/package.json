@@ -1,7 +1,7 @@
 {
   "name": "@signalcore/client",
-  "version": "0.6.0",
-  "description": "Typed, credential-isolated client for SignalCore Unified Production Core",
+  "version": "0.0.1",
+  "description": "Pre-release typed, credential-isolated client for SignalCore",
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
@@ -20,6 +20,6 @@
   },
   "sideEffects": false,
   "engines": {"node": ">=18"},
-  "publishConfig": {"provenance": true, "access": "public"},
+  "publishConfig": {"provenance": true, "access": "public", "tag": "next"},
   "license": "MIT"
 }

@@ -1,15 +1,15 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-marketplace.json",
   "name": "signalcore",
-  "version": "0.6.0",
-  "description": "SignalCore unified structural intelligence, secure execution, reversible context and long-session runtime",
+  "version": "0.0.1",
+  "description": "SignalCore v0.0.1 pre-release structural intelligence, secure execution, reversible context and unbounded external-history runtime",
   "owner": {
     "name": "Naveax"
   },
   "plugins": [
     {
       "name": "signal-core",
-      "description": "Multi-language impact, native enforcement, secure sandbox, reversible compression, durable sessions and public paired benchmarking",
+      "description": "Pre-release multi-language impact, native enforcement, secure sandbox, reversible compression, durable sessions and paired benchmarking",
       "author": {
         "name": "Naveax"
       },

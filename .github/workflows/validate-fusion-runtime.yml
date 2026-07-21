@@ -1,4 +1,4 @@
-name: Validate SignalCore Runtime 0.6
+name: Validate SignalCore v0.0.1 Pre-Release
 
 on:
   pull_request:
@@ -47,8 +47,12 @@ jobs:
       - name: CLI unified-surface smoke
         shell: bash
         run: |
+          python -m signalcore_runtime --project . version > version.json
           python -m signalcore_runtime --project . doctor > doctor.json
           python -m signalcore_runtime --project . install --all --dry-run > install.json
+          python -m signalcore_runtime --project . integrations > integrations.json
+          python -m signalcore_runtime --project . context-stress --max-tier 10000000 > context.json
+          python -m signalcore_runtime --project . signalbench2 plan --repetitions 30 > signalbench2.json
           python -m signalcore_runtime --project . inspect stats > structural.json
           python -m signalcore_runtime --project . sandbox backends > sandbox.json
           python -m signalcore_runtime --project . output profiles > output.json
@@ -56,13 +60,25 @@ jobs:
           python - <<'PY'
           import json
           from pathlib import Path
+          version=json.loads(Path('version.json').read_text())
           doctor=json.loads(Path('doctor.json').read_text())
           install=json.loads(Path('install.json').read_text())
+          integrations=json.loads(Path('integrations.json').read_text())
+          context=json.loads(Path('context.json').read_text())
+          signalbench2=json.loads(Path('signalbench2.json').read_text())
           sandbox=json.loads(Path('sandbox.json').read_text())
           output=json.loads(Path('output.json').read_text())
           signalbench=json.loads(Path('signalbench.json').read_text())
-          assert doctor['runtime']['details']['version'] == '0.6.0'
+          assert version['identity']['version'] == '0.0.1'
+          assert version['identity']['channel'] == 'pre-release'
+          assert doctor['runtime']['details']['version'] == '0.0.1'
+          assert doctor['ok'] is True
           assert install['ok'] is True and install['dry_run'] is True
+          assert integrations['coverage']['providers'] >= 10
+          assert integrations['coverage']['frameworks'] >= 15
+          assert integrations['coverage']['hosts'] >= 18
+          assert context['ok'] is True and context['tiers'][-1]['tier_tokens'] == 10000000
+          assert signalbench2['schedule']['runs'] == 27000
           assert 'local-restricted' in sandbox
           assert 'compact' in output['profiles']
           assert signalbench['ok'] is True
@@ -83,12 +99,15 @@ jobs:
         shell: bash
         run: |
           python -m venv /tmp/signalcore-wheel
-          /tmp/signalcore-wheel/bin/python -m pip install --no-index --find-links dist signalcore-runtime==0.6.0
+          /tmp/signalcore-wheel/bin/python -m pip install --no-index --find-links dist signalcore-runtime==0.0.1
           cd /tmp
-          /tmp/signalcore-wheel/bin/signalcore --help >/dev/null
+          /tmp/signalcore-wheel/bin/signalcore version > version.json
           /tmp/signalcore-wheel/bin/python - <<'PY'
+          import json
+          from pathlib import Path
           from signalcore_runtime.cli import skill_root
           assert (skill_root() / 'SKILL.md').is_file()
+          assert json.loads(Path('version.json').read_text())['identity']['version'] == '0.0.1'
           PY
 
   internal-benchmark:
@@ -100,14 +119,19 @@ jobs:
           python-version: "3.13"
       - name: Install runtime dependencies
         run: python -m pip install --disable-pip-version-check -e .
-      - name: Run V6 production-core benchmark
-        run: python benchmarks/v6_production_core_benchmark.py --output v6-production-core.json
-      - name: Run committed v0.3 component benchmark
-        run: python benchmarks/runtime_v03_benchmark.py --output runtime-v03-internal.json
+      - name: Run v0.0.1 pre-release dominance benchmark
+        run: python benchmarks/v001_pre_release_benchmark.py --output v001-pre-release.json
+      - name: Run production-core component benchmark
+        run: python benchmarks/v6_production_core_benchmark.py --output production-core.json
+      - name: Run historical component benchmark
+        run: python benchmarks/runtime_v03_benchmark.py --output runtime-component.json
       - uses: actions/upload-artifact@v4
         with:
-          name: runtime-v03-internal
-          path: runtime-v03-internal.json
+          name: v001-pre-release-internal
+          path: |
+            v001-pre-release.json
+            production-core.json
+            runtime-component.json
           retention-days: 14
 
   profile-compatibility:

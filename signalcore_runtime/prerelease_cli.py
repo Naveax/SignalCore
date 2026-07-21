@@ -1,0 +1,103 @@
+from __future__ import annotations
+
+import argparse
+import json
+import os
+from dataclasses import asdict
+from pathlib import Path
+from typing import Any
+
+from .infinite_context import CONTEXT_TIERS, UnboundedContextCoordinator
+from .integration_matrix import IntegrationMatrix
+from .public_proof import PublicProofGate
+from .release_identity import VERSION, identity, validate_repository_identity
+from .signalbench_v2 import CodingCorpusPlanner, PairedSchedule, SuperiorityGate, default_arms
+from .structural_v2 import GraphEdge, GraphNode, StructuralGraphV2
+from .zero_friction import ZeroFrictionManager
+
+PRE_RELEASE_COMMANDS = {
+    "version", "install", "wrap", "doctor", "stats", "upgrade", "repair",
+    "integrations", "context-stress", "signalbench2", "proof", "structural-v2",
+}
+
+
+def _emit(value: Any) -> None:
+    print(json.dumps(value, ensure_ascii=False, indent=2, sort_keys=True, default=str))
+
+
+def _parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(prog="signalcore", description="SignalCore v0.0.1 pre-release dominance runtime")
+    parser.add_argument("--project", default=".")
+    parser.add_argument("--state-root")
+    sub = parser.add_subparsers(dest="command", required=True)
+    sub.add_parser("version")
+    install = sub.add_parser("install")
+    install.add_argument("--auto", action="store_true")
+    install.add_argument("--all", action="store_true")
+    install.add_argument("--apply", action="store_true")
+    install.add_argument("--dry-run", action="store_true")
+    wrap = sub.add_parser("wrap"); wrap.add_argument("host"); wrap.add_argument("--output")
+    sub.add_parser("doctor")
+    sub.add_parser("stats")
+    upgrade = sub.add_parser("upgrade"); upgrade.add_argument("--target", default=VERSION)
+    repair = sub.add_parser("repair"); repair.add_argument("--apply", action="store_true")
+    integrations = sub.add_parser("integrations"); integrations.add_argument("--family", choices=("provider", "framework", "host"))
+    stress = sub.add_parser("context-stress"); stress.add_argument("--budget", type=int, default=4096); stress.add_argument("--max-tier", type=int, default=max(CONTEXT_TIERS))
+    signalbench = sub.add_parser("signalbench2")
+    sb = signalbench.add_subparsers(dest="action", required=True)
+    plan = sb.add_parser("plan"); plan.add_argument("--repetitions", type=int, default=30)
+    gate = sb.add_parser("gate"); gate.add_argument("receipts")
+    proof = sub.add_parser("proof")
+    proof_sub = proof.add_subparsers(dest="action", required=True)
+    proof_sub.add_parser("status")
+    structural = sub.add_parser("structural-v2")
+    structural_sub = structural.add_subparsers(dest="action", required=True)
+    demo = structural_sub.add_parser("demo"); demo.add_argument("query")
+    return parser
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = _parser().parse_args(argv)
+    project = Path(args.project).resolve(strict=False)
+    state = Path(args.state_root).resolve(strict=False) if args.state_root else project / ".signalcore" / "pre-release"
+    manager = ZeroFrictionManager(project, state)
+
+    if args.command == "version":
+        _emit({"identity": identity().to_dict(), "repository": validate_repository_identity(project)})
+        return 0
+    if args.command == "install":
+        dry_run = bool(args.dry_run or not args.apply)
+        _emit(manager.install(all_hosts=args.all, dry_run=dry_run))
+        return 0
+    if args.command == "wrap":
+        output = Path(args.output) if args.output else state / "wrappers" / (args.host + (".cmd" if os.name == "nt" else ""))
+        _emit(manager.write_wrapper(args.host, output))
+        return 0
+    if args.command == "doctor":
+        value = manager.doctor(); _emit(value); return 0 if value["ok"] else 2
+    if args.command == "stats":
+        _emit(manager.stats()); return 0
+    if args.command == "upgrade":
+        _emit(manager.upgrade(args.target)); return 0
+    if args.command == "repair":
+        _emit(manager.repair(apply=args.apply)); return 0
+    if args.command == "integrations":
+        _emit({"coverage": IntegrationMatrix.validate(), "integrations": IntegrationMatrix.records(args.family)}); return 0
+    if args.command == "context-stress":
+        reports = [row for row in UnboundedContextCoordinator.stress_tiers(active_budget=args.budget) if row["tier_tokens"] <= args.max_tier]
+        result = {"ok": bool(reports) and all(row["within_budget"] and row["all_referenced"] and not row["forced_restart"] for row in reports), "tiers": reports}
+        _emit(result); return 0 if result["ok"] else 3
+    if args.command == "signalbench2":
+        if args.action == "plan":
+            tasks = CodingCorpusPlanner.generate_slots(); schedule = PairedSchedule(tasks, default_arms(), repetitions=args.repetitions)
+            _emit({"corpus": {"tasks": len(tasks), "live": False}, "schedule": {"runs": schedule.count, "repetitions": args.repetitions}, "manifest": schedule.manifest()}); return 0
+        receipts = json.loads(Path(args.receipts).read_text(encoding="utf-8")); value = SuperiorityGate.evaluate(receipts); _emit(value); return 0 if value["ok"] else 4
+    if args.command == "proof":
+        _emit({"release": PublicProofGate.release_readiness(sbom=False, provenance=False, reproducible_build=False, signed_tags=False, migration_guides=True, rollback=True), "workloads": PublicProofGate.workload_manifest(), "maturity": "PUBLIC_PRODUCT_MATURITY_NOT_PROVEN"}); return 0
+    if args.command == "structural-v2":
+        graph = StructuralGraphV2()
+        graph.add_node(GraphNode("auth", "function", "auth.refresh", "src/auth.py", 10, 40, "python", "sc://evidence/auth", 0.9, ("security",)))
+        graph.add_node(GraphNode("test", "test", "test_auth_refresh", "tests/test_auth.py", 5, 30, "python", "sc://evidence/test"))
+        graph.add_edge(GraphEdge("test", "auth", "calls", evidence_ref="sc://evidence/edge"))
+        _emit({"results": [asdict(row) for row in graph.query(args.query)], "impact": graph.impact("auth")}); return 0
+    raise RuntimeError(args.command)
