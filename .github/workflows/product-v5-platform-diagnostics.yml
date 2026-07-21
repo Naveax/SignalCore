@@ -1,0 +1,37 @@
+name: Product V5 Platform Diagnostics
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    env:
+      PYTHONDONTWRITEBYTECODE: '1'
+      PYTHONWARNINGS: 'error::ResourceWarning'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Capture focused test output
+        shell: bash
+        run: |
+          set +e
+          python -m unittest tests.runtime.test_product_parity_v5 -v > product-v5-diagnostic.txt 2>&1
+          code=$?
+          echo "exit_code=$code" >> product-v5-diagnostic.txt
+          exit 0
+      - uses: actions/upload-artifact@v4
+        with:
+          name: product-v5-diagnostic-${{ runner.os }}
+          path: product-v5-diagnostic.txt
+          retention-days: 1
