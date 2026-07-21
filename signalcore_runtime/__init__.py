@@ -3,8 +3,6 @@
 __version__ = "0.0.1"
 __release_channel__ = "pre-release"
 
-# Compatibility layers are installed first; the production core then hardens
-# the canonical provider, sandbox, MCP, evidence and lifecycle surfaces.
 from .provider_mcp_extension import install as _install_provider_mcp_extension
 from .provider_proxy_extension import install as _install_provider_proxy_extension
 from .ecosystem_mcp_extension import install as _install_ecosystem_mcp_extension
@@ -17,8 +15,6 @@ _install_ecosystem_mcp_extension()
 _install_product_v5_extension()
 _install_v6_extension()
 
-# Old compatibility modules must report the locked public identity even though
-# their file names preserve historical implementation-layer labels.
 from .mcp_server import MCPServer as _MCPServer
 from . import cli as _legacy_cli
 _MCPServer.VERSION = __version__
@@ -45,6 +41,7 @@ from .long_context_quality import LongContextQualityGate, LongContextReceipt
 from .long_session_planner import ContextPlanPolicy, LongSessionPlanner
 from .policy_rollout import PolicyRolloutManager, VerifiedPolicyObservation
 from .policy_tuner import AdaptivePolicyTuner, PolicyObservation, PolicyRecommendation
+from .product_maturity import DistributionReceipt, OnboardingReceipt, ProductMaturityGate, ReleaseReceipt
 from .product_surface import (
     MCPProfile,
     MeasuredBenchmarkGate,
@@ -73,13 +70,14 @@ __all__ = [
     "ArmExecutionPolicy", "ArmRunReceipt", "Authorizer", "BackupResult", "BetaReceipt",
     "CanonicalRequestEnvelope", "CapabilityTokenIssuer", "CodingCorpusPlanner", "ConfigManager",
     "ConfigSnapshot", "ContextPlanPolicy", "DataRoutePolicy", "DataRouteResult", "DataRouter",
-    "DurableJobScheduler", "EvidenceStore", "GraphEdge", "GraphNode", "IntegrationMatrix",
-    "IntegrationSpec", "JobSpec", "LongContextQualityGate", "LongContextReceipt", "LongSessionPlanner",
-    "MCPProfile", "MeasuredBenchmarkGate", "PairedSchedule", "PlatformAdapter",
-    "PlatformAdapterRegistry", "PolicyObservation", "PolicyRecommendation", "PolicyRolloutManager",
-    "Principal", "ProductSurface", "ProviderProxyServiceManager", "ProviderUsageReceipt", "ProxyPreset",
-    "ProxyProductRegistry", "PublicProofGate", "ReceiptValidator", "RecursiveExecutionEngine",
-    "RecursiveTask", "ReleaseIdentity", "SDKInvocation", "SecureArmRunner", "ServicePlan", "ServiceSpec",
+    "DistributionReceipt", "DurableJobScheduler", "EvidenceStore", "GraphEdge", "GraphNode",
+    "IntegrationMatrix", "IntegrationSpec", "JobSpec", "LongContextQualityGate", "LongContextReceipt",
+    "LongSessionPlanner", "MCPProfile", "MeasuredBenchmarkGate", "OnboardingReceipt", "PairedSchedule",
+    "PlatformAdapter", "PlatformAdapterRegistry", "PolicyObservation", "PolicyRecommendation",
+    "PolicyRolloutManager", "Principal", "ProductMaturityGate", "ProductSurface",
+    "ProviderProxyServiceManager", "ProviderUsageReceipt", "ProxyPreset", "ProxyProductRegistry",
+    "PublicProofGate", "ReceiptValidator", "RecursiveExecutionEngine", "RecursiveTask", "ReleaseIdentity",
+    "ReleaseReceipt", "SDKInvocation", "SecureArmRunner", "ServicePlan", "ServiceSpec",
     "SessionAnalyticsStore", "SessionContinuityController", "SignalCoreClient", "StateBackupManager",
     "StructuralGraphV2", "SuperiorityGate", "ToolRouteDecision", "ToolRoutingEnforcer",
     "UnifiedRuntimePipeline", "UnboundedContextCoordinator", "VerifiedPolicyObservation",
