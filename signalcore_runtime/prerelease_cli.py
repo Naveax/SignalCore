@@ -65,6 +65,20 @@ def _session_controller(project: Path, state: Path) -> SessionContinuityControll
     )
 
 
+def _add_proxy_service_options(parser: argparse.ArgumentParser, *, mutating: bool) -> None:
+    parser.add_argument("provider")
+    parser.add_argument("--upstream", default="")
+    parser.add_argument("--listen-host", default="127.0.0.1")
+    parser.add_argument("--listen-port", type=int, default=8787)
+    parser.add_argument("--cache-policy", choices=("off", "auto", "read", "read-write"), default="auto")
+    parser.add_argument("--environment-file", default="")
+    parser.add_argument("--platform", choices=("linux", "darwin", "windows"))
+    parser.add_argument("--home")
+    if mutating:
+        parser.add_argument("--apply", action="store_true")
+        parser.add_argument("--activate", action="store_true")
+
+
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="signalcore",
@@ -86,27 +100,40 @@ def _parser() -> argparse.ArgumentParser:
     run = sub.add_parser("run", help="execute an enforced product operation")
     run_sub = run.add_subparsers(dest="action", required=True)
     run_sub.add_parser("manifest")
+
     route = run_sub.add_parser("route")
     route.add_argument("tool")
     route.add_argument("--profile", choices=tuple(MCP_PROFILES), default="minimal")
     route.add_argument("--sandboxed", action="store_true")
     route.add_argument("--no-exact-evidence", action="store_true")
     route.add_argument("--user-authorized", action="store_true")
+
     record = run_sub.add_parser("record")
     record.add_argument("event", help="JSON object or path to a JSON object")
+
     proxy_plan = run_sub.add_parser("proxy-plan")
     proxy_plan.add_argument("provider")
     proxy_plan.add_argument("--upstream", default="")
+
+    proxy_service = run_sub.add_parser("proxy-service")
+    proxy_service_sub = proxy_service.add_subparsers(dest="service_action", required=True)
+    for service_action in ("plan", "install", "verify", "uninstall"):
+        item = proxy_service_sub.add_parser(service_action)
+        _add_proxy_service_options(item, mutating=service_action in {"install", "uninstall"})
+
     session_open = run_sub.add_parser("session-open")
     session_open.add_argument("--session-id")
     session_open.add_argument("--metadata", default="{}")
+
     session_append = run_sub.add_parser("session-append")
     session_append.add_argument("session_id")
     session_append.add_argument("event_type")
     session_append.add_argument("payload")
+
     session_compact = run_sub.add_parser("session-compact")
     session_compact.add_argument("session_id")
     session_compact.add_argument("--force", action="store_true")
+
     session_continuity = run_sub.add_parser("session-continuity")
     session_continuity.add_argument("session_id")
     session_continuity.add_argument("--token-budget", type=int, default=32_000)
@@ -159,6 +186,7 @@ def main(argv: list[str] | None = None) -> int:
         value = manager.install(all_hosts=args.all, dry_run=not args.apply, profile=args.mcp_profile)
         _emit(value)
         return 0 if value["ok"] else 2
+
     if args.command == "status":
         receipt_rows = ReceiptValidator.load(Path(args.receipts)) if args.receipts else []
         value = {
@@ -170,12 +198,14 @@ def main(argv: list[str] | None = None) -> int:
         }
         _emit(value)
         return 0 if value["doctor"]["ok"] else 2
+
     if args.command == "run":
         if args.action == "manifest":
             value = ProductSurface.manifest()
             value["proxy_presets"] = ProxyProductRegistry.validate()
             _emit(value)
             return 0
+
         if args.action == "route":
             decision = ToolRoutingEnforcer.decide(
                 args.tool,
@@ -186,16 +216,38 @@ def main(argv: list[str] | None = None) -> int:
             )
             _emit(asdict(decision))
             return 0 if decision.allowed else 5
+
         if args.action == "record":
             event = _load_json_argument(args.event)
             if not isinstance(event, dict):
                 raise ValueError("analytics event must be a JSON object")
             _emit(SessionAnalyticsStore(state / "analytics" / "events.jsonl").record(event))
             return 0
+
         if args.action == "proxy-plan":
             value = ProxyProductRegistry.plan(args.provider, upstream=args.upstream)
             _emit(value)
             return 0 if value["ok"] else 3
+
+        if args.action == "proxy-service":
+            value = ProxyProductRegistry.service(
+                args.service_action,
+                args.provider,
+                project=project,
+                state_root=state,
+                home=Path(args.home).resolve(strict=False) if args.home else None,
+                upstream=args.upstream,
+                listen_host=args.listen_host,
+                listen_port=args.listen_port,
+                cache_policy=args.cache_policy,
+                environment_file=args.environment_file,
+                platform_name=args.platform,
+                apply=bool(getattr(args, "apply", False)),
+                activate=bool(getattr(args, "activate", False)),
+            )
+            _emit(value)
+            return 0 if value.get("ok", False) else 3
+
         controller = _session_controller(project, state)
         if args.action == "session-open":
             metadata = _load_json_argument(args.metadata)
@@ -217,6 +269,7 @@ def main(argv: list[str] | None = None) -> int:
             raise RuntimeError(args.action)
         _emit(value)
         return 0 if value.get("ok", True) else 3
+
     if args.command == "prove":
         if args.action == "plan":
             _emit({
@@ -243,10 +296,12 @@ def main(argv: list[str] | None = None) -> int:
                 "claim": "EXTERNAL_SUPERIORITY_NOT_PROVEN",
             })
             return 0
+
         if args.action == "schema":
             output = Path(args.output)
             _emit({"ok": True, "output": str(output), "schema": write_receipt_schema(output)})
             return 0
+
         if args.action == "long-context":
             if not args.path:
                 _emit(long_context_manifest())
@@ -254,6 +309,7 @@ def main(argv: list[str] | None = None) -> int:
             value = LongContextQualityGate.evaluate(_load_long_context_receipts(Path(args.path)))
             _emit(value)
             return 0 if value["ok"] else 4
+
         if args.action == "maturity":
             document = _load_json_argument(args.path)
             if not isinstance(document, dict):
@@ -262,13 +318,20 @@ def main(argv: list[str] | None = None) -> int:
             value = ProductMaturityGate.evaluate(onboarding, distributions, releases)
             _emit(value)
             return 0 if value["ok"] else 4
+
         receipt_path = Path(args.path) if hasattr(args, "path") else Path(args.receipts) if args.receipts else None
         rows = ReceiptValidator.load(receipt_path) if receipt_path else []
         if args.action == "receipts":
-            value = ReceiptValidator.evaluate(rows); _emit(value); return 0 if value["ok"] else 4
+            value = ReceiptValidator.evaluate(rows)
+            _emit(value)
+            return 0 if value["ok"] else 4
         if args.action == "benchmark":
-            value = MeasuredBenchmarkGate.evaluate(rows); _emit(value); return 0 if value["ok"] else 4
-        value = ProductSurface.readiness(state, rows); _emit(value); return 0 if value["ok"] else 4
+            value = MeasuredBenchmarkGate.evaluate(rows)
+            _emit(value)
+            return 0 if value["ok"] else 4
+        value = ProductSurface.readiness(state, rows)
+        _emit(value)
+        return 0 if value["ok"] else 4
 
     if args.command == "version":
         _emit({"identity": identity().to_dict(), "repository": validate_repository_identity(project)})
@@ -300,18 +363,37 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "context-stress":
         reports = [row for row in UnboundedContextCoordinator.stress_tiers(active_budget=args.budget) if row["tier_tokens"] <= args.max_tier]
         result = {"ok": bool(reports) and all(row["within_budget"] and row["all_referenced"] and not row["forced_restart"] for row in reports), "tiers": reports}
-        _emit(result); return 0 if result["ok"] else 3
+        _emit(result)
+        return 0 if result["ok"] else 3
     if args.command == "signalbench2":
         if args.action == "plan":
-            tasks = CodingCorpusPlanner.generate_slots(); schedule = PairedSchedule(tasks, default_arms(), repetitions=args.repetitions)
-            _emit({"corpus": {"tasks": len(tasks), "live": False}, "schedule": {"runs": schedule.count, "repetitions": args.repetitions}, "manifest": schedule.manifest()}); return 0
-        receipts_value = json.loads(Path(args.receipts).read_text(encoding="utf-8")); value = SuperiorityGate.evaluate(receipts_value); _emit(value); return 0 if value["ok"] else 4
+            tasks = CodingCorpusPlanner.generate_slots()
+            schedule = PairedSchedule(tasks, default_arms(), repetitions=args.repetitions)
+            _emit({"corpus": {"tasks": len(tasks), "live": False}, "schedule": {"runs": schedule.count, "repetitions": args.repetitions}, "manifest": schedule.manifest()})
+            return 0
+        receipts_value = json.loads(Path(args.receipts).read_text(encoding="utf-8"))
+        value = SuperiorityGate.evaluate(receipts_value)
+        _emit(value)
+        return 0 if value["ok"] else 4
     if args.command == "proof":
-        _emit({"release": PublicProofGate.release_readiness(sbom=False, provenance=False, reproducible_build=False, signed_tags=False, migration_guides=True, rollback=True), "workloads": PublicProofGate.workload_manifest(), "maturity": "PUBLIC_PRODUCT_MATURITY_NOT_PROVEN"}); return 0
+        _emit({
+            "release": PublicProofGate.release_readiness(
+                sbom=False,
+                provenance=False,
+                reproducible_build=False,
+                signed_tags=False,
+                migration_guides=True,
+                rollback=True,
+            ),
+            "workloads": PublicProofGate.workload_manifest(),
+            "maturity": "PUBLIC_PRODUCT_MATURITY_NOT_PROVEN",
+        })
+        return 0
     if args.command == "structural-v2":
         graph = StructuralGraphV2()
         graph.add_node(GraphNode("auth", "function", "auth.refresh", "src/auth.py", 10, 40, "python", "sc://evidence/auth", 0.9, ("security",)))
         graph.add_node(GraphNode("test", "test", "test_auth_refresh", "tests/test_auth.py", 5, 30, "python", "sc://evidence/test"))
         graph.add_edge(GraphEdge("test", "auth", "calls", evidence_ref="sc://evidence/edge"))
-        _emit({"results": [asdict(row) for row in graph.query(args.query)], "impact": graph.impact("auth")}); return 0
+        _emit({"results": [asdict(row) for row in graph.query(args.query)], "impact": graph.impact("auth")})
+        return 0
     raise RuntimeError(args.command)
