@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import os
 from dataclasses import asdict, dataclass
-from typing import Any, Iterable, Mapping
+from typing import Any, Iterable, Mapping, Sequence
 
+from .product_surface import MCPProfile, MCP_PROFILES
 from .release_identity import CHANNEL, VERSION
 from .util import canonical_json, sha256_bytes
 
@@ -17,6 +18,62 @@ PROFILE_ALIASES: dict[str, str] = {
     "full": "full",
     "auto": "auto",
 }
+
+MINIMAL_TOOLS: tuple[str, ...] = (
+    "signalcore.status",
+    "signalcore.inspect.map",
+    "signalcore.output.capture",
+    "signalcore.output.search",
+    "signalcore.output.reveal",
+    "signalcore.session.semantic_context",
+    "signalcore.fabric.route",
+    "signalcore.fabric.doctor",
+)
+
+BALANCED_TOOLS: tuple[str, ...] = (
+    *MINIMAL_TOOLS,
+    "signalcore.host.detect",
+    "signalcore.inspect.impact",
+    "signalcore.inspect.source",
+    "signalcore.inspect.range",
+    "signalcore.context.evaluate",
+    "signalcore.output.verify",
+    "signalcore.output.stats",
+    "signalcore.session.open",
+    "signalcore.session.append",
+    "signalcore.session.search",
+    "signalcore.session.context",
+    "signalcore.session.compact",
+    "signalcore.session.verify",
+    "signalcore.sandbox.plan",
+    "signalcore.sandbox.execute",
+    "signalcore.process.submit",
+    "signalcore.process.completions",
+    "signalcore.fabric.profile",
+    "signalcore.fabric.insights",
+    "signalcore.provider.capabilities",
+    "signalcore.provider.prepare",
+    "signalcore.provider.capture",
+    "signalcore.provider.replay",
+    "signalcore.provider.verify",
+    "signalcore.provider.stats",
+    "signalcore.data.route",
+    "signalcore.ecosystem.capabilities",
+    "signalcore.observability.metrics",
+)
+
+# Keep the public installation metadata identical to the actually enforced runtime.
+MCP_PROFILES.update({
+    "minimal": MCPProfile(
+        "minimal", MINIMAL_TOOLS, len(MINIMAL_TOOLS), 700, 120, True, True, False,
+    ),
+    "balanced": MCPProfile(
+        "balanced", BALANCED_TOOLS, len(BALANCED_TOOLS), 4000, 180, True, True, False,
+    ),
+    "audit": MCPProfile(
+        "audit", ("*",), 128, 16000, 300, True, True, False,
+    ),
+})
 
 
 @dataclass(frozen=True)
@@ -50,6 +107,10 @@ class MCPToolPolicy:
         "signalcore.session.merge",
         "signalcore.output.capture",
         "signalcore.usage.record",
+        "signalcore.provider.prepare",
+        "signalcore.provider.capture",
+        "signalcore.policy.record",
+        "signalcore.data.route",
     }
     SANDBOX_EXECUTION = {
         "signalcore.sandbox.execute",
@@ -76,6 +137,23 @@ class MCPToolPolicy:
         if value not in PROFILE_ALIASES:
             raise ValueError(f"unknown SignalCore MCP profile: {profile}")
         return PROFILE_ALIASES[value]
+
+    def product_profile(self) -> str:
+        if self.profile in {"minimal", "tiny"}:
+            return "minimal"
+        if self.profile in {"balanced", "optimized"}:
+            return "balanced"
+        if self.profile in {"audit", "full"}:
+            return "audit"
+        return "auto"
+
+    def filter_catalog(self, catalog: Sequence[dict[str, Any]]) -> list[dict[str, Any]]:
+        mode = self.product_profile()
+        if mode in {"audit", "auto"}:
+            return list(catalog)
+        allowlist = MINIMAL_TOOLS if mode == "minimal" else BALANCED_TOOLS
+        by_name = {str(row.get("name")): row for row in catalog}
+        return [by_name[name] for name in allowlist if name in by_name]
 
     @staticmethod
     def _authorization(arguments: Mapping[str, Any]) -> tuple[bool, bool, bool]:
