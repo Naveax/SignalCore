@@ -32,6 +32,8 @@ class OfficialPlatformAdaptersV001Tests(unittest.TestCase):
         self.assertIn(".pi/skills/signal-core/SKILL.md", records["pi"]["config_candidates"])
         self.assertIn(".omp/skills/signal-core/SKILL.md", records["omp"]["config_candidates"])
         self.assertIn("skills/signal-core/SKILL.md", records["openclaw"]["config_candidates"])
+        self.assertEqual(records["vscode-copilot"]["detection_commands"], ())
+        self.assertEqual(records["jetbrains-copilot"]["detection_commands"], ())
 
     def test_skill_only_hosts_install_without_writing_unverified_config(self) -> None:
         cases = (
@@ -74,23 +76,34 @@ class OfficialPlatformAdaptersV001Tests(unittest.TestCase):
             (project / "AGENTS.md").write_text("# Generic agents file\n", encoding="utf-8")
             with patch("shutil.which", return_value=None):
                 detected = {row["host"] for row in detect_hosts(project, home=project / "empty-home")}
+            self.assertNotIn("vscode-copilot", detected)
             self.assertNotIn("jetbrains-copilot", detected)
             self.assertNotIn("qwen-code", detected)
             self.assertNotIn("aider", detected)
             self.assertNotIn("sourcegraph-cody", detected)
-            # VS Code remains a legitimate project marker, but GitHub alone no longer triggers it.
-            self.assertIn("vscode-copilot", detected)
 
-    def test_github_cli_alone_does_not_false_detect_copilot(self) -> None:
+    def test_copilot_specific_marker_enables_detection(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            project = Path(directory)
+            marker = project / ".github" / "copilot-instructions.md"
+            marker.parent.mkdir()
+            marker.write_text("# Copilot instructions\n", encoding="utf-8")
+            with patch("shutil.which", return_value=None):
+                detected = {row["host"] for row in detect_hosts(project, home=project / "home")}
+            self.assertIn("vscode-copilot", detected)
+            self.assertIn("jetbrains-copilot", detected)
+
+    def test_editor_executable_or_github_cli_alone_does_not_false_detect_copilot(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             project = Path(directory)
 
             def which(name: str) -> str | None:
-                return "/usr/bin/gh" if name == "gh" else None
+                return f"/usr/bin/{name}" if name in {"gh", "code", "idea"} else None
 
             with patch("shutil.which", side_effect=which):
                 detected = {row["host"] for row in detect_hosts(project, home=project / "home")}
             self.assertNotIn("vscode-copilot", detected)
+            self.assertNotIn("jetbrains-copilot", detected)
 
 
 if __name__ == "__main__":
