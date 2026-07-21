@@ -36,6 +36,19 @@ class MCPEnforcementV001Tests(unittest.TestCase):
             "params": {"name": name, "arguments": arguments or {}},
         }
 
+    def test_product_profile_counts_are_deterministic(self) -> None:
+        with patch.dict(os.environ, {"SIGNALCORE_MCP_PROFILE": "minimal"}, clear=False):
+            minimal = self.server.exposed_tools()
+        with patch.dict(os.environ, {"SIGNALCORE_MCP_PROFILE": "balanced"}, clear=False):
+            balanced = self.server.exposed_tools()
+        with patch.dict(os.environ, {"SIGNALCORE_MCP_PROFILE": "audit"}, clear=False):
+            audit = self.server.exposed_tools()
+        self.assertEqual(len(minimal), 8)
+        self.assertEqual(len(balanced), 36)
+        self.assertEqual(len(audit), len(self.server.tools()))
+        self.assertLess(len(minimal), len(balanced))
+        self.assertLess(len(balanced), len(audit))
+
     def test_minimal_profile_alias_is_valid_and_hidden_tool_cannot_be_called(self) -> None:
         with patch.dict(os.environ, {"SIGNALCORE_MCP_PROFILE": "minimal"}, clear=False):
             listed = {row["name"] for row in self.server.exposed_tools()}
@@ -90,7 +103,7 @@ class MCPEnforcementV001Tests(unittest.TestCase):
         state = self.root / "balanced-state"
         state.mkdir()
         (state / "mcp-profile.json").write_text(
-            '{"name":"balanced","max_active_tools":8}', encoding="utf-8"
+            '{"name":"balanced","max_active_tools":36}', encoding="utf-8"
         )
         with patch.dict(os.environ, {}, clear=False):
             os.environ.pop("SIGNALCORE_MCP_PROFILE", None)
@@ -103,6 +116,7 @@ class MCPEnforcementV001Tests(unittest.TestCase):
             )
             listed = {row["name"] for row in server.exposed_tools()}
         self.assertEqual(server.product_mcp_policy.profile, "balanced")
+        self.assertEqual(len(listed), 36)
         self.assertIn("signalcore.process.submit", listed)
         self.assertIn("signalcore.fabric.route", listed)
 
