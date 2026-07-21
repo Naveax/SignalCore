@@ -1,10 +1,24 @@
 from __future__ import annotations
 
+import json
 import os
 from typing import Any
 
 from .mcp_policy import MCPToolPolicy
 from .product_surface import SessionAnalyticsStore
+
+
+def _installed_profile(state_root: Any) -> str:
+    path = state_root / "mcp-profile.json"
+    if not path.is_file():
+        return "minimal"
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return "minimal"
+    if not isinstance(value, dict):
+        return "minimal"
+    return str(value.get("name") or "minimal")
 
 
 def install() -> None:
@@ -19,11 +33,12 @@ def install() -> None:
 
     def extended_init(self: Any, *args: Any, **kwargs: Any) -> None:
         original_init(self, *args, **kwargs)
-        self.product_mcp_policy = MCPToolPolicy()
+        requested = os.environ.get("SIGNALCORE_MCP_PROFILE") or _installed_profile(self.state_root)
+        self.product_mcp_policy = MCPToolPolicy(requested)
         self.product_mcp_analytics = SessionAnalyticsStore(self.state_root / "analytics" / "events.jsonl")
 
     def extended_exposed(self: Any) -> list[dict[str, Any]]:
-        requested = os.environ.get("SIGNALCORE_MCP_PROFILE", "minimal").strip().casefold() or "minimal"
+        requested = os.environ.get("SIGNALCORE_MCP_PROFILE") or self.product_mcp_policy.profile
         policy = MCPToolPolicy(requested)
         previous = os.environ.get("SIGNALCORE_MCP_PROFILE")
         os.environ["SIGNALCORE_MCP_PROFILE"] = policy.legacy_profile
