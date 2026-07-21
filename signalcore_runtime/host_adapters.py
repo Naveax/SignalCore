@@ -38,7 +38,7 @@ KNOWN_HOSTS: dict[str, HostCapabilities] = {
     ),
     "claude-code": HostCapabilities(
         "claude-code", "Claude Code", True, True, True, True, False, True, False, True, True,
-        True, (".claude", ".mcp.json"), (".claude",), ".claude/settings.json", ".claude/skills/signal-core",
+        True, (".claude",), (".claude",), ".claude/settings.json", ".claude/skills/signal-core",
         True, ("hook-enforced", "mcp", "stream-capture"),
     ),
     "gemini-cli": HostCapabilities(
@@ -63,7 +63,7 @@ KNOWN_HOSTS: dict[str, HostCapabilities] = {
     ),
     "vscode-copilot": HostCapabilities(
         "vscode-copilot", "VS Code / GitHub Copilot", False, False, True, True, False, True, False, True, True,
-        True, (".vscode", ".github"), (".vscode",), ".vscode/mcp.json", ".github/skills/signal-core",
+        True, (".vscode", ".github/copilot-instructions.md"), (), ".vscode/mcp.json", ".github/skills/signal-core",
         False, ("mcp", "repository-instructions"),
     ),
     "cline": HostCapabilities(
@@ -83,8 +83,15 @@ KNOWN_HOSTS: dict[str, HostCapabilities] = {
     ),
     "qwen-code": HostCapabilities(
         "qwen-code", "Qwen Code", False, False, True, True, False, True, True, True, True,
-        False, (".qwen", "AGENTS.md"), (".qwen",), ".qwen/mcp.json", ".qwen/skills/signal-core",
+        False, (".qwen",), (".qwen",), ".qwen/mcp.json", ".qwen/skills/signal-core",
         False, ("mcp", "native-skill", "usage-telemetry"),
+    ),
+    "kiro": HostCapabilities(
+        "kiro", "Kiro CLI", supports_result_replacement=True, supports_mcp=True,
+        supports_session_events=True, supports_background_jobs=True, supports_native_skill=True,
+        project_markers=(".kiro",), user_markers=(".kiro",),
+        config_path=".kiro/settings/mcp.json", skill_path=".kiro/skills/signal-core",
+        integration_notes=("mcp", "native-skill", "steering"),
     ),
     "antigravity": HostCapabilities(
         "antigravity", "Google Antigravity", False, False, True, True, False, True, False, True, True,
@@ -103,6 +110,24 @@ KNOWN_HOSTS: dict[str, HostCapabilities] = {
         config_path=".zed/settings.json", skill_path="AGENTS.md",
         integration_notes=("mcp", "agents-instructions"),
     ),
+    "pi": HostCapabilities(
+        "pi", "Pi Coding Agent", supports_native_skill=True,
+        project_markers=(".pi",), user_markers=(".pi/agent",),
+        config_path=".pi/settings.json", skill_path=".pi/skills/signal-core",
+        integration_notes=("native-skill", "extension-capable", "instruction-only-adapter"),
+    ),
+    "omp": HostCapabilities(
+        "omp", "Oh My Pi", supports_native_skill=True,
+        project_markers=(".omp",), user_markers=(".omp/agent",),
+        config_path=".omp/agent/config.yml", skill_path=".omp/skills/signal-core",
+        integration_notes=("native-skill", "mcp-capable-host", "instruction-only-adapter"),
+    ),
+    "openclaw": HostCapabilities(
+        "openclaw", "OpenClaw", supports_native_skill=True,
+        project_markers=(".openclaw", "openclaw.json"), user_markers=(".openclaw",),
+        config_path="openclaw.json", skill_path="skills/signal-core",
+        integration_notes=("workspace-skill", "plugin-compatible", "instruction-only-adapter"),
+    ),
     "kilo-code": HostCapabilities(
         "kilo-code", "Kilo Code", supports_result_replacement=True, supports_mcp=True,
         supports_session_events=True, supports_background_jobs=True,
@@ -113,14 +138,14 @@ KNOWN_HOSTS: dict[str, HostCapabilities] = {
     "jetbrains-copilot": HostCapabilities(
         "jetbrains-copilot", "JetBrains / GitHub Copilot", supports_result_replacement=True,
         supports_mcp=True, supports_session_events=True, supports_background_jobs=True,
-        project_markers=(".idea", ".github"), user_markers=(".config/JetBrains",),
+        project_markers=(".idea",), user_markers=(".config/JetBrains",),
         config_path=".idea/mcp.json", skill_path=".github/skills/signal-core",
         integration_notes=("mcp", "repository-instructions"),
     ),
     "sourcegraph-cody": HostCapabilities(
         "sourcegraph-cody", "Sourcegraph Cody", supports_result_replacement=True,
         supports_mcp=True, supports_session_events=True, supports_background_jobs=True,
-        project_markers=(".sourcegraph", ".vscode"), user_markers=(".config/sourcegraph",),
+        project_markers=(".sourcegraph",), user_markers=(".config/sourcegraph",),
         config_path=".sourcegraph/mcp.json", skill_path="AGENTS.md",
         integration_notes=("mcp", "agents-instructions"),
     ),
@@ -139,7 +164,7 @@ KNOWN_HOSTS: dict[str, HostCapabilities] = {
     ),
     "aider": HostCapabilities(
         "aider", "Aider", False, False, False, False, False, False, False, False, False,
-        False, (".aider.conf.yml", "AGENTS.md"), (), "", "AGENTS.md",
+        False, (".aider.conf.yml",), (), "", "AGENTS.md",
         False, ("instruction-only",),
     ),
 }
@@ -204,6 +229,7 @@ def detect_hosts(project: Path, *, home: Path | None = None) -> list[dict[str, A
                 "project_markers": project_hits,
                 "user_markers": user_hits,
                 "executable": executable,
+                "detection_confidence": "strong" if executable or project_hits else "user-config",
                 "negotiation": negotiate(host, installed=True),
             })
     return detected
@@ -219,14 +245,18 @@ def _find_executable(host: str) -> str | None:
         "opencode": ("opencode",),
         "cursor": ("cursor",),
         "windsurf": ("windsurf",),
-        "vscode-copilot": ("code", "gh"),
+        "vscode-copilot": ("code",),
         "cline": (),
         "roo-code": (),
         "continue": (),
-        "qwen-code": ("qwen",),
+        "qwen-code": ("qwen", "qwen-code"),
+        "kiro": ("kiro", "kiro-cli", "q"),
         "antigravity": ("antigravity",),
         "antigravity-cli": ("antigravity",),
         "zed": ("zed",),
+        "pi": ("pi",),
+        "omp": ("omp",),
+        "openclaw": ("openclaw",),
         "kilo-code": ("kilo", "kilocode"),
         "jetbrains-copilot": ("idea", "pycharm", "webstorm"),
         "sourcegraph-cody": ("cody",),
