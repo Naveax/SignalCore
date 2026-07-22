@@ -11,8 +11,6 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Callable, Mapping
 
-from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
-
 
 def _now() -> str:
     return datetime.now(UTC).isoformat()
@@ -114,6 +112,11 @@ class DistributionManager:
 
     @staticmethod
     def verify_manifest(envelope: Mapping[str, Any], public_key: bytes | str) -> UpdateManifest:
+        # Keep the portable CLI startup independent of platform OpenSSL/cryptography
+        # extensions. Signature verification loads the native dependency only when
+        # an update manifest is actually verified.
+        from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
+
         payload = envelope.get("payload")
         signature = envelope.get("signature")
         if not isinstance(payload, Mapping) or not isinstance(signature, str):
