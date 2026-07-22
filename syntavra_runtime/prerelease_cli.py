@@ -9,7 +9,7 @@ from typing import Any
 
 from .infinite_context import CONTEXT_TIERS, UnboundedContextCoordinator
 from .platform import SyntavraPlatform
-from .platform_cli import add_run_subcommands as add_competitive_v7_run_subcommands, handle as handle_competitive_v7
+from .platform_cli import add_run_subcommands as add_platform_run_subcommands, handle as handle_platform
 from .integration_matrix import IntegrationMatrix
 from .long_context_quality import LongContextQualityGate, LongContextReceipt, manifest as long_context_manifest
 from .product_maturity import ProductMaturityGate, load_maturity_document
@@ -33,11 +33,13 @@ from .util import stable_project_id
 from .zero_friction import ZeroFrictionManager
 
 
-PRE_RELEASE_COMMANDS = {
-    "setup", "status", "run", "prove",
+PRIMARY_COMMANDS = {"setup", "status", "run", "prove"}
+COMPATIBILITY_COMMANDS = {
     "version", "install", "wrap", "doctor", "stats", "upgrade", "repair",
-    "integrations", "context-stress", "signalbench2", "proof", "structural-v2",
+    "integrations", "context-stress", "signalbench", "signalbench2", "proof",
+    "semantic-demo", "structural-v2",
 }
+PRE_RELEASE_COMMANDS = PRIMARY_COMMANDS | COMPATIBILITY_COMMANDS
 
 
 def _emit(value: Any) -> None:
@@ -81,25 +83,34 @@ def _add_proxy_service_options(parser: argparse.ArgumentParser, *, mutating: boo
         parser.add_argument("--activate", action="store_true")
 
 
+def _add_benchmark_parser(sub: argparse._SubParsersAction[argparse.ArgumentParser], name: str, *, hidden: bool = False) -> None:
+    benchmark = sub.add_parser(name, help=argparse.SUPPRESS if hidden else "plan or evaluate paired SignalBench runs")
+    actions = benchmark.add_subparsers(dest="action", required=True)
+    plan = actions.add_parser("plan")
+    plan.add_argument("--repetitions", type=int, default=30)
+    gate = actions.add_parser("gate")
+    gate.add_argument("receipts")
+
+
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="syntavra",
-        description="Syntavra v0.0.1 pre-release daily coding-agent product",
-        epilog="Primary workflow: setup -> status -> run -> prove",
+        description="Syntavra 0.0.1 pre-release AI engineering platform",
+        epilog="Product workflow: setup -> status -> run -> prove",
     )
     parser.add_argument("--project", default=".")
     parser.add_argument("--state-root")
-    sub = parser.add_subparsers(dest="command", required=True)
+    sub = parser.add_subparsers(dest="command", required=True, metavar="{setup,status,run,prove}")
 
-    setup = sub.add_parser("setup", help="install or repair Syntavra")
+    setup = sub.add_parser("setup", help="install, configure or repair Syntavra")
     setup.add_argument("--apply", action="store_true")
     setup.add_argument("--all", action="store_true")
     setup.add_argument("--mcp-profile", choices=tuple(MCP_PROFILES), default="minimal")
 
-    status = sub.add_parser("status", help="show one health and usage snapshot")
+    status = sub.add_parser("status", help="show health, usage, readiness and evidence gates")
     status.add_argument("--receipts")
 
-    run = sub.add_parser("run", help="execute an enforced product operation")
+    run = sub.add_parser("run", help="execute an enforced platform operation")
     run_sub = run.add_subparsers(dest="action", required=True)
     run_sub.add_parser("manifest")
 
@@ -126,57 +137,127 @@ def _parser() -> argparse.ArgumentParser:
     session_open = run_sub.add_parser("session-open")
     session_open.add_argument("--session-id")
     session_open.add_argument("--metadata", default="{}")
-
     session_append = run_sub.add_parser("session-append")
     session_append.add_argument("session_id")
     session_append.add_argument("event_type")
     session_append.add_argument("payload")
-
     session_compact = run_sub.add_parser("session-compact")
     session_compact.add_argument("session_id")
     session_compact.add_argument("--force", action="store_true")
-
     session_continuity = run_sub.add_parser("session-continuity")
     session_continuity.add_argument("session_id")
     session_continuity.add_argument("--token-budget", type=int, default=32_000)
     run_sub.add_parser("session-status")
-    add_competitive_v7_run_subcommands(run_sub)
+    add_platform_run_subcommands(run_sub)
 
     prove = sub.add_parser("prove", help="validate measured external evidence")
     prove_sub = prove.add_subparsers(dest="action", required=True)
     prove_sub.add_parser("plan")
-    receipts = prove_sub.add_parser("receipts"); receipts.add_argument("path")
-    benchmark = prove_sub.add_parser("benchmark"); benchmark.add_argument("path")
-    long_context = prove_sub.add_parser("long-context"); long_context.add_argument("path", nargs="?")
-    maturity = prove_sub.add_parser("maturity"); maturity.add_argument("path")
-    readiness = prove_sub.add_parser("readiness"); readiness.add_argument("--receipts")
-    schema = prove_sub.add_parser("schema"); schema.add_argument("--output", default="schemas/provider-usage-receipt-v1.json")
+    receipts = prove_sub.add_parser("receipts")
+    receipts.add_argument("path")
+    benchmark = prove_sub.add_parser("benchmark")
+    benchmark.add_argument("path")
+    long_context = prove_sub.add_parser("long-context")
+    long_context.add_argument("path", nargs="?")
+    maturity = prove_sub.add_parser("maturity")
+    maturity.add_argument("path")
+    readiness = prove_sub.add_parser("readiness")
+    readiness.add_argument("--receipts")
+    schema = prove_sub.add_parser("schema")
+    schema.add_argument("--output", default="schemas/provider-usage-receipt.json")
 
-    sub.add_parser("version")
-    install = sub.add_parser("install")
+    # Compatibility commands remain executable for existing installations, but the
+    # public product model and help surface remain setup/status/run/prove.
+    sub.add_parser("version", help=argparse.SUPPRESS)
+    install = sub.add_parser("install", help=argparse.SUPPRESS)
     install.add_argument("--auto", action="store_true")
     install.add_argument("--all", action="store_true")
     install.add_argument("--apply", action="store_true")
     install.add_argument("--dry-run", action="store_true")
     install.add_argument("--mcp-profile", choices=tuple(MCP_PROFILES), default="minimal")
-    wrap = sub.add_parser("wrap"); wrap.add_argument("host"); wrap.add_argument("--output")
-    sub.add_parser("doctor")
-    sub.add_parser("stats")
-    upgrade = sub.add_parser("upgrade"); upgrade.add_argument("--target", default=VERSION)
-    repair = sub.add_parser("repair"); repair.add_argument("--apply", action="store_true")
-    integrations = sub.add_parser("integrations"); integrations.add_argument("--family", choices=("provider", "framework", "host"))
-    stress = sub.add_parser("context-stress"); stress.add_argument("--budget", type=int, default=4096); stress.add_argument("--max-tier", type=int, default=max(CONTEXT_TIERS))
-    signalbench = sub.add_parser("signalbench2")
-    sb = signalbench.add_subparsers(dest="action", required=True)
-    plan = sb.add_parser("plan"); plan.add_argument("--repetitions", type=int, default=30)
-    gate = sb.add_parser("gate"); gate.add_argument("receipts")
-    proof = sub.add_parser("proof")
+    wrap = sub.add_parser("wrap", help=argparse.SUPPRESS)
+    wrap.add_argument("host")
+    wrap.add_argument("--output")
+    sub.add_parser("doctor", help=argparse.SUPPRESS)
+    sub.add_parser("stats", help=argparse.SUPPRESS)
+    upgrade = sub.add_parser("upgrade", help=argparse.SUPPRESS)
+    upgrade.add_argument("--target", default=VERSION)
+    repair = sub.add_parser("repair", help=argparse.SUPPRESS)
+    repair.add_argument("--apply", action="store_true")
+    integrations = sub.add_parser("integrations", help=argparse.SUPPRESS)
+    integrations.add_argument("--family", choices=("provider", "framework", "host"))
+    stress = sub.add_parser("context-stress", help=argparse.SUPPRESS)
+    stress.add_argument("--budget", type=int, default=4096)
+    stress.add_argument("--max-tier", type=int, default=max(CONTEXT_TIERS))
+    _add_benchmark_parser(sub, "signalbench", hidden=True)
+    _add_benchmark_parser(sub, "signalbench2", hidden=True)
+    proof = sub.add_parser("proof", help=argparse.SUPPRESS)
     proof_sub = proof.add_subparsers(dest="action", required=True)
     proof_sub.add_parser("status")
-    structural = sub.add_parser("structural-v2")
-    structural_sub = structural.add_subparsers(dest="action", required=True)
-    demo = structural_sub.add_parser("demo"); demo.add_argument("query")
+    for command in ("semantic-demo", "structural-v2"):
+        semantic = sub.add_parser(command, help=argparse.SUPPRESS)
+        semantic_sub = semantic.add_subparsers(dest="action", required=True)
+        demo = semantic_sub.add_parser("demo")
+        demo.add_argument("query")
     return parser
+
+
+def _handle_prove(args: argparse.Namespace, state: Path) -> int:
+    if args.action == "plan":
+        _emit({
+            "product": "Syntavra",
+            "version": VERSION,
+            "channel": "pre-release",
+            "receipt_schema": "syntavra prove schema",
+            "workloads": ProductSurface.manifest()["proof"]["workloads"],
+            "long_context": long_context_manifest(),
+            "maturity": {
+                "minimum_days": ProductMaturityGate.minimum_days,
+                "minimum_onboarding_receipts": ProductMaturityGate.minimum_onboarding_receipts,
+                "minimum_users": ProductMaturityGate.minimum_users,
+                "minimum_repositories": ProductMaturityGate.minimum_repositories,
+                "minimum_public_downloads": ProductMaturityGate.minimum_public_downloads,
+                "minimum_verified_releases": ProductMaturityGate.minimum_verified_releases,
+            },
+            "measured_fields": ProductSurface.manifest()["proof"]["measured_fields"],
+            "minimums": {
+                "paired_runs": MeasuredBenchmarkGate.minimum_pairs,
+                "repositories": MeasuredBenchmarkGate.minimum_repositories,
+                "tasks": MeasuredBenchmarkGate.minimum_tasks,
+                "workload_families": MeasuredBenchmarkGate.minimum_workload_families,
+            },
+            "claim": "EXTERNAL_SUPERIORITY_NOT_PROVEN",
+        })
+        return 0
+    if args.action == "schema":
+        output = Path(args.output)
+        _emit({"ok": True, "output": str(output), "schema": write_receipt_schema(output)})
+        return 0
+    if args.action == "long-context":
+        if not args.path:
+            _emit(long_context_manifest())
+            return 0
+        value = LongContextQualityGate.evaluate(_load_long_context_receipts(Path(args.path)))
+        _emit(value)
+        return 0 if value["ok"] else 4
+    if args.action == "maturity":
+        document = _load_json_argument(args.path)
+        if not isinstance(document, dict):
+            raise ValueError("maturity document must be a JSON object")
+        onboarding, distributions, releases = load_maturity_document(document)
+        value = ProductMaturityGate.evaluate(onboarding, distributions, releases)
+        _emit(value)
+        return 0 if value["ok"] else 4
+    receipt_path = Path(args.path) if hasattr(args, "path") else Path(args.receipts) if args.receipts else None
+    rows = ReceiptValidator.load(receipt_path) if receipt_path else []
+    if args.action == "receipts":
+        value = ReceiptValidator.evaluate(rows)
+    elif args.action == "benchmark":
+        value = MeasuredBenchmarkGate.evaluate(rows)
+    else:
+        value = ProductSurface.readiness(state, rows)
+    _emit(value)
+    return 0 if value["ok"] else 4
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -192,29 +273,31 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "status":
         receipt_rows = ReceiptValidator.load(Path(args.receipts)) if args.receipts else []
+        platform = SyntavraPlatform(project, state / "unified")
         value = {
+            "product": "Syntavra",
+            "version": VERSION,
+            "channel": "pre-release",
             "doctor": manager.doctor(),
             "stats": manager.stats(),
             "readiness": ProductSurface.readiness(state, receipt_rows),
             "proxy_presets": ProxyProductRegistry.validate(),
             "primary_workflow": ["setup", "status", "run", "prove"],
-            "competitive_v7": SyntavraPlatform(project, state / "unified").status(),
+            "platform": platform.status(),
         }
         _emit(value)
         return 0 if value["doctor"]["ok"] else 2
 
     if args.command == "run":
-        competitive_v7 = handle_competitive_v7(args, project=project, state=state)
-        if competitive_v7 is not None:
-            _emit(competitive_v7)
-            return 0 if competitive_v7.get("ok", True) else 3
-
+        platform_result = handle_platform(args, project=project, state=state)
+        if platform_result is not None:
+            _emit(platform_result)
+            return 0 if platform_result.get("ok", True) else 3
         if args.action == "manifest":
             value = ProductSurface.manifest()
             value["proxy_presets"] = ProxyProductRegistry.validate()
             _emit(value)
             return 0
-
         if args.action == "route":
             decision = ToolRoutingEnforcer.decide(
                 args.tool,
@@ -225,19 +308,16 @@ def main(argv: list[str] | None = None) -> int:
             )
             _emit(asdict(decision))
             return 0 if decision.allowed else 5
-
         if args.action == "record":
             event = _load_json_argument(args.event)
             if not isinstance(event, dict):
                 raise ValueError("analytics event must be a JSON object")
             _emit(SessionAnalyticsStore(state / "analytics" / "events.jsonl").record(event))
             return 0
-
         if args.action == "proxy-plan":
             value = ProxyProductRegistry.plan(args.provider, upstream=args.upstream)
             _emit(value)
             return 0 if value["ok"] else 3
-
         if args.action == "proxy-service":
             value = ProxyProductRegistry.service(
                 args.service_action,
@@ -256,7 +336,6 @@ def main(argv: list[str] | None = None) -> int:
             )
             _emit(value)
             return 0 if value.get("ok", False) else 3
-
         controller = _session_controller(project, state)
         if args.action == "session-open":
             metadata = _load_json_argument(args.metadata)
@@ -280,67 +359,7 @@ def main(argv: list[str] | None = None) -> int:
         return 0 if value.get("ok", True) else 3
 
     if args.command == "prove":
-        if args.action == "plan":
-            _emit({
-                "version": VERSION,
-                "channel": "pre-release",
-                "receipt_schema": "syntavra prove schema",
-                "workloads": ProductSurface.manifest()["proof"]["workloads"],
-                "long_context": long_context_manifest(),
-                "maturity": {
-                    "minimum_days": ProductMaturityGate.minimum_days,
-                    "minimum_onboarding_receipts": ProductMaturityGate.minimum_onboarding_receipts,
-                    "minimum_users": ProductMaturityGate.minimum_users,
-                    "minimum_repositories": ProductMaturityGate.minimum_repositories,
-                    "minimum_public_downloads": ProductMaturityGate.minimum_public_downloads,
-                    "minimum_verified_releases": ProductMaturityGate.minimum_verified_releases,
-                },
-                "measured_fields": ProductSurface.manifest()["proof"]["measured_fields"],
-                "minimums": {
-                    "paired_runs": MeasuredBenchmarkGate.minimum_pairs,
-                    "repositories": MeasuredBenchmarkGate.minimum_repositories,
-                    "tasks": MeasuredBenchmarkGate.minimum_tasks,
-                    "workload_families": MeasuredBenchmarkGate.minimum_workload_families,
-                },
-                "claim": "EXTERNAL_SUPERIORITY_NOT_PROVEN",
-            })
-            return 0
-
-        if args.action == "schema":
-            output = Path(args.output)
-            _emit({"ok": True, "output": str(output), "schema": write_receipt_schema(output)})
-            return 0
-
-        if args.action == "long-context":
-            if not args.path:
-                _emit(long_context_manifest())
-                return 0
-            value = LongContextQualityGate.evaluate(_load_long_context_receipts(Path(args.path)))
-            _emit(value)
-            return 0 if value["ok"] else 4
-
-        if args.action == "maturity":
-            document = _load_json_argument(args.path)
-            if not isinstance(document, dict):
-                raise ValueError("maturity document must be a JSON object")
-            onboarding, distributions, releases = load_maturity_document(document)
-            value = ProductMaturityGate.evaluate(onboarding, distributions, releases)
-            _emit(value)
-            return 0 if value["ok"] else 4
-
-        receipt_path = Path(args.path) if hasattr(args, "path") else Path(args.receipts) if args.receipts else None
-        rows = ReceiptValidator.load(receipt_path) if receipt_path else []
-        if args.action == "receipts":
-            value = ReceiptValidator.evaluate(rows)
-            _emit(value)
-            return 0 if value["ok"] else 4
-        if args.action == "benchmark":
-            value = MeasuredBenchmarkGate.evaluate(rows)
-            _emit(value)
-            return 0 if value["ok"] else 4
-        value = ProductSurface.readiness(state, rows)
-        _emit(value)
-        return 0 if value["ok"] else 4
+        return _handle_prove(args, state)
 
     if args.command == "version":
         _emit({"identity": identity().to_dict(), "repository": validate_repository_identity(project)})
@@ -374,7 +393,7 @@ def main(argv: list[str] | None = None) -> int:
         result = {"ok": bool(reports) and all(row["within_budget"] and row["all_referenced"] and not row["forced_restart"] for row in reports), "tiers": reports}
         _emit(result)
         return 0 if result["ok"] else 3
-    if args.command == "signalbench2":
+    if args.command in {"signalbench", "signalbench2"}:
         if args.action == "plan":
             tasks = CodingCorpusPlanner.generate_slots()
             schedule = PairedSchedule(tasks, default_arms(), repetitions=args.repetitions)
@@ -398,11 +417,11 @@ def main(argv: list[str] | None = None) -> int:
             "maturity": "PUBLIC_PRODUCT_MATURITY_NOT_PROVEN",
         })
         return 0
-    if args.command == "structural-v2":
+    if args.command in {"semantic-demo", "structural-v2"}:
         graph = SemanticGraph()
-        graph.add_node(GraphNode("auth", "function", "auth.refresh", "src/auth.py", 10, 40, "python", "sc://evidence/auth", 0.9, ("security",)))
-        graph.add_node(GraphNode("test", "test", "test_auth_refresh", "tests/test_auth.py", 5, 30, "python", "sc://evidence/test"))
-        graph.add_edge(GraphEdge("test", "auth", "calls", evidence_ref="sc://evidence/edge"))
+        graph.add_node(GraphNode("auth", "function", "auth.refresh", "src/auth.py", 10, 40, "python", "syntavra://evidence/auth", 0.9, ("security",)))
+        graph.add_node(GraphNode("test", "test", "test_auth_refresh", "tests/test_auth.py", 5, 30, "python", "syntavra://evidence/test"))
+        graph.add_edge(GraphEdge("test", "auth", "calls", evidence_ref="syntavra://evidence/edge"))
         _emit({"results": [asdict(row) for row in graph.query(args.query)], "impact": graph.impact("auth")})
         return 0
     raise RuntimeError(args.command)
