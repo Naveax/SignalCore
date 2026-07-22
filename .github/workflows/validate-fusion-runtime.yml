@@ -35,7 +35,24 @@ jobs:
       - name: Compile ordinary source
         run: python -m compileall -q signalcore_runtime skills/signal-core tools tests benchmarks
       - name: Runtime tests
-        run: python -m unittest discover -s tests/runtime -q
+        id: runtime-tests
+        continue-on-error: true
+        shell: bash
+        run: python -m unittest discover -s tests/runtime -v > runtime-tests.log 2>&1
+      - name: Upload runtime test diagnostics
+        if: steps.runtime-tests.outcome == 'failure'
+        uses: actions/upload-artifact@v4
+        with:
+          name: runtime-tests-${{ matrix.os }}-py${{ matrix.python }}
+          path: runtime-tests.log
+          if-no-files-found: error
+          retention-days: 7
+      - name: Enforce runtime test success
+        if: steps.runtime-tests.outcome == 'failure'
+        shell: bash
+        run: |
+          cat runtime-tests.log
+          exit 1
       - name: Existing adapter tests
         run: python -m unittest tests.test_platforms tests.test_roblox_profile_gate -q
       - name: Runtime package validation
@@ -125,9 +142,9 @@ jobs:
         shell: bash
         run: |
           cd sdk/typescript
-          npm install --ignore-scripts --no-audit --no-fund
+          npm ci --ignore-scripts --no-audit --no-fund
           npm run check
-          npm run build
+          npm test
           test -f dist/index.js
           test -f dist/index.d.ts
           test -f dist/receipts.js
