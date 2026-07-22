@@ -199,6 +199,20 @@ Claim-bearing coding-agent runs require paired baseline/SignalCore receipts with
 
 The OOLONG-like gate measures required-fact recall, stale-fact rejection, evidence precision, exact recovery, continuity, tokens and wall-time. Synthetic fixtures test the gate but cannot open a public claim.
 
+## Governed Roblox Studio profile claims
+
+These markers are checked against `docs/claims/claims.json`. They preserve the existing governed profile contract without converting simulated or planned behavior into live claims.
+
+- Fail-closed activation is internally verified. `[claim:roblox.activation]`
+- Versioned task-state handling is internally verified. `[claim:roblox.task_state]`
+- The governed capability graph is internally verified. `[claim:roblox.capabilities]`
+- The committed 50-case benchmark is explicitly simulated. `[claim:roblox.simulated]`
+- Transcript ingestion is an implemented adapter contract. `[claim:roblox.transcript]`
+- The live adapter remains planned and disabled by default. `[claim:roblox.live]`
+- DataStore migration execution remains an external-engine plan. `[claim:roblox.datastore]`
+- Asset, animation and Blender execution remain external-engine plans. `[claim:roblox.external_engines]`
+- The committed Roblox profile test artifact is internally verified. `[claim:roblox.tests]`
+
 ## Current public status
 
 ```text
@@ -239,6 +253,7 @@ Development is performed on a focused branch and returned through a pull request
 
 See:
 
+- `docs/P0_P2_CLOSURE_001.md`
 - `docs/operations/ONE_COMMAND_INSTALL.md`
 - `docs/operations/CI_AND_BRANCH_POLICY.md`
 - `docs/architecture/DAILY_AGENT_PRODUCT_001.md`
