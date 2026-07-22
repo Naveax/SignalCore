@@ -1,5 +1,6 @@
 from .platform_common import *
 from .language_platform import LanguageDetection, LanguageParseResult, LanguageRegistry
+from .language_services import LanguageServiceRegistry, SandboxedLanguageServiceAdapter
 
 
 _DECLARATION_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
@@ -46,9 +47,16 @@ class IncrementalCodeIntelligenceGraph:
     structure and are never represented as exact semantic facts.
     """
 
-    def __init__(self, path: Path, *, language_registry: LanguageRegistry | None = None):
+    def __init__(
+        self,
+        path: Path,
+        *,
+        language_registry: LanguageRegistry | None = None,
+        language_service_registry: LanguageServiceRegistry | None = None,
+    ):
         self.path = path
         self.languages = language_registry or LanguageRegistry()
+        self.language_services = language_service_registry or LanguageServiceRegistry()
         with _connect(path) as db:
             db.executescript(
                 """
@@ -313,6 +321,19 @@ class IncrementalCodeIntelligenceGraph:
 
         return nodes, edges, list(diagnostics) + list(detection.diagnostics)
 
+    def _adapter_for_detection(self, detection: LanguageDetection) -> Any | None:
+        direct = self.languages.adapter_for(detection.language_id)
+        if direct is not None:
+            return direct
+        candidates = []
+        seen: set[int] = set()
+        for language_id in detection.candidates:
+            adapter = self.languages.adapter_for(language_id)
+            if adapter is not None and id(adapter) not in seen:
+                seen.add(id(adapter))
+                candidates.append(adapter)
+        return candidates[0] if len(candidates) == 1 else None
+
     def _adapter_parse(
         self,
         relative: str,
@@ -321,9 +342,11 @@ class IncrementalCodeIntelligenceGraph:
         evidence: str,
         detection: LanguageDetection,
     ) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[str]] | None:
-        adapter = self.languages.adapter_for(language)
+        adapter = self._adapter_for_detection(detection)
         if adapter is None:
             return None
+        adapter_languages = tuple(str(item).casefold() for item in adapter.language_ids)
+        resolved_language = next((item for item in detection.candidates if item.casefold() in adapter_languages), language)
         result = adapter.parse(path=relative, text=text, evidence_ref=evidence)
         if not isinstance(result, LanguageParseResult):
             raise TypeError("language adapter must return LanguageParseResult")
@@ -347,7 +370,7 @@ class IncrementalCodeIntelligenceGraph:
                 "qualified_name": str(item.get("qualified_name") or f"{relative}:{name}"),
                 "start_line": line,
                 "end_line": max(line, int(item.get("end_line", line))),
-                "language": language,
+                "language": resolved_language,
                 "evidence_ref": str(item.get("evidence_ref") or evidence),
                 "metadata_json": self._metadata(**metadata_dict),
             })
@@ -396,6 +419,7 @@ class IncrementalCodeIntelligenceGraph:
     @staticmethod
     def _analysis_key(digest: str, detection: LanguageDetection, adapter: Any) -> str:
         adapter_identity = "none" if adapter is None else f"{type(adapter).__module__}.{type(adapter).__qualname__}"
+        adapter_manifest_hash = str(getattr(getattr(adapter, "manifest", None), "manifest_hash", ""))
         payload = json.dumps(
             {
                 "content": digest,
@@ -404,6 +428,7 @@ class IncrementalCodeIntelligenceGraph:
                 "descriptor": detection.descriptor_source,
                 "capability": detection.capability_level,
                 "adapter": adapter_identity,
+                "adapter_manifest_sha256": adapter_manifest_hash,
             },
             sort_keys=True,
             separators=(",", ":"),
@@ -424,6 +449,19 @@ class IncrementalCodeIntelligenceGraph:
     def index_repository(self, root: Path, *, max_file_bytes: int = 2_000_000) -> dict[str, Any]:
         root = root.resolve(strict=True)
         self.languages.discover_manifests(root)
+        self.language_services.discover(root)
+        service_diagnostics: list[str] = list(self.language_services.diagnostics)
+        if os.environ.get("SYNTAVRA_ALLOW_LANGUAGE_SERVICES", "").casefold() in {"1", "true", "yes"}:
+            for manifest in sorted(self.language_services.manifests.values(), key=lambda item: item.service_id):
+                try:
+                    adapter = SandboxedLanguageServiceAdapter(
+                        manifest,
+                        workspace=root,
+                        state_root=self.path.parent / "language-service-state",
+                    )
+                    self.languages.register_adapter(adapter)
+                except Exception as error:
+                    service_diagnostics.append(f"service:{manifest.service_id}: {type(error).__name__}: {error}")
         changed = 0
         skipped = 0
         binary_skipped = 0
@@ -459,7 +497,7 @@ class IncrementalCodeIntelligenceGraph:
                     continue
                 discovered.add(relative)
                 digest = hashlib.sha256(data).hexdigest()
-                adapter = self.languages.adapter_for(detection.language_id)
+                adapter = self._adapter_for_detection(detection)
                 analysis_key = self._analysis_key(digest, detection, adapter)
                 previous = db.execute("SELECT analysis_key FROM files WHERE path = ?", (relative,)).fetchone()
                 if previous and previous["analysis_key"] == analysis_key:
@@ -539,6 +577,10 @@ class IncrementalCodeIntelligenceGraph:
             "errors": errors,
             "warnings": warnings,
             "language_platform": self.languages.inventory(),
+            "language_services": {
+                **self.language_services.inventory(),
+                "diagnostics": service_diagnostics,
+            },
             **self.stats(),
         }
 

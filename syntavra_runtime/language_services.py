@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import hmac
 import json
 import os
 import re
@@ -172,7 +173,7 @@ class SandboxedLanguageServiceAdapter:
         if not resolved.is_file():
             raise ValueError("language service executable must be a regular file")
         actual = hashlib.sha256(resolved.read_bytes()).hexdigest()
-        if not hashlib.compare_digest(actual, self.manifest.executable_sha256):
+        if not hmac.compare_digest(actual, self.manifest.executable_sha256):
             raise PermissionError("language service executable hash mismatch")
         return resolved
 
