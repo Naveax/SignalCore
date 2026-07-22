@@ -54,9 +54,15 @@ jobs:
       - name: Type-check SDK
         working-directory: sdk/typescript
         run: npm run check
-      - name: Test SDK
+      - name: Build SDK
         working-directory: sdk/typescript
-        run: npm test
+        run: npm run build
+      - name: Test receipt validation
+        working-directory: sdk/typescript
+        run: node --test test/receipts.test.mjs
+      - name: Test proxy client
+        working-directory: sdk/typescript
+        run: node --test test/client.test.mjs
       - name: Inspect SDK package
         working-directory: sdk/typescript
         run: npm pack --dry-run --json > npm-pack-dry-run.json
