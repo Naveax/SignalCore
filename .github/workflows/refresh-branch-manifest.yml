@@ -29,18 +29,49 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
-      - name: Generate deterministic SHA-256 manifest
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: sdk/typescript/package-lock.json
+      - name: Rebuild committed TypeScript SDK output
+        working-directory: sdk/typescript
+        run: |
+          npm ci --ignore-scripts --no-audit --no-fund
+          npm run check
+          npm test
+          node --check dist/index.js
+      - name: Refresh Roblox profile integrity manifest
+        shell: python
+        run: |
+          import hashlib
+          from pathlib import Path
+          profile=Path('skills/syntavra/profiles/roblox_studio')
+          manifest=profile/'MANIFEST.sha256'
+          rows=[]
+          for path in sorted(profile.rglob('*'), key=lambda item: item.relative_to(profile).as_posix()):
+              if not path.is_file() or path == manifest or '__pycache__' in path.parts:
+                  continue
+              rows.append(f"{hashlib.sha256(path.read_bytes()).hexdigest()}  {path.relative_to(profile).as_posix()}")
+          manifest.write_text('\n'.join(rows) + '\n', encoding='utf-8', newline='\n')
+      - name: Validate regenerated profile
+        run: python tools/validate_roblox_profile.py
+      - name: Generate deterministic root SHA-256 manifest
         run: python tools/refresh_manifest.py
-      - name: Materialize prepared manifest tree
+      - name: Materialize prepared integrity tree
         id: prepared
         shell: bash
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          if ! git diff --quiet -- MANIFEST.sha256; then
-            git add -- MANIFEST.sha256
-            test "$(git diff --cached --name-only)" = "MANIFEST.sha256"
-            git commit -m "prepare Syntavra branch integrity manifest"
+          allowed='^(MANIFEST\.sha256|sdk/typescript/dist/(index\.js|index\.d\.ts|receipts\.js|receipts\.d\.ts)|skills/syntavra/profiles/roblox_studio/MANIFEST\.sha256)$'
+          changed="$(git diff --name-only)"
+          if [ -n "$changed" ]; then
+            while IFS= read -r path; do
+              echo "$path" | grep -Eq "$allowed" || { echo "unexpected generated change: $path"; exit 1; }
+            done <<< "$changed"
+            git add -- MANIFEST.sha256 sdk/typescript/dist skills/syntavra/profiles/roblox_studio/MANIFEST.sha256
+            git commit -m "prepare Syntavra generated integrity outputs"
             temporary_branch="prepared-manifest/${GITHUB_SHA}"
             git push --force origin "HEAD:refs/heads/${temporary_branch}"
             printf '%s\n' "$temporary_branch" > prepared-branch.txt
@@ -50,7 +81,7 @@ jobs:
           git rev-parse 'HEAD^{tree}' > prepared-tree.txt
           git rev-parse HEAD > prepared-commit.txt
           cp MANIFEST.sha256 prepared-MANIFEST.sha256
-      - name: Upload prepared manifest tree metadata
+      - name: Upload prepared integrity tree metadata
         uses: actions/upload-artifact@v4
         with:
           name: syntavra-prepared-manifest-tree-${{ github.sha }}
