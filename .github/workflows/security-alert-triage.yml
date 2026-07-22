@@ -16,6 +16,11 @@ jobs:
   export-alerts:
     runs-on: ubuntu-latest
     steps:
+      - name: Check out analyzed source
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
       - name: Export CodeQL alerts 1 through 5
         env:
           GITHUB_TOKEN: ${{ github.token }}
@@ -96,10 +101,13 @@ jobs:
           print(destination.read_text(encoding="utf-8"))
           PY
 
-      - name: Upload sanitized alert metadata
+      - name: Upload sanitized alert metadata and exact analyzed sources
         uses: actions/upload-artifact@v4
         with:
           name: syntavra-code-scanning-alerts
-          path: code-scanning-alerts.json
+          path: |
+            code-scanning-alerts.json
+            syntavra_runtime/provider_proxy.py
+            benchmarks/hardening_v3_benchmark.py
           if-no-files-found: error
           retention-days: 7
