@@ -1,0 +1,134 @@
+name: Syntavra Bounded Sandbox Integration
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: syntavra-bounded-sandbox-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref || github.ref_name }}
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Integrate bounded process transport
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          def patch(path_value: str, changes: tuple[tuple[str, str, str], ...]) -> None:
+              path = Path(path_value)
+              source = path.read_text(encoding="utf-8")
+              for old, new, label in changes:
+                  count = source.count(old)
+                  if count != 1:
+                      raise SystemExit(f"{path}:{label}: expected one anchor, found {count}")
+                  source = source.replace(old, new, 1)
+              path.write_text(source, encoding="utf-8")
+
+          patch(
+              "syntavra_runtime/execution_sandbox.py",
+              (
+                  (
+                      "from dataclasses import asdict, dataclass, field\n",
+                      "from dataclasses import asdict, dataclass, field, replace\n",
+                      "dataclass replace import",
+                  ),
+                  (
+                      "from typing import Any, Mapping, Sequence\n\n\n_SECRET_MARKERS",
+                      "from typing import Any, Mapping, Sequence\n\nfrom .bounded_process import run_bounded_process, terminate_process_tree\n\n\n_SECRET_MARKERS",
+                      "bounded transport import",
+                  ),
+                  (
+                      '''    allow_child_processes: bool = True\n    strict_native: bool = False\n    environment_allowlist: tuple[str, ...] = ("PATH", "HOME", "USER", "USERNAME", "TMP", "TEMP", "TMPDIR", "LANG", "LC_ALL", "SYSTEMROOT", "COMSPEC")\n''',
+                      '''    allow_child_processes: bool = True\n    strict_native: bool = False\n    max_stdout_bytes: int = 32 * 1024 * 1024\n    max_stderr_bytes: int = 8 * 1024 * 1024\n    environment_allowlist: tuple[str, ...] = ("PATH", "HOME", "USER", "USERNAME", "TMP", "TEMP", "TMPDIR", "LANG", "LC_ALL", "SYSTEMROOT", "COMSPEC")\n''',
+                      "policy output limits",
+                  ),
+                  (
+                      '''            allow_child_processes=self.allow_child_processes,\n            strict_native=self.strict_native,\n            environment_allowlist=self.environment_allowlist,\n''',
+                      '''            allow_child_processes=self.allow_child_processes,\n            strict_native=self.strict_native,\n            max_stdout_bytes=max(0, int(self.max_stdout_bytes)),\n            max_stderr_bytes=max(0, int(self.max_stderr_bytes)),\n            environment_allowlist=self.environment_allowlist,\n''',
+                      "normalized output limits",
+                  ),
+                  (
+                      '''    exit_code: int\n    timed_out: bool\n    stdout: str\n''',
+                      '''    exit_code: int\n    timed_out: bool\n    output_limit_exceeded: bool\n    stdout_bytes_seen: int\n    stderr_bytes_seen: int\n    stdout: str\n''',
+                      "receipt output fields",
+                  ),
+                  (
+                      '''    def ok(self) -> bool:\n        return self.exit_code == 0 and not self.timed_out\n''',
+                      '''    def ok(self) -> bool:\n        return self.exit_code == 0 and not self.timed_out and not self.output_limit_exceeded\n''',
+                      "receipt success rule",
+                  ),
+                  (
+                      '''    def backend(self, policy: SandboxPolicy) -> SandboxBackend:\n        system = platform.system().casefold()\n        if system == "linux":\n            return self._linux_backend(policy)\n        if system == "darwin":\n            return self._macos_backend(policy)\n        if system == "windows":\n            return self._windows_backend(policy)\n        return SandboxBackend(\n            name="portable-process-boundary",\n            platform=system or "unknown",\n            available=False,\n            enforced=("cwd-boundary", "environment-filter", "timeout"),\n            unsupported=("native-isolation",),\n        )\n''',
+                      '''    def backend(self, policy: SandboxPolicy) -> SandboxBackend:\n        system = platform.system().casefold()\n        if system == "linux":\n            selected = self._linux_backend(policy)\n        elif system == "darwin":\n            selected = self._macos_backend(policy)\n        elif system == "windows":\n            selected = self._windows_backend(policy)\n        else:\n            selected = SandboxBackend(\n                name="portable-process-boundary",\n                platform=system or "unknown",\n                available=False,\n                enforced=("cwd-boundary", "environment-filter", "timeout"),\n                unsupported=("native-isolation",),\n            )\n        if not policy.allow_child_processes and "child-process-blocking" not in selected.enforced:\n            unsupported = tuple(dict.fromkeys((*selected.unsupported, "child-process-blocking")))\n            detail = (selected.detail + "; " if selected.detail else "") + "backend cannot prove child-process prevention"\n            selected = replace(selected, unsupported=unsupported, detail=detail)\n        return selected\n''',
+                      "honest child process policy",
+                  ),
+                  (
+                      '''    @staticmethod\n    def _terminate(process: subprocess.Popen[bytes]) -> None:\n        if process.poll() is not None:\n            return\n        if os.name == "nt":\n            subprocess.run(["taskkill", "/PID", str(process.pid), "/T", "/F"], capture_output=True, check=False)\n        else:\n            try:\n                os.killpg(process.pid, signal.SIGKILL)\n            except ProcessLookupError:\n                pass\n        try:\n            process.wait(timeout=5)\n        except subprocess.TimeoutExpired:\n            process.kill()\n''',
+                      '''    @staticmethod\n    def _terminate(process: subprocess.Popen[bytes]) -> None:\n        terminate_process_tree(process)\n''',
+                      "shared process termination",
+                  ),
+                  (
+                      '''        process = subprocess.Popen(\n            argv,\n            cwd=selected_cwd,\n            env=env,\n            stdin=subprocess.PIPE if input_bytes is not None else subprocess.DEVNULL,\n            stdout=subprocess.PIPE,\n            stderr=subprocess.PIPE,\n            start_new_session=os.name != "nt",\n            creationflags=creationflags,\n            preexec_fn=self._limit_resources(normalized) if os.name != "nt" else None,\n        )\n        timed_out = False\n        try:\n            stdout, stderr = process.communicate(input=input_bytes, timeout=normalized.timeout_seconds)\n        except subprocess.TimeoutExpired:\n            timed_out = True\n            self._terminate(process)\n            stdout, stderr = process.communicate()\n        duration = (time.monotonic() - started) * 1000.0\n''',
+                      '''        result = run_bounded_process(\n            argv,\n            cwd=str(selected_cwd),\n            environment=env,\n            input_bytes=input_bytes,\n            timeout_seconds=normalized.timeout_seconds,\n            stdout_limit=normalized.max_stdout_bytes,\n            stderr_limit=normalized.max_stderr_bytes,\n            creationflags=creationflags,\n            start_new_session=os.name != "nt",\n            preexec_fn=self._limit_resources(normalized) if os.name != "nt" else None,\n        )\n        stdout = result.stdout\n        stderr = result.stderr\n        duration = result.duration_ms\n''',
+                      "bounded process execution",
+                  ),
+                  (
+                      '''            "exit_code": int(process.returncode if process.returncode is not None else -1),\n            "timed_out": timed_out,\n            "stdout_sha256": _hash(stdout),\n''',
+                      '''            "exit_code": result.exit_code,\n            "timed_out": result.timed_out,\n            "output_limit_exceeded": result.output_limit_exceeded,\n            "stdout_bytes_seen": result.stdout_bytes_seen,\n            "stderr_bytes_seen": result.stderr_bytes_seen,\n            "stdout_sha256": _hash(stdout),\n''',
+                      "receipt body output flags",
+                  ),
+                  (
+                      '''            timed_out=timed_out,\n            stdout=stdout.decode("utf-8", errors="replace"),\n''',
+                      '''            timed_out=result.timed_out,\n            output_limit_exceeded=result.output_limit_exceeded,\n            stdout_bytes_seen=result.stdout_bytes_seen,\n            stderr_bytes_seen=result.stderr_bytes_seen,\n            stdout=stdout.decode("utf-8", errors="replace"),\n''',
+                      "receipt construction output flags",
+                  ),
+                  (
+                      '''                "allow_child_processes": normalized.allow_child_processes,\n                "strict_native": normalized.strict_native,\n''',
+                      '''                "allow_child_processes": normalized.allow_child_processes,\n                "strict_native": normalized.strict_native,\n                "max_stdout_bytes": normalized.max_stdout_bytes,\n                "max_stderr_bytes": normalized.max_stderr_bytes,\n''',
+                      "receipt policy limits",
+                  ),
+              ),
+          )
+
+          patch(
+              "syntavra_runtime/language_services.py",
+              (
+                  (
+                      '''                strict_native=self.manifest.strict_native,\n                allow_child_processes=False,\n                network_hosts=(),\n''',
+                      '''                strict_native=self.manifest.strict_native,\n                allow_child_processes=False,\n                network_hosts=(),\n                max_stdout_bytes=self.manifest.max_output_bytes,\n                max_stderr_bytes=min(self.manifest.max_output_bytes, 2 * 1024 * 1024),\n''',
+                      "language service broker limits",
+                  ),
+              ),
+          )
+          PY
+
+      - name: Validate bounded sandbox tests
+        run: |
+          python -m compileall -q syntavra_runtime/bounded_process.py syntavra_runtime/execution_sandbox.py syntavra_runtime/language_services.py
+          python -m unittest tests.runtime.test_bounded_process tests.runtime.test_language_services tests.runtime.test_provider_proxy_security
+
+      - name: Commit bounded sandbox integration
+        env:
+          HEAD_BRANCH: ${{ github.event.pull_request.head.ref || github.ref_name }}
+        run: |
+          if git diff --quiet -- syntavra_runtime/execution_sandbox.py syntavra_runtime/language_services.py; then
+            echo "No bounded sandbox changes required."
+            exit 0
+          fi
+          git config user.name "syntavra-security-bot"
+          git config user.email "syntavra-security-bot@users.noreply.github.com"
+          git add syntavra_runtime/execution_sandbox.py syntavra_runtime/language_services.py
+          git commit -m "enforce bounded sandbox process output"
+          git push origin "HEAD:${HEAD_BRANCH}"
