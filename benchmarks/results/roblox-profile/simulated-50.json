@@ -12,18 +12,20 @@
     "studio_bridge": "1.0.0-simulated"
   },
   "failure_categories": {},
-  "hardware": "x86_64",
-  "latency_p50": 5.4147600000078455,
-  "latency_p95": 5.938624999998865,
+  "hardware": "not-recorded",
+  "latency_p50": null,
+  "latency_p95": null,
   "limitations": [
     "All external Roblox/Studio engines are simulated",
-    "No provider billing or competitor execution was measured"
+    "No provider billing or competitor execution was measured",
+    "Deterministic committed receipt omits volatile latency and environment measurements"
   ],
   "maturity": "SIMULATED_VERIFIED",
+  "measurement_scope": "DETERMINISTIC_SIMULATED_CORRECTNESS_ONLY",
   "mode": "simulated",
   "model_versions": {},
-  "operating_system": "Linux-6.17.0-1020-azure-x86_64-with-glibc2.39",
-  "python_version": "3.13.14",
+  "operating_system": "not-recorded",
+  "python_version": "not-recorded",
   "random_seed": 1337,
   "request_count": 100,
   "route_accuracy": 50,
