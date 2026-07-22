@@ -18,6 +18,10 @@ permissions:
   id-token: write
   attestations: write
 
+concurrency:
+  group: syntavra-portable-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     strategy:
@@ -70,9 +74,9 @@ jobs:
           import hashlib
           import os
           from pathlib import Path
-          asset = Path(f"syntavra-0.0.1-{os.environ['SYNTAVRA_PLATFORM']}-{os.environ['SYNTAVRA_ARCH']}{os.environ['SYNTAVRA_EXTENSION']}")
-          digest = hashlib.sha256(asset.read_bytes()).hexdigest()
-          asset.with_name(asset.name + ".sha256").write_text(f"{digest}  {asset.name}\n", encoding="utf-8")
+          asset=Path(f"syntavra-0.0.1-{os.environ['SYNTAVRA_PLATFORM']}-{os.environ['SYNTAVRA_ARCH']}{os.environ['SYNTAVRA_EXTENSION']}")
+          digest=hashlib.sha256(asset.read_bytes()).hexdigest()
+          asset.with_name(asset.name + '.sha256').write_text(f"{digest}  {asset.name}\n", encoding='utf-8')
           PY
         env:
           SYNTAVRA_PLATFORM: ${{ matrix.platform }}
@@ -99,14 +103,14 @@ jobs:
           fi
           python - <<'PY'
           import json
-          version=json.load(open("portable-version.json", encoding="utf-8"))
-          platform=json.load(open("portable-platform.json", encoding="utf-8"))
-          identity=version["identity"]
-          assert identity["version"] == "0.0.1", identity
-          assert identity["channel"] == "pre-release", identity
-          assert platform["product"] == "Syntavra", platform
-          assert platform["version"] == "0.0.1", platform
-          assert platform["channel"] == "pre-release", platform
+          version=json.load(open('portable-version.json', encoding='utf-8'))
+          platform=json.load(open('portable-platform.json', encoding='utf-8'))
+          identity=version['identity']
+          assert identity['version'] == '0.0.1', identity
+          assert identity['channel'] == 'pre-release', identity
+          assert platform['product'] == 'Syntavra', platform
+          assert platform['version'] == '0.0.1', platform
+          assert platform['channel'] == 'pre-release', platform
           PY
       - name: Upload portable diagnostics
         if: failure()
