@@ -14,7 +14,6 @@ from .artifacts import (
     OutputFirewall,
 )
 from .semantic_intelligence import IncrementalCodeIntelligenceGraph
-from .semantic_services import LanguageServiceRegistry, SemanticIndexImporter
 from .runtime_evidence import RuntimeEvidenceGraph
 from .session_memory import SessionMemory
 from .capability_security import CapabilityDecision, CapabilitySecurity
@@ -44,8 +43,6 @@ class SyntavraPlatform:
         self.context = ContextCompiler(self.artifacts)
         self.graph = IncrementalCodeIntelligenceGraph(self.state_root / "semantic-graph.sqlite3")
         self.runtime_evidence = RuntimeEvidenceGraph(self.state_root / "runtime-evidence.sqlite3")
-        self.language_services = LanguageServiceRegistry()
-        self.semantic_importer = SemanticIndexImporter(self.runtime_evidence)
         project_id = sha256_bytes(str(self.project).encode("utf-8"))
         self.memory = SessionMemory(self.state_root / "session-memory.sqlite3", project_id=project_id)
         self.security = CapabilitySecurity(self.state_root / "security")
@@ -73,7 +70,7 @@ class SyntavraPlatform:
             "artifacts": self.artifacts.stats(),
             "semantic_graph": self.graph.stats(),
             "runtime_evidence": self.runtime_evidence.stats(),
-            "language_services": self.language_services.status(),
+            "language_platform": self.graph.language_status(self.project),
             "memory": self.memory.stats(),
             "headless": self.headless.stats(),
             "sandbox": self.sandbox.health(self.project),
@@ -84,7 +81,10 @@ class SyntavraPlatform:
                 "pre_context_output_firewall": True,
                 "content_addressed_exact_recovery": True,
                 "incremental_semantic_graph": True,
-                "lsp_scip_lsif_services": True,
+                "universal_future_language_fallback": True,
+                "sandboxed_language_analyzers": True,
+                "generic_hash_pinned_lsp": True,
+                "atomic_lsif_scip_import": True,
                 "runtime_evidence_graph": True,
                 "multi_view_session_memory": True,
                 "signed_single_use_capabilities": True,
@@ -104,14 +104,14 @@ class SyntavraPlatform:
         artifact_check = self.artifacts.verify()
         adapter_check = AdapterRegistry.validate()
         sandbox = self.sandbox.health(self.project)
-        language_services = self.language_services.status()
+        language_platform = self.graph.language_status(self.project)
         return {
             "ok": artifact_check["ok"] and adapter_check["ok"],
             "artifact_integrity": artifact_check,
             "adapters": adapter_check,
             "semantic_graph": self.graph.stats(),
             "runtime_evidence": self.runtime_evidence.stats(),
-            "language_services": language_services,
+            "language_platform": language_platform,
             "memory": self.memory.stats(),
             "headless": self.headless.stats(),
             "sandbox": sandbox,
@@ -132,7 +132,10 @@ def manifest() -> dict[str, Any]:
             "artifact-store",
             "semantic-intelligence",
             "runtime-evidence",
-            "language-services",
+            "universal-language-platform",
+            "sandboxed-language-services",
+            "generic-lsp-bridge",
+            "semantic-index-import",
             "session-memory",
             "capability-security",
             "execution-sandbox",
@@ -170,13 +173,11 @@ __all__ = [
     "HardenedSandboxBroker",
     "IncrementalCodeIntelligenceGraph",
     "InteractiveConsole",
-    "LanguageServiceRegistry",
     "NativeSandboxBroker",
     "OutputFirewall",
     "ReliabilityLaboratory",
     "RuntimeEvidenceGraph",
     "SecretlessProviderGateway",
-    "SemanticIndexImporter",
     "SessionMemory",
     "SyntavraPlatform",
     "manifest",

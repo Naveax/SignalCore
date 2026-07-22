@@ -610,6 +610,30 @@ class IncrementalCodeIntelligenceGraph:
             **self.stats(),
         }
 
+    def language_status(self, repository_root: Path | None = None) -> dict[str, Any]:
+        if repository_root is not None:
+            root = repository_root.resolve(strict=True)
+            self.languages.discover_manifests(root)
+            self.language_services.discover(root)
+            self.lsp_services.discover(root)
+        language_inventory = self.languages.inventory()
+        analyzer_inventory = self.language_services.inventory()
+        lsp_inventory = self.lsp_services.inventory()
+        index_inventory = self.semantic_indexes.stats()
+        return {
+            "ok": True,
+            "universal_text_fallback": True,
+            "language_registry": language_inventory,
+            "sandboxed_analyzers": analyzer_inventory,
+            "lsp_services": lsp_inventory,
+            "semantic_indexes": index_inventory,
+            "evidence_levels": ["lexical", "syntax", "semantic"],
+            "claim_boundary": (
+                "unknown and future text languages remain navigable; exact type, call, implementation and override "
+                "claims require validated parser, analyzer, LSP, LSIF or SCIP evidence"
+            ),
+        }
+
     def import_semantic_index(
         self,
         index_path: Path,
