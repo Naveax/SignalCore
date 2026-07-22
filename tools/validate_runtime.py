@@ -31,7 +31,13 @@ REQUIRED = [ROOT / "syntavra_runtime" / name for name in (
     "job_scheduler.py", "policy_rollout.py", "streaming.py", "unified_cli.py",
     "release_identity.py", "integration_matrix.py", "zero_friction.py",
     "semantic_structure.py", "paired_benchmark.py", "infinite_context.py",
-    "public_proof.py", "prerelease_cli.py",
+    "public_proof.py", "prerelease_cli.py", "platform.py", "platform_cli.py",
+    "artifacts.py", "semantic_intelligence.py", "semantic_services.py",
+    "runtime_evidence.py", "session_memory.py", "capability_security.py",
+    "execution_sandbox.py", "sandbox_runtime.py", "autonomous_agent.py",
+    "adapter_platform.py", "adapter_runtime.py", "secretless_gateway.py",
+    "headless_runtime.py", "interactive_console.py", "reliability_lab.py",
+    "update_manager.py",
 )]
 CONTROLS = {name: True for name in (
     "same_prompt", "same_model", "same_reasoning", "same_repository", "same_verifier",
@@ -62,7 +68,7 @@ def main() -> int:
     checks.append(("integration_targets", integration["ok"] and integration["providers"] >= 10 and integration["frameworks"] >= 15 and integration["hosts"] >= 18))
     tasks = CodingCorpusPlanner.generate_slots()
     schedule = PairedSchedule(tasks, default_arms(), repetitions=30)
-    checks.append(("signalbench2_schedule", len(tasks) == 150 and schedule.count == 27000))
+    checks.append(("signalbench_schedule", len(tasks) == 150 and schedule.count == 27000))
     context_reports = UnboundedContextCoordinator.stress_tiers(active_budget=4096)
     checks.append(("unbounded_context_tiers", tuple(row["tier_tokens"] for row in context_reports) == CONTEXT_TIERS and all(row["within_budget"] and row["all_referenced"] and not row["forced_restart"] for row in context_reports)))
     with tempfile.TemporaryDirectory() as temp:
@@ -78,7 +84,13 @@ def main() -> int:
             "host_installer", "zero_friction", "secure_sandbox", "reversible_compression",
             "long_session_runtime", "unbounded_context", "output_governor", "signalbench", "paired_benchmark",
         ))))
-    result = {"ok": all(passed for _, passed in checks), "version": VERSION, "release_channel": CHANNEL, "checks": [{"name": name, "passed": passed} for name, passed in checks]}
+    result = {
+        "ok": all(passed for _, passed in checks),
+        "product": "Syntavra",
+        "version": VERSION,
+        "release_channel": CHANNEL,
+        "checks": [{"name": name, "passed": passed} for name, passed in checks],
+    }
     print(json.dumps(result, indent=2, sort_keys=True))
     return 0 if result["ok"] else 2
 
