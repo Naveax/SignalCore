@@ -1,2 +1,0 @@
-[console_scripts]
-syntavra = syntavra_runtime.unified_cli:main
