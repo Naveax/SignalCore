@@ -14,6 +14,7 @@ from .artifacts import (
     OutputFirewall,
 )
 from .semantic_intelligence import IncrementalCodeIntelligenceGraph
+from .python_semantic_resolution import install as _install_python_semantic_resolution
 from .semantic_services import (
     LanguageServiceRegistry as CompatibilityLanguageServiceRegistry,
     SemanticIndexImporter,
@@ -30,6 +31,11 @@ from .headless_runtime import HeadlessRuntime
 from .interactive_console import InteractiveConsole
 from .reliability_lab import ReliabilityLaboratory
 from .update_manager import DistributionManager
+
+# Install the evidence-aware parser on the shared graph class. This runs for the
+# normal package and for portable entry points that import the platform module.
+_install_python_semantic_resolution(IncrementalCodeIntelligenceGraph)
+del _install_python_semantic_resolution
 
 # Stable public names. The compatibility registry delegates language discovery to
 # the universal platform and never revives the removed executable whitelist.
