@@ -9,6 +9,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: syntavra-pre-release-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 env:
   PYTHONDONTWRITEBYTECODE: "1"
   PYTHONWARNINGS: "error::ResourceWarning"
@@ -58,11 +62,11 @@ jobs:
       - name: Existing profile compatibility tests
         run: python -m pytest tests/test_platforms.py tests/test_roblox_profile_gate.py -q
       - name: Runtime package validation
-        run: python tools/validate_runtime.py
+        run: python -m tools.validate_runtime
       - name: Package integrity validation
-        run: python tools/validate.py
+        run: python -m tools.validate
       - name: Fail-closed release smoke
-        run: python tools/validate_release.py --profile 5x --smoke --output release-smoke.json
+        run: python -m tools.validate_release --profile 5x --smoke --output release-smoke.json
       - name: Canonical four-command workflow smoke
         shell: bash
         run: |
@@ -100,6 +104,7 @@ jobs:
           assert version['identity']['channel'] == 'pre-release'
           assert setup['ok'] is True and setup['dry_run'] is False
           assert status['primary_workflow'] == ['setup', 'status', 'run', 'prove']
+          assert status['platform']['product'] == 'Syntavra'
           assert platform['product'] == 'Syntavra'
           assert platform['version'] == '0.0.1'
           assert platform['channel'] == 'pre-release'
