@@ -9,6 +9,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: syntavra-package-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   package:
     strategy:
@@ -28,7 +32,7 @@ jobs:
         run: python -m compileall -q syntavra_runtime signalcore_runtime skills/syntavra/scripts tools tests benchmarks
       - name: Validate package and locked identity
         run: |
-          python tools/validate.py
+          python -m tools.validate
           python -m syntavra_runtime version
           python -m syntavra_runtime run platform-manifest
       - name: Run complete test suite
