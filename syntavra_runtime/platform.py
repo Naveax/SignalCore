@@ -45,8 +45,9 @@ if not getattr(IncrementalCodeIntelligenceGraph, "_syntavra_language_status_comp
     def _language_status_compat(
         self: IncrementalCodeIntelligenceGraph,
         repository_root: Path | None = None,
+        _core: Any = _language_status_core,
     ) -> dict[str, Any]:
-        value = _language_status_core(self, repository_root)
+        value = _core(self, repository_root)
         registry = value.get("language_registry", {})
         analyzers = value.get("sandboxed_analyzers", {})
         lsp = value.get("lsp_services", {})
