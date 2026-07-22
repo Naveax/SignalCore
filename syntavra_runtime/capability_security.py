@@ -1,5 +1,6 @@
 from .platform_common import *
 
+
 @dataclass(frozen=True)
 class CapabilityDecision:
     allowed: bool
@@ -21,13 +22,23 @@ class CapabilitySecurity:
     def __init__(self, state_root: Path):
         self.state_root = state_root
         state_root.mkdir(parents=True, exist_ok=True)
-        self.key_path = state_root / "capability-v2.key"
+        self.key_path = state_root / "capability.key"
+        legacy_key = state_root / "capability-v2.key"
+        if not self.key_path.exists() and legacy_key.exists():
+            os.replace(legacy_key, self.key_path)
         if not self.key_path.exists():
             temporary = self.key_path.with_suffix(".tmp")
             temporary.write_bytes(secrets.token_bytes(32))
             os.chmod(temporary, 0o600)
             os.replace(temporary, self.key_path)
-        self.db_path = state_root / "capability-v2.sqlite3"
+        self.db_path = state_root / "capability.sqlite3"
+        legacy_db = state_root / "capability-v2.sqlite3"
+        if not self.db_path.exists() and legacy_db.exists():
+            os.replace(legacy_db, self.db_path)
+            for suffix in ("-wal", "-shm"):
+                legacy_sidecar = Path(str(legacy_db) + suffix)
+                if legacy_sidecar.exists():
+                    os.replace(legacy_sidecar, Path(str(self.db_path) + suffix))
         with _connect(self.db_path) as db:
             db.execute("CREATE TABLE IF NOT EXISTS consumed (nonce TEXT PRIMARY KEY, consumed_at TEXT NOT NULL)")
 
@@ -35,13 +46,17 @@ class CapabilitySecurity:
     def category(cls, tool: str) -> str:
         leaf = tool.casefold().replace("-", ".").replace("_", ".").rsplit(".", 1)[-1]
         for prefix in cls.READ_PREFIXES:
-            if leaf.startswith(prefix): return "read"
+            if leaf.startswith(prefix):
+                return "read"
         for prefix in cls.WRITE_PREFIXES:
-            if leaf.startswith(prefix): return "write"
+            if leaf.startswith(prefix):
+                return "write"
         for prefix in cls.EXEC_PREFIXES:
-            if leaf.startswith(prefix): return "execute"
+            if leaf.startswith(prefix):
+                return "execute"
         for prefix in cls.NETWORK_PREFIXES:
-            if leaf.startswith(prefix): return "network"
+            if leaf.startswith(prefix):
+                return "network"
         return "unknown"
 
     def decide(
@@ -144,4 +159,3 @@ class CapabilitySecurity:
             if consume and body.get("single_use", True):
                 db.execute("INSERT INTO consumed VALUES(?,?)", (body["nonce"], _now()))
         return {"ok": True, "reason": "verified", "capability": body}
-
