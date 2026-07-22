@@ -7,19 +7,25 @@ on:
     paths:
       - tools/apply_syntavra_unification.py
       - .github/workflows/unified-dominance-migration.yml
+  pull_request:
+    branches:
+      - main
+    paths:
+      - tools/apply_syntavra_unification.py
+      - .github/workflows/unified-dominance-migration.yml
 
 permissions:
   contents: write
 
 jobs:
   migrate:
-    if: github.actor != 'github-actions[bot]'
+    if: github.actor != 'github-actions[bot]' && (github.event_name != 'pull_request' || github.head_ref == 'agent/unified-dominance')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          ref: ${{ github.ref_name }}
+          ref: ${{ github.event_name == 'pull_request' && github.head_ref || github.ref_name }}
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -53,6 +59,8 @@ jobs:
         run: python tools/refresh_manifest.py
       - name: Commit migrated repository
         shell: bash
+        env:
+          TARGET_BRANCH: ${{ github.event_name == 'pull_request' && github.head_ref || github.ref_name }}
         run: |
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
@@ -62,4 +70,4 @@ jobs:
             exit 0
           fi
           git commit -m 'establish Syntavra unified product identity'
-          git push origin HEAD:${{ github.ref_name }}
+          git push origin HEAD:"$TARGET_BRANCH"
