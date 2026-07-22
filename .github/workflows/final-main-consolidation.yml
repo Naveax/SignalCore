@@ -119,8 +119,10 @@ jobs:
           npm ci --prefix sdk/typescript --ignore-scripts --no-audit --no-fund
           npm run ci --prefix sdk/typescript
 
-          changed="$(git diff --name-only)"
-          test "$changed" = '.github/workflows/final-main-consolidation.yml'
+          staged="$(git diff --cached --name-only)"
+          unstaged="$(git diff --name-only)"
+          test "$staged" = '.github/workflows/final-main-consolidation.yml'
+          test -z "$unstaged"
 
       - name: Commit the validated final tree to main
         id: final
@@ -166,6 +168,7 @@ jobs:
           echo "deleted=$deleted" >> "$GITHUB_OUTPUT"
 
       - name: Upload verified backup and cleanup evidence
+        if: always() && steps.backup.outcome == 'success'
         uses: actions/upload-artifact@v4
         with:
           name: syntavra-single-branch-cleanup-${{ github.run_id }}
@@ -174,6 +177,7 @@ jobs:
           retention-days: 90
 
       - name: Publish finalization receipt
+        if: success()
         env:
           GH_TOKEN: ${{ github.token }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
