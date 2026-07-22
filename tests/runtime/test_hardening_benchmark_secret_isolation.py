@@ -3,6 +3,7 @@ from __future__ import annotations
 import importlib.util
 import io
 import json
+import sys
 import unittest
 from contextlib import redirect_stdout
 from pathlib import Path
@@ -12,11 +13,16 @@ class HardeningBenchmarkSecretIsolationTests(unittest.TestCase):
     @staticmethod
     def load_module():
         path = Path(__file__).resolve().parents[2] / "benchmarks" / "hardening_v3_benchmark.py"
-        spec = importlib.util.spec_from_file_location("syntavra_hardening_v3_benchmark", path)
+        module_name = "syntavra_hardening_v3_benchmark"
+        spec = importlib.util.spec_from_file_location(module_name, path)
         if spec is None or spec.loader is None:
             raise RuntimeError("unable to load hardening benchmark")
         module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
+        sys.modules[module_name] = module
+        try:
+            spec.loader.exec_module(module)
+        finally:
+            sys.modules.pop(module_name, None)
         return module
 
     def test_report_contains_only_constant_security_contract_status(self) -> None:
