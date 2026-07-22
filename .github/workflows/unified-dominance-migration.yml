@@ -55,6 +55,8 @@ jobs:
           PY
       - name: Installer tests
         run: npm test
+      - name: Restore protected workflow tree
+        run: git restore --source=HEAD -- .github/workflows
       - name: Refresh repository manifest
         run: python tools/refresh_manifest.py
       - name: Commit migrated repository
@@ -62,10 +64,6 @@ jobs:
         env:
           TARGET_BRANCH: ${{ github.event_name == 'pull_request' && github.head_ref || github.ref_name }}
         run: |
-          # The migration script removes its one-time workflow from the target tree.
-          # Restore it for this commit because GITHUB_TOKEN cannot modify workflow files.
-          # It will be removed through the GitHub contents API after migration lands.
-          git restore --source=HEAD -- .github/workflows/unified-dominance-migration.yml
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
           git add -A
