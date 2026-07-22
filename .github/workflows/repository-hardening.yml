@@ -55,8 +55,24 @@ jobs:
         working-directory: sdk/typescript
         run: npm run check
       - name: Build SDK
+        id: sdk-build
+        continue-on-error: true
         working-directory: sdk/typescript
-        run: npm run build
+        run: npm run build > build.log 2>&1
+      - name: Upload SDK build diagnostics
+        if: steps.sdk-build.outcome == 'failure'
+        uses: actions/upload-artifact@v4
+        with:
+          name: typescript-build-${{ matrix.node }}
+          path: sdk/typescript/build.log
+          if-no-files-found: error
+          retention-days: 7
+      - name: Enforce SDK build success
+        if: steps.sdk-build.outcome == 'failure'
+        working-directory: sdk/typescript
+        run: |
+          cat build.log
+          exit 1
       - name: Test receipt validation
         working-directory: sdk/typescript
         run: node --test test/receipts.test.mjs
