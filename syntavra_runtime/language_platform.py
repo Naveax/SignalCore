@@ -65,6 +65,7 @@ class LanguageDetection:
     generated: bool = False
     minified: bool = False
     diagnostics: tuple[str, ...] = ()
+    candidates: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -200,6 +201,19 @@ _BUILTIN_DESCRIPTORS: tuple[LanguageDescriptor, ...] = (
 _MODEL_LANGUAGE_RE = re.compile(r"(?:^|\s)(?:ft|filetype|mode)\s*[=:]\s*([A-Za-z0-9_+.-]+)", re.IGNORECASE)
 _SHEBANG_RE = re.compile(r"^#!\s*(?:/usr/bin/env\s+)?([^\s/]+)(?:\s|$)")
 _GENERATED_RE = re.compile(r"(?i)(?:generated (?:file|code)|do not edit|auto[- ]generated|machine generated)")
+_CONTENT_PROBES: dict[str, tuple[re.Pattern[str], ...]] = {
+    "objective-c": (re.compile(r"(?m)^\s*#import\s+[<\"]"), re.compile(r"(?m)^\s*@(?:interface|implementation|protocol|end)\b")),
+    "matlab": (re.compile(r"(?m)^\s*function\s+(?:\[[^]]+\]\s*=\s*)?[A-Za-z_]"), re.compile(r"(?m)^\s*%")),
+    "octave": (re.compile(r"(?m)^\s*(?:pkg\s+load|endfunction|unwind_protect)\b"),),
+    "opencl": (re.compile(r"\b__(?:kernel|global|local|constant)\b"), re.compile(r"\bget_global_id\s*\(")),
+    "common-lisp": (re.compile(r"(?im)^\s*\((?:defun|defmacro|defclass|defpackage|in-package)\b"),),
+    "verilog": (re.compile(r"(?im)^\s*(?:module|endmodule|always(?:_ff|_comb)?|wire|reg)\b"),),
+    "coq": (re.compile(r"(?im)^\s*(?:Theorem|Lemma|Definition|Inductive|Fixpoint|Proof|Qed)\b"),),
+    "assembly": (re.compile(r"(?im)^\s*(?:section|global|extern|mov|push|pop|jmp|call|ldr|str|addi)\b"),),
+    "pascal": (re.compile(r"(?im)^\s*(?:program|unit|interface|implementation|procedure|function)\b"), re.compile(r"(?im)\bbegin\b.*\bend\.")),
+    "c": (re.compile(r"(?m)^\s*#include\s+[<\"](?:stdio|stdlib|string|stdint)\.h"),),
+    "cpp": (re.compile(r"(?m)^\s*#include\s+[<\"](?:iostream|vector|string|memory|algorithm)>"), re.compile(r"\b(?:namespace|template|constexpr|std::)\b")),
+}
 
 
 class LanguageRegistry:
@@ -220,14 +234,24 @@ class LanguageRegistry:
     def register_descriptor(self, descriptor: LanguageDescriptor) -> None:
         language_id = descriptor.language_id.casefold()
         self._descriptors[language_id] = descriptor
+
+        def add(index: dict[str, list[str]], key: str) -> None:
+            bucket = index.setdefault(key.casefold(), [])
+            if language_id in bucket:
+                bucket.remove(language_id)
+            if descriptor.source.startswith("manifest:"):
+                bucket.insert(0, language_id)
+            else:
+                bucket.append(language_id)
+
         for suffix in descriptor.suffixes:
-            self._suffixes.setdefault(suffix.casefold(), []).append(language_id)
+            add(self._suffixes, suffix)
         for filename in descriptor.filenames:
-            self._filenames.setdefault(filename.casefold(), []).append(language_id)
+            add(self._filenames, filename)
         for token in descriptor.shebangs:
-            self._shebangs.setdefault(token.casefold(), []).append(language_id)
+            add(self._shebangs, token)
         for alias in descriptor.aliases:
-            self._descriptors.setdefault(alias.casefold(), descriptor)
+            self._descriptors[alias.casefold()] = descriptor
 
     def register_adapter(self, adapter: LanguageAdapter) -> None:
         if not isinstance(adapter, LanguageAdapter):
@@ -239,6 +263,9 @@ class LanguageRegistry:
         return self._adapters.get(language_id.casefold())
 
     def discover_entry_points(self) -> None:
+        if os.environ.get("SYNTAVRA_ALLOW_LANGUAGE_PLUGINS", "").casefold() not in {"1", "true", "yes"}:
+            self.diagnostics.append("entry-point-discovery-disabled: explicit SYNTAVRA_ALLOW_LANGUAGE_PLUGINS authorization required")
+            return
         try:
             points = importlib_metadata.entry_points()
             selected = points.select(group="syntavra.languages") if hasattr(points, "select") else points.get("syntavra.languages", ())
@@ -331,6 +358,57 @@ class LanguageRegistry:
         suffixes = [suffix.casefold() for suffix in path.suffixes]
         return ["".join(suffixes[index:]) for index in range(len(suffixes))]
 
+    def _candidate_descriptors(self, language_ids: Iterable[str]) -> list[LanguageDescriptor]:
+        values: dict[str, LanguageDescriptor] = {}
+        for language_id in language_ids:
+            descriptor = self._descriptors.get(language_id.casefold())
+            if descriptor is not None:
+                values[descriptor.language_id] = descriptor
+        return list(values.values())
+
+    @staticmethod
+    def _probe_score(language_id: str, text: str) -> int:
+        return sum(1 for pattern in _CONTENT_PROBES.get(language_id, ()) if pattern.search(text[:256_000]))
+
+    def _resolve_detection(
+        self,
+        language_ids: Iterable[str],
+        *,
+        evidence: str,
+        encoding: str | None,
+        text: str,
+    ) -> LanguageDetection:
+        descriptors = self._candidate_descriptors(language_ids)
+        if not descriptors:
+            raise ValueError("language candidate set is empty")
+        if len(descriptors) == 1:
+            return self._detection(descriptors[0], 1.0 if evidence == "filename" else 0.99, evidence, encoding, text)
+
+        manifest_descriptors = [item for item in descriptors if item.source.startswith("manifest:")]
+        if len(manifest_descriptors) == 1:
+            return self._detection(manifest_descriptors[0], 0.995, f"{evidence}:manifest-override", encoding, text)
+
+        scores = {item.language_id: self._probe_score(item.language_id, text) for item in descriptors}
+        ranked = sorted(scores.items(), key=lambda item: (-item[1], item[0]))
+        if ranked and ranked[0][1] > 0 and (len(ranked) == 1 or ranked[0][1] > ranked[1][1]):
+            descriptor = next(item for item in descriptors if item.language_id == ranked[0][0])
+            confidence = min(0.97, 0.72 + ranked[0][1] * 0.1)
+            return self._detection(descriptor, confidence, f"{evidence}:content-probe", encoding, text)
+
+        candidates = tuple(sorted(item.language_id for item in descriptors))
+        return LanguageDetection(
+            language_id="ambiguous:" + "|".join(candidates),
+            confidence=0.4,
+            evidence=f"{evidence}:ambiguous",
+            capability_level="lexical",
+            descriptor_source="ambiguous",
+            text_encoding=encoding,
+            generated=bool(_GENERATED_RE.search(text[:4096])),
+            minified=self._is_minified(text),
+            diagnostics=("Multiple languages share this identifier; exact semantic claims are disabled until stronger evidence or an adapter is available.",),
+            candidates=candidates,
+        )
+
     def detect(self, path: Path, data: bytes) -> LanguageDetection:
         text, encoding, binary = self.decode_text(data)
         if binary or text is None:
@@ -339,14 +417,12 @@ class LanguageRegistry:
         filename = path.name.casefold()
         candidates = self._filenames.get(filename, [])
         if candidates:
-            descriptor = self._descriptors[candidates[0]]
-            return self._detection(descriptor, 1.0, "filename", encoding, text)
+            return self._resolve_detection(candidates, evidence="filename", encoding=encoding, text=text)
 
         for suffix in self._multi_suffixes(path):
             candidates = self._suffixes.get(suffix, [])
             if candidates:
-                descriptor = self._descriptors[candidates[0]]
-                return self._detection(descriptor, 0.99, f"suffix:{suffix}", encoding, text)
+                return self._resolve_detection(candidates, evidence=f"suffix:{suffix}", encoding=encoding, text=text)
 
         first_line = text.splitlines()[0] if text.splitlines() else ""
         match = _SHEBANG_RE.match(first_line)
@@ -377,6 +453,7 @@ class LanguageRegistry:
             generated=bool(_GENERATED_RE.search(text[:4096])),
             minified=self._is_minified(text),
             diagnostics=("No registered grammar or descriptor; exact semantic claims are disabled.",),
+            candidates=(),
         )
 
     @staticmethod
@@ -406,6 +483,7 @@ class LanguageRegistry:
             text_encoding=encoding,
             generated=bool(_GENERATED_RE.search(text[:4096])),
             minified=LanguageRegistry._is_minified(text),
+            candidates=(descriptor.language_id,),
         )
 
     def inventory(self) -> dict[str, Any]:
@@ -415,6 +493,7 @@ class LanguageRegistry:
             "languages": sorted(unique),
             "adapters": sorted(self._adapters),
             "diagnostics": list(self.diagnostics),
+            "entry_point_plugins_authorized": os.environ.get("SYNTAVRA_ALLOW_LANGUAGE_PLUGINS", "").casefold() in {"1", "true", "yes"},
             "universal_text_fallback": True,
         }
 
