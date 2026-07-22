@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
-SKILL = ROOT / "skills" / "signal-core"
+SKILL = ROOT / "skills" / "syntavra"
 EXPECTED_VERSION = "0.0.1"
 EXPECTED_CHANNEL = "pre-release"
 
@@ -38,26 +38,26 @@ REQUIRED = [
     ROOT / "docs" / "architecture" / "UNIFIED_RUNTIME_V03.md",
     ROOT / "docs" / "architecture" / "UNIFIED_PRODUCTION_CORE_V6.md",
     ROOT / "benchmarks" / "v6_production_core_benchmark.py",
-    ROOT / "signalcore_runtime" / "runtime_pipeline.py",
-    ROOT / "signalcore_runtime" / "config_v6.py",
-    ROOT / "signalcore_runtime" / "crypto.py",
-    ROOT / "signalcore_runtime" / "backup.py",
-    ROOT / "signalcore_runtime" / "identity.py",
-    ROOT / "signalcore_runtime" / "observability.py",
-    ROOT / "signalcore_runtime" / "migrations.py",
-    ROOT / "signalcore_runtime" / "plugin_sdk.py",
-    ROOT / "signalcore_runtime" / "job_scheduler.py",
-    ROOT / "signalcore_runtime" / "policy_rollout.py",
-    ROOT / "signalcore_runtime" / "streaming.py",
-    ROOT / "signalcore_runtime" / "unified_cli.py",
-    ROOT / "signalcore_runtime" / "prerelease_cli.py",
-    ROOT / "signalcore_runtime" / "release_identity.py",
-    ROOT / "signalcore_runtime" / "integration_matrix.py",
-    ROOT / "signalcore_runtime" / "zero_friction.py",
-    ROOT / "signalcore_runtime" / "structural_v2.py",
-    ROOT / "signalcore_runtime" / "signalbench_v2.py",
-    ROOT / "signalcore_runtime" / "infinite_context.py",
-    ROOT / "signalcore_runtime" / "public_proof.py",
+    ROOT / "syntavra_runtime" / "runtime_pipeline.py",
+    ROOT / "syntavra_runtime" / "unified_config.py",
+    ROOT / "syntavra_runtime" / "crypto.py",
+    ROOT / "syntavra_runtime" / "backup.py",
+    ROOT / "syntavra_runtime" / "identity.py",
+    ROOT / "syntavra_runtime" / "observability.py",
+    ROOT / "syntavra_runtime" / "migrations.py",
+    ROOT / "syntavra_runtime" / "plugin_sdk.py",
+    ROOT / "syntavra_runtime" / "job_scheduler.py",
+    ROOT / "syntavra_runtime" / "policy_rollout.py",
+    ROOT / "syntavra_runtime" / "streaming.py",
+    ROOT / "syntavra_runtime" / "unified_cli.py",
+    ROOT / "syntavra_runtime" / "prerelease_cli.py",
+    ROOT / "syntavra_runtime" / "release_identity.py",
+    ROOT / "syntavra_runtime" / "integration_matrix.py",
+    ROOT / "syntavra_runtime" / "zero_friction.py",
+    ROOT / "syntavra_runtime" / "semantic_structure.py",
+    ROOT / "syntavra_runtime" / "paired_benchmark.py",
+    ROOT / "syntavra_runtime" / "infinite_context.py",
+    ROOT / "syntavra_runtime" / "public_proof.py",
     ROOT / "tests" / "runtime" / "test_v001_pre_release_dominance.py",
     ROOT / "docs" / "operations" / "INSTALLER_AND_SANDBOX.md",
     ROOT / "docs" / "benchmark" / "SIGNALBENCH.md",
@@ -68,18 +68,18 @@ REQUIRED = [
     SKILL / "profiles" / "roblox_studio" / "profile.json",
     SKILL / "profiles" / "roblox_studio" / "activation.py",
     ROOT / "ROBLOX_STUDIO_MODE.md",
-    ROOT / "signalcore_runtime" / "cli.py",
-    ROOT / "signalcore_runtime" / "hooks.py",
-    ROOT / "signalcore_runtime" / "mcp_server.py",
-    ROOT / "signalcore_runtime" / "structural_parsers.py",
-    ROOT / "signalcore_runtime" / "installer.py",
-    ROOT / "signalcore_runtime" / "sandbox.py",
-    ROOT / "signalcore_runtime" / "compression.py",
-    ROOT / "signalcore_runtime" / "session_runtime.py",
-    ROOT / "signalcore_runtime" / "output_governor.py",
-    ROOT / "signalcore_runtime" / "signalbench.py",
-    ROOT / "signalcore_runtime" / "bundled_skill" / "SKILL.md",
-    ROOT / "signalcore_runtime" / "bundled_skill" / "hosts.json",
+    ROOT / "syntavra_runtime" / "cli.py",
+    ROOT / "syntavra_runtime" / "hooks.py",
+    ROOT / "syntavra_runtime" / "mcp_server.py",
+    ROOT / "syntavra_runtime" / "structural_parsers.py",
+    ROOT / "syntavra_runtime" / "installer.py",
+    ROOT / "syntavra_runtime" / "sandbox.py",
+    ROOT / "syntavra_runtime" / "compression.py",
+    ROOT / "syntavra_runtime" / "session_runtime.py",
+    ROOT / "syntavra_runtime" / "output_governor.py",
+    ROOT / "syntavra_runtime" / "signalbench.py",
+    ROOT / "syntavra_runtime" / "bundled_skill" / "SKILL.md",
+    ROOT / "syntavra_runtime" / "bundled_skill" / "hosts.json",
     ROOT / "tools" / "validate_runtime.py",
     ROOT / "tools" / "validate_release.py",
 ]
@@ -98,7 +98,7 @@ def _skill_version(text: str) -> str | None:
 
 
 def _source_files() -> list[Path]:
-    roots = [SKILL / "scripts", SKILL / "profiles", ROOT / "signalcore_runtime", ROOT / "tools", ROOT / "benchmarks"]
+    roots = [SKILL / "scripts", SKILL / "profiles", ROOT / "syntavra_runtime", ROOT / "tools", ROOT / "benchmarks"]
     return sorted({path for base in roots if base.exists() for path in base.rglob("*.py")})
 
 
@@ -108,7 +108,7 @@ GENERATED_FILES = {"fusion-release-smoke.json", "release-smoke.json", "platform-
 def _is_generated_path(relative: Path) -> bool:
     parts = relative.parts
     return (
-        bool(parts) and parts[0] in {".git", ".signalcore", "build", "dist"}
+        bool(parts) and parts[0] in {".git", ".syntavra", "build", "dist"}
     ) or any(part in {"__pycache__", ".pytest_cache"} or part.endswith(".egg-info") for part in parts)
 
 
@@ -169,7 +169,7 @@ def main() -> int:
 
     version = (ROOT / "VERSION").read_text(encoding="utf-8").strip()
     skill_text = (SKILL / "SKILL.md").read_text(encoding="utf-8")
-    bundled_skill = (ROOT / "signalcore_runtime" / "bundled_skill" / "SKILL.md").read_text(encoding="utf-8")
+    bundled_skill = (ROOT / "syntavra_runtime" / "bundled_skill" / "SKILL.md").read_text(encoding="utf-8")
     pyproject = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
     marketplace = _json(ROOT / ".claude-plugin" / "marketplace.json")
     gemini = _json(ROOT / "gemini-extension.json")
@@ -191,7 +191,7 @@ def main() -> int:
     checks.append(("version_consistency", all(value == EXPECTED_VERSION for value in versions.values()), json.dumps(versions, sort_keys=True)))
     checks.append(("pre_release_identity", prerelease.get("channel") == EXPECTED_CHANNEL and prerelease.get("publish_as_prerelease") is True and prerelease.get("version_locked") is True and prerelease.get("stable") is False, json.dumps(prerelease, sort_keys=True)))
     checks.append(("pre_alpha_classifier", "Development Status :: 2 - Pre-Alpha" in pyproject.get("project", {}).get("classifiers", []), "PEP 301 pre-alpha"))
-    checks.append(("skill_identity", "name: signal-core" in skill_text and "version_locked: true" in skill_text, "canonical locked skill"))
+    checks.append(("skill_identity", "name: syntavra" in skill_text and "version_locked: true" in skill_text, "canonical locked skill"))
     checks.append(("build_backend", pyproject.get("build-system", {}).get("build-backend") == "setuptools.build_meta", "PEP 517 wheel"))
 
     platforms = _json(SKILL / "data" / "platforms.json")
@@ -210,9 +210,9 @@ def main() -> int:
     forbidden_paths = []
     for path in ROOT.rglob("*"):
         relative = path.relative_to(ROOT)
-        if any(part in {".git", ".signalcore"} for part in relative.parts):
+        if any(part in {".git", ".syntavra"} for part in relative.parts):
             continue
-        if path.name == ".signalcore-direct" or path.name == ".signalcore-transfer" or path.match("payload-*.b64"):
+        if path.name == ".syntavra-direct" or path.name == ".syntavra-transfer" or path.match("payload-*.b64"):
             forbidden_paths.append(str(relative))
     workflow_violations = [str(path.relative_to(ROOT)) for path in (ROOT / ".github" / "workflows").glob("*") if path.is_file() and MATERIALIZER_WORKFLOW.search(path.name)]
     checks.append(("no_transfer_payloads", not forbidden_paths, ", ".join(forbidden_paths)))

@@ -35,9 +35,9 @@ def check_repository() -> dict:
         for name, value in identities.items()
         if value != VERSION
     )
-    if root_package.get("name") != "@signalcore/install":
+    if root_package.get("name") != "@syntavra/install":
         failures.append("missing-installer-package-identity")
-    if sdk_package.get("name") != "@signalcore/client":
+    if sdk_package.get("name") != "@syntavra/sdk":
         failures.append("missing-typescript-client-identity")
     if release.get("channel") != CHANNEL or release.get("version_locked") is not True:
         failures.append("release-policy-not-locked")
@@ -81,7 +81,7 @@ def check_repository() -> dict:
         failures.append("artifact-provenance-not-enforced")
 
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
-    if "npx @signalcore/install" not in readme:
+    if "npx @syntavra/install" not in readme:
         failures.append("one-command-install-not-documented")
     if "0.0.1 / pre-release" not in readme:
         failures.append("version-lock-not-documented")

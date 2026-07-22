@@ -1,0 +1,59 @@
+Metadata-Version: 2.4
+Name: syntavra-runtime
+Version: 0.0.1
+Summary: Pre-release unified AI engineering control plane and coding-agent runtime
+Author: Naveax
+License: MIT
+Project-URL: Repository, https://github.com/Naveax/Syntavra
+Project-URL: Issues, https://github.com/Naveax/Syntavra/issues
+Keywords: ai-agent,coding-agent,semantic-intelligence,context-engineering,mcp,sandbox,exact-recovery
+Classifier: Development Status :: 2 - Pre-Alpha
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.11
+Classifier: Programming Language :: Python :: 3.12
+Classifier: Programming Language :: Python :: 3.13
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Operating System :: OS Independent
+Requires-Python: >=3.11
+Description-Content-Type: text/markdown
+License-File: LICENSE
+License-File: NOTICE
+Requires-Dist: cryptography>=43
+Dynamic: license-file
+
+# Syntavra 0.0.1 — Pre-Release AI Engineering Platform
+
+Syntavra is a local-first control plane and coding-agent runtime that unifies semantic repository intelligence, context and tool-output control, exact session continuity, capability security, provider isolation, adapters, headless execution, recovery and receipt-based benchmarking.
+
+> The only active product identity is **0.0.1 / pre-release**. External superiority, live certification, long-context quality, adoption and production maturity remain evidence-gated.
+
+## Install
+
+```bash
+npx @syntavra/install
+```
+
+Until registry publication:
+
+```bash
+npx github:Naveax/Syntavra
+```
+
+## Product surface
+
+```bash
+syntavra setup
+syntavra status
+syntavra run
+syntavra prove
+```
+
+## Canonical documentation
+
+- `docs/001_PRE_RELEASE.md`
+- `docs/ARCHITECTURE.md`
+- `docs/UNIFIED_PLAN.md`
+- `docs/SECURITY_MODEL.md`
+- `docs/ADAPTER_PLATFORM.md`
+- `docs/SIGNALBENCH.md`
+- `docs/OPERATIONS.md`

@@ -13,7 +13,7 @@ GENERATED_FILES = {"fusion-release-smoke.json", "release-smoke.json", "platform-
 def is_generated_path(relative: Path) -> bool:
     parts = relative.parts
     return (
-        bool(parts) and parts[0] in {".git", ".signalcore", "build", "dist"}
+        bool(parts) and parts[0] in {".git", ".syntavra", "build", "dist"}
     ) or any(part in {"__pycache__", ".pytest_cache"} or part.endswith(".egg-info") for part in parts)
 
 
@@ -39,7 +39,7 @@ def render() -> str:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Regenerate the exact SignalCore repository SHA-256 manifest.")
+    parser = argparse.ArgumentParser(description="Regenerate the exact Syntavra repository SHA-256 manifest.")
     parser.add_argument("--check", action="store_true", help="fail when MANIFEST.sha256 is stale")
     args = parser.parse_args()
     expected = render()

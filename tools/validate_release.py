@@ -11,10 +11,10 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from benchmarks.runtime_v03_benchmark import run as run_internal_benchmark
-from signalcore_runtime.benchmark_harness import TIER_CONFIGS, validate_config
-from signalcore_runtime.claim_governance import decide_claim
-from signalcore_runtime.difficulty import evaluate_configured
-from signalcore_runtime.util import atomic_write_json
+from syntavra_runtime.benchmark_harness import TIER_CONFIGS, validate_config
+from syntavra_runtime.claim_governance import decide_claim
+from syntavra_runtime.difficulty import evaluate_configured
+from syntavra_runtime.util import atomic_write_json
 
 CONTROLS = {name: True for name in (
     "same_prompt", "same_model", "same_reasoning", "same_repository", "same_verifier",
@@ -33,7 +33,7 @@ def main(argv=None):
     claim = decide_claim(
         tier="20X",
         baseline_costs=[],
-        signalcore_costs=[],
+        syntavra_costs=[],
         difficulty=configured,
         actual_quota_available=False,
     )

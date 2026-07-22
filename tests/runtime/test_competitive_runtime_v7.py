@@ -5,24 +5,24 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from signalcore_runtime.competitive_runtime_v7 import (
-    CapabilitySecurityV2,
-    CompetitiveRuntimeV7,
-    ContextCompilerV2,
+from syntavra_runtime.platform import (
+    CapabilitySecurity,
+    SyntavraPlatform,
+    ContextCompiler,
     ContextIRItem,
-    ContentAddressedArtifactStoreV2,
+    ArtifactStore,
     IncrementalCodeIntelligenceGraph,
-    SecretlessProviderGatewayV2,
-    SessionMemoryDAGV2,
-    UniversalAdapterRegistryV2,
-    UniversalOutputFirewallV2,
+    SecretlessProviderGateway,
+    SessionMemory,
+    AdapterRegistry,
+    OutputFirewall,
 )
 
 
-class CompetitiveRuntimeV7Tests(unittest.TestCase):
+class SyntavraPlatformTests(unittest.TestCase):
     def test_artifact_store_exact_query_and_deduplication(self):
         with tempfile.TemporaryDirectory() as temporary:
-            store = ContentAddressedArtifactStoreV2(Path(temporary))
+            store = ArtifactStore(Path(temporary))
             first = store.put("alpha\nERROR boom\nomega", kind="log")
             second = store.put("alpha\nERROR boom\nomega", kind="log")
             self.assertEqual(first.artifact_id, second.artifact_id)
@@ -34,8 +34,8 @@ class CompetitiveRuntimeV7Tests(unittest.TestCase):
 
     def test_output_firewall_preserves_exact_and_reduces_noise(self):
         with tempfile.TemporaryDirectory() as temporary:
-            store = ContentAddressedArtifactStoreV2(Path(temporary))
-            firewall = UniversalOutputFirewallV2(store)
+            store = ArtifactStore(Path(temporary))
+            firewall = OutputFirewall(store)
             output = "\n".join(["test_ok ... ok"] * 300 + ["FAILED tests/test_x.py:42 assertion error"])
             receipt = firewall.capture("pytest", output, exit_code=1)
             self.assertTrue(receipt.exact_recovery)
@@ -45,8 +45,8 @@ class CompetitiveRuntimeV7Tests(unittest.TestCase):
 
     def test_context_compiler_deduplicates_deltas_and_externalizes(self):
         with tempfile.TemporaryDirectory() as temporary:
-            store = ContentAddressedArtifactStoreV2(Path(temporary))
-            compiler = ContextCompilerV2(store)
+            store = ArtifactStore(Path(temporary))
+            compiler = ContextCompiler(store)
             large = "line\n" * 3000
             items = [
                 ContextIRItem("sys", "system", "text", "system", "keep safe", 1.0, True),
@@ -81,7 +81,7 @@ class CompetitiveRuntimeV7Tests(unittest.TestCase):
 
     def test_memory_dag_exact_chain_views_fork_merge_and_restore(self):
         with tempfile.TemporaryDirectory() as temporary:
-            memory = SessionMemoryDAGV2(Path(temporary) / "memory.sqlite3", project_id="repo")
+            memory = SessionMemory(Path(temporary) / "memory.sqlite3", project_id="repo")
             root = memory.open("root", metadata={"goal": "fix"})
             self.assertFalse(root["restored"])
             memory.append("root", "decision", {"decision": "keep version 0.0.1"})
@@ -99,7 +99,7 @@ class CompetitiveRuntimeV7Tests(unittest.TestCase):
 
     def test_capability_security_argument_binding_and_single_use(self):
         with tempfile.TemporaryDirectory() as temporary:
-            security = CapabilitySecurityV2(Path(temporary))
+            security = CapabilitySecurity(Path(temporary))
             denied = security.decide("terminal.exec", {"argv": ["rm", "-rf", "/"]}, sandboxed=True, user_authorized=True)
             self.assertFalse(denied.allowed)
             self.assertEqual(denied.reason, "destructive-command-denied")
@@ -117,17 +117,17 @@ class CompetitiveRuntimeV7Tests(unittest.TestCase):
         environment = {
             "PATH": "/bin", "OPENAI_API_KEY": "secret", "CUSTOM_TOKEN": "secret2", "SAFE": "yes"
         }
-        sanitized = SecretlessProviderGatewayV2.sanitize_environment(environment)
+        sanitized = SecretlessProviderGateway.sanitize_environment(environment)
         self.assertEqual(sanitized, {"PATH": "/bin", "SAFE": "yes"})
-        plan = SecretlessProviderGatewayV2.plan("openai")
+        plan = SecretlessProviderGateway.plan("openai")
         self.assertFalse(plan["agent_environment_contains_secret"])
         self.assertEqual(plan["transport_injection"]["visibility"], "gateway-process-only")
 
     def test_non_cli_official_adapters_are_first_class(self):
-        validation = UniversalAdapterRegistryV2.validate()
+        validation = AdapterRegistry.validate()
         self.assertTrue(validation["ok"])
         self.assertGreaterEqual(validation["non_cli_adapters"], 8)
-        records = UniversalAdapterRegistryV2.records()
+        records = AdapterRegistry.records()
         self.assertTrue(any(row["surface"] == "ide" and not row["detection_commands"] for row in records))
 
     def test_reference_agent_and_runtime_doctor(self):
@@ -135,7 +135,7 @@ class CompetitiveRuntimeV7Tests(unittest.TestCase):
             project = Path(temporary) / "repo"
             project.mkdir()
             (project / "main.py").write_text("def repair_target():\n    return True\n", encoding="utf-8")
-            runtime = CompetitiveRuntimeV7(project, Path(temporary) / "state")
+            runtime = SyntavraPlatform(project, Path(temporary) / "state")
             runtime.graph.index_repository(project)
             plan = runtime.agent.plan("repair repair_target")
             self.assertEqual(plan["execution_mode"], "plan-only-until-authorized")

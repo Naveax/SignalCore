@@ -13,7 +13,7 @@ from urllib.parse import unquote
 ROOT = Path(__file__).resolve().parents[1]
 CLAIMS = ROOT / "docs" / "claims" / "claims.json"
 README = ROOT / "README.md"
-PROFILE = ROOT / "skills" / "signal-core" / "profiles" / "roblox_studio"
+PROFILE = ROOT / "skills" / "syntavra" / "profiles" / "roblox_studio"
 
 
 def source_tree_hash() -> str:
@@ -58,7 +58,7 @@ def main() -> int:
     if benchmark["source_tree_hash"] != current_hash:
         failures.append("benchmark source_tree_hash mismatch")
     expected_commit = registry["source_commit"]
-    if expected_commit == "WORKTREE" and os.environ.get("SIGNALCORE_ALLOW_WORKTREE") != "1":
+    if expected_commit == "WORKTREE" and os.environ.get("SYNTAVRA_ALLOW_WORKTREE") != "1":
         failures.append("claim registry still uses WORKTREE source identity")
     for artifact in (test_artifact, benchmark):
         if artifact["source_commit"] != expected_commit:

@@ -2,7 +2,7 @@
 
 ## 0.0.1 — Current pre-release
 
-SignalCore remains version-locked to **0.0.1** until the repository owner explicitly authorizes a version change. Earlier 0.1–0.6 labels were internal development milestones and are not active package versions.
+Syntavra remains version-locked to **0.0.1** until the repository owner explicitly authorizes a version change. Earlier 0.1–0.6 labels were internal development milestones and are not active package versions.
 
 ### Unified P0–P2.3 and milestone scope
 
