@@ -37,6 +37,13 @@ del _install_mcp_enforcement_extension
 from .arm_runner import ArmExecutionPolicy, ArmRunReceipt, SecureArmRunner
 from .backup import BackupResult, StateBackupManager
 from .config_v6 import ConfigManager, ConfigSnapshot
+from .competitive_runtime_v7 import (
+    ADAPTERS_V2, AdapterContractV2, CapabilityDecisionV2, CapabilitySecurityV2,
+    CompetitiveRuntimeV7, ContentAddressedArtifactStoreV2, ContextCompilerV2, ContextIRItem,
+    ContextPackV2, FirewallReceiptV2, IncrementalCodeIntelligenceGraph, ReferenceCodingAgentV2,
+    SecretlessProviderGatewayV2, SessionMemoryDAGV2, UniversalAdapterRegistryV2,
+    UniversalOutputFirewallV2, manifest as competitive_v7_manifest,
+)
 from .data_router import DataRoutePolicy, DataRouteResult, DataRouter
 from .evidence import EvidenceStore
 from .external_benchmarks import (
@@ -98,4 +105,9 @@ __all__ = [
     "StateBackupManager", "StructuralGraphV2", "SuperiorityGate", "ToolRouteDecision",
     "ToolRoutingEnforcer", "UnifiedRuntimePipeline", "UnboundedContextCoordinator",
     "VerifiedPolicyObservation", "VersionLockError", "WorkloadSpec", "ZeroFrictionManager",
+    "ADAPTERS_V2", "AdapterContractV2", "CapabilityDecisionV2", "CapabilitySecurityV2",
+    "CompetitiveRuntimeV7", "ContentAddressedArtifactStoreV2", "ContextCompilerV2",
+    "ContextIRItem", "ContextPackV2", "FirewallReceiptV2", "IncrementalCodeIntelligenceGraph",
+    "ReferenceCodingAgentV2", "SecretlessProviderGatewayV2", "SessionMemoryDAGV2",
+    "UniversalAdapterRegistryV2", "UniversalOutputFirewallV2", "competitive_v7_manifest",
 ]

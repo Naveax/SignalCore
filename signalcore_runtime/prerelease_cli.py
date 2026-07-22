@@ -8,6 +8,8 @@ from pathlib import Path
 from typing import Any
 
 from .infinite_context import CONTEXT_TIERS, UnboundedContextCoordinator
+from .competitive_runtime_v7 import CompetitiveRuntimeV7
+from .competitive_v7_cli import add_run_subcommands as add_competitive_v7_run_subcommands, handle as handle_competitive_v7
 from .integration_matrix import IntegrationMatrix
 from .long_context_quality import LongContextQualityGate, LongContextReceipt, manifest as long_context_manifest
 from .product_maturity import ProductMaturityGate, load_maturity_document
@@ -138,6 +140,7 @@ def _parser() -> argparse.ArgumentParser:
     session_continuity.add_argument("session_id")
     session_continuity.add_argument("--token-budget", type=int, default=32_000)
     run_sub.add_parser("session-status")
+    add_competitive_v7_run_subcommands(run_sub)
 
     prove = sub.add_parser("prove", help="validate measured external evidence")
     prove_sub = prove.add_subparsers(dest="action", required=True)
@@ -195,11 +198,17 @@ def main(argv: list[str] | None = None) -> int:
             "readiness": ProductSurface.readiness(state, receipt_rows),
             "proxy_presets": ProxyProductRegistry.validate(),
             "primary_workflow": ["setup", "status", "run", "prove"],
+            "competitive_v7": CompetitiveRuntimeV7(project, state / "competitive-v7").status(),
         }
         _emit(value)
         return 0 if value["doctor"]["ok"] else 2
 
     if args.command == "run":
+        competitive_v7 = handle_competitive_v7(args, project=project, state=state)
+        if competitive_v7 is not None:
+            _emit(competitive_v7)
+            return 0 if competitive_v7.get("ok", True) else 3
+
         if args.action == "manifest":
             value = ProductSurface.manifest()
             value["proxy_presets"] = ProxyProductRegistry.validate()

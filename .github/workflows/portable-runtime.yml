@@ -1,0 +1,116 @@
+name: Build SignalCore Portable Runtime
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "signalcore_runtime/**"
+      - "tools/portable_entry.py"
+      - "install/**"
+      - ".github/workflows/portable-runtime.yml"
+  push:
+    tags:
+      - "v0.0.1-pre-release*"
+
+permissions:
+  contents: write
+  id-token: write
+  attestations: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: linux
+            arch: x64
+            extension: ""
+          - os: windows-latest
+            platform: win32
+            arch: x64
+            extension: ".exe"
+          - os: macos-13
+            platform: darwin
+            arch: x64
+            extension: ""
+          - os: macos-14
+            platform: darwin
+            arch: arm64
+            extension: ""
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install build dependencies
+        run: python -m pip install --disable-pip-version-check . pyinstaller
+      - name: Build self-contained runtime
+        shell: bash
+        run: |
+          python -m PyInstaller --onefile --clean --name signalcore --collect-data signalcore_runtime tools/portable_entry.py
+          asset="signalcore-0.0.1-${{ matrix.platform }}-${{ matrix.arch }}${{ matrix.extension }}"
+          mv "dist/signalcore${{ matrix.extension }}" "$asset"
+          python - <<'PY'
+          import hashlib
+          import os
+          from pathlib import Path
+          asset = Path(f"signalcore-0.0.1-{os.environ['SC_PLATFORM']}-{os.environ['SC_ARCH']}{os.environ['SC_EXTENSION']}")
+          digest = hashlib.sha256(asset.read_bytes()).hexdigest()
+          asset.with_name(asset.name + ".sha256").write_text(f"{digest}  {asset.name}\n", encoding="utf-8")
+          PY
+        env:
+          SC_PLATFORM: ${{ matrix.platform }}
+          SC_ARCH: ${{ matrix.arch }}
+          SC_EXTENSION: ${{ matrix.extension }}
+      - name: Verify locked identity
+        shell: bash
+        run: |
+          asset="signalcore-0.0.1-${{ matrix.platform }}-${{ matrix.arch }}${{ matrix.extension }}"
+          "$PWD/$asset" version > portable-version.json
+          python - <<'PY'
+          import json
+          value = json.load(open("portable-version.json", encoding="utf-8"))
+          identity = value["identity"]
+          assert identity["version"] == "0.0.1", identity
+          assert identity["channel"] == "pre-release", identity
+          PY
+      - name: Attest portable runtime
+        if: github.event_name != 'pull_request'
+        uses: actions/attest-build-provenance@v3
+        with:
+          subject-path: |
+            signalcore-0.0.1-${{ matrix.platform }}-${{ matrix.arch }}${{ matrix.extension }}
+            signalcore-0.0.1-${{ matrix.platform }}-${{ matrix.arch }}${{ matrix.extension }}.sha256
+      - uses: actions/upload-artifact@v4
+        with:
+          name: portable-${{ matrix.platform }}-${{ matrix.arch }}
+          path: |
+            signalcore-0.0.1-${{ matrix.platform }}-${{ matrix.arch }}${{ matrix.extension }}
+            signalcore-0.0.1-${{ matrix.platform }}-${{ matrix.arch }}${{ matrix.extension }}.sha256
+            portable-version.json
+          if-no-files-found: error
+          retention-days: 90
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v0.0.1-pre-release')
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: portable-*
+          path: release-assets
+          merge-multiple: true
+      - name: Create or update pre-release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        shell: bash
+        run: |
+          if ! gh release view "$TAG" >/dev/null 2>&1; then
+            gh release create "$TAG" --prerelease --title "SignalCore 0.0.1 pre-release" --notes "Portable runtime artifacts for the locked SignalCore 0.0.1 pre-release line."
+          fi
+          gh release upload "$TAG" release-assets/signalcore-0.0.1-* --clobber

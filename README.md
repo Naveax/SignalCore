@@ -28,8 +28,10 @@ npx github:Naveax/SignalCore -- --plan
 
 The installer:
 
-- detects Python 3.11 or newer;
-- installs SignalCore from the selected Git ref;
+- prefers a signed self-contained portable runtime when a matching 0.0.1 pre-release asset exists;
+- verifies the portable artifact SHA-256 before atomic installation;
+- falls back to Python 3.11 or newer when portable mode is unavailable;
+- installs SignalCore from the selected Git ref only for the Python fallback;
 - applies the `minimal` MCP profile to detected coding-agent hosts;
 - runs `signalcore status`;
 - uses argv-only process execution rather than shell strings;
@@ -77,6 +79,37 @@ signalcore run session-append my-session decision '{"decision":"run focused test
 signalcore run session-compact my-session
 signalcore run session-continuity my-session
 ```
+
+## Competitive Runtime V7
+
+The V7 runtime unifies the competitor-parity capabilities under `signalcore run` without adding another top-level product model:
+
+```bash
+signalcore run competitive-doctor
+signalcore run context-compile context-items.json --provider openai --budget 32000
+signalcore run output-capture pytest test-output.log
+signalcore run graph-index
+signalcore run graph-query "session restore"
+signalcore run memory-compact SESSION
+signalcore run capability-decide terminal.exec '{"argv":["pytest"]}' --sandboxed --user-authorized
+signalcore run gateway-plan anthropic
+signalcore run adapters --detect
+signalcore run agent-plan "repair the failing repository tests" --index
+```
+
+Implemented V7 components:
+
+- typed and deterministic Context IR compilation with deduplication, stable prefixes, deltas and provider-aware conservative token budgets;
+- pre-context tool-output firewall with exact content-addressed recovery and bounded progressive disclosure;
+- SQLite/WAL artifact storage, incremental syntax/code graph, and multi-view exact session memory DAG;
+- argument- and resource-bound signed single-use capabilities;
+- transport-only provider credentials with an agent-visible secretless environment;
+- 20 capability-declared adapters across CLI, IDE, IDE extension, desktop and platform surfaces;
+- a provider-neutral reference coding-agent planner using graph, memory, worktree isolation and affected-test planning.
+
+Official adapter support does not require a CLI executable. An IDE, desktop product, extension or platform is supported when it exposes a verified MCP, hook, plugin, SDK, configuration or provider-proxy surface. Contract support is not represented as live certification until an external execution receipt exists.
+
+The internal V7 benchmark checks deterministic function, exact recovery and reduction behavior. It is not a competitor benchmark and does not open an external superiority claim. See `docs/architecture/COMPETITIVE_RUNTIME_V7.md` and `docs/benchmark/COMPETITIVE_RUNTIME_V7_PROTOCOL.md`.
 
 ## MCP profiles
 
