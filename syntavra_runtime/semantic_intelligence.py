@@ -1,6 +1,7 @@
 from .platform_common import *
 from .language_platform import LanguageDetection, LanguageParseResult, LanguageRegistry
 from .language_services import LanguageServiceRegistry, SandboxedLanguageServiceAdapter
+from .language_lsp import GenericLSPAdapter, LSPServiceRegistry
 
 
 _DECLARATION_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
@@ -53,10 +54,12 @@ class IncrementalCodeIntelligenceGraph:
         *,
         language_registry: LanguageRegistry | None = None,
         language_service_registry: LanguageServiceRegistry | None = None,
+        lsp_service_registry: LSPServiceRegistry | None = None,
     ):
         self.path = path
         self.languages = language_registry or LanguageRegistry()
         self.language_services = language_service_registry or LanguageServiceRegistry()
+        self.lsp_services = lsp_service_registry or LSPServiceRegistry()
         with _connect(path) as db:
             db.executescript(
                 """
@@ -450,7 +453,9 @@ class IncrementalCodeIntelligenceGraph:
         root = root.resolve(strict=True)
         self.languages.discover_manifests(root)
         self.language_services.discover(root)
+        self.lsp_services.discover(root)
         service_diagnostics: list[str] = list(self.language_services.diagnostics)
+        lsp_diagnostics: list[str] = list(self.lsp_services.diagnostics)
         if os.environ.get("SYNTAVRA_ALLOW_LANGUAGE_SERVICES", "").casefold() in {"1", "true", "yes"}:
             for manifest in sorted(self.language_services.manifests.values(), key=lambda item: item.service_id):
                 try:
@@ -462,6 +467,21 @@ class IncrementalCodeIntelligenceGraph:
                     self.languages.register_adapter(adapter)
                 except Exception as error:
                     service_diagnostics.append(f"service:{manifest.service_id}: {type(error).__name__}: {error}")
+        if os.environ.get("SYNTAVRA_ALLOW_LSP_SERVICES", "").casefold() in {"1", "true", "yes"}:
+            for manifest in sorted(self.lsp_services.manifests.values(), key=lambda item: item.service_id):
+                occupied = [language for language in manifest.language_ids if self.languages.adapter_for(language) is not None]
+                if occupied:
+                    lsp_diagnostics.append(f"lsp:{manifest.service_id}: shadowed-by-higher-priority-adapter:{','.join(sorted(occupied))}")
+                    continue
+                try:
+                    adapter = GenericLSPAdapter(
+                        manifest,
+                        workspace=root,
+                        state_root=self.path.parent / "lsp-service-state",
+                    )
+                    self.languages.register_adapter(adapter)
+                except Exception as error:
+                    lsp_diagnostics.append(f"lsp:{manifest.service_id}: {type(error).__name__}: {error}")
         changed = 0
         skipped = 0
         binary_skipped = 0
@@ -580,6 +600,10 @@ class IncrementalCodeIntelligenceGraph:
             "language_services": {
                 **self.language_services.inventory(),
                 "diagnostics": service_diagnostics,
+            },
+            "lsp_services": {
+                **self.lsp_services.inventory(),
+                "diagnostics": lsp_diagnostics,
             },
             **self.stats(),
         }
