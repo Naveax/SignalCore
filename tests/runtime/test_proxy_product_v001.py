@@ -41,6 +41,7 @@ class ProxyProductV001Tests(unittest.TestCase):
     def test_cross_platform_service_descriptors_are_user_scoped(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
+            expected_home = (root / "home").resolve(strict=False)
             for platform in ("linux", "darwin", "windows"):
                 value = ProxyProductRegistry.service(
                     "plan",
@@ -53,7 +54,8 @@ class ProxyProductV001Tests(unittest.TestCase):
                 self.assertTrue(value["ok"], value)
                 self.assertTrue(value["plan"]["user_scoped"])
                 self.assertIn("ANTHROPIC_API_KEY", value["spec"]["command"])
-                self.assertIn(str(root), value["plan"]["descriptor_path"])
+                descriptor = Path(value["plan"]["descriptor_path"]).resolve(strict=False)
+                self.assertTrue(descriptor.is_relative_to(expected_home), (descriptor, expected_home))
 
 
 if __name__ == "__main__":
