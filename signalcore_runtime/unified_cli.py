@@ -21,7 +21,7 @@ from .util import stable_project_id
 
 
 CORE_COMMANDS = {"config", "backup", "maintenance", "pipeline", "plugins", "scheduler", "telemetry", "migrate"}
-EXTERNAL_PROOF_ACTIONS = {"suites", "external-suite"}
+EXTERNAL_PROOF_ACTIONS = {"suites", "external-suite", "integrations"}
 
 
 def _jsonable(value: Any) -> Any:

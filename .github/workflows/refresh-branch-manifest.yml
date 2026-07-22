@@ -1,0 +1,44 @@
+name: Refresh SignalCore Branch Manifest
+
+on:
+  push:
+    branches:
+      - "agent/**"
+      - "fix/**"
+      - "feature/**"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: signalcore-branch-manifest-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    if: github.ref_name != 'main' && github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Refresh deterministic SHA-256 manifest
+        run: python tools/refresh_manifest.py
+      - name: Commit only the branch manifest
+        shell: bash
+        run: |
+          if git diff --quiet -- MANIFEST.sha256; then
+            echo "MANIFEST.sha256 is already current"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- MANIFEST.sha256
+          test "$(git diff --cached --name-only)" = "MANIFEST.sha256"
+          git commit -m "refresh branch integrity manifest"
+          git push origin "HEAD:${GITHUB_REF_NAME}"

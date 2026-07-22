@@ -2,11 +2,13 @@ from __future__ import annotations
 
 import io
 import json
+import os
 import sys
 import tempfile
 import tracemalloc
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from signalcore_runtime.context_governor import pack_context
 from signalcore_runtime.evidence import EvidenceStore
@@ -110,7 +112,8 @@ class RuntimeV02CoreTests(unittest.TestCase):
         )
         init = server.handle({"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}})
         self.assertEqual(init["result"]["serverInfo"]["version"], "0.0.1")
-        tools = server.handle({"jsonrpc": "2.0", "id": 2, "method": "tools/list"})
+        with patch.dict(os.environ, {"SIGNALCORE_MCP_PROFILE": "audit"}):
+            tools = server.handle({"jsonrpc": "2.0", "id": 2, "method": "tools/list"})
         names = {row["name"] for row in tools["result"]["tools"]}
         self.assertIn("signalcore.process.submit", names)
         self.assertIn("signalcore.inspect.impact", names)
