@@ -1,4 +1,4 @@
-name: Refresh SignalCore Branch Manifest
+name: Refresh Syntavra Branch Manifest
 
 on:
   push:
@@ -12,7 +12,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: signalcore-branch-manifest-${{ github.ref }}
+  group: syntavra-branch-manifest-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -40,5 +40,5 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -- MANIFEST.sha256
           test "$(git diff --cached --name-only)" = "MANIFEST.sha256"
-          git commit -m "refresh branch integrity manifest"
+          git commit -m "refresh Syntavra branch integrity manifest"
           git push origin "HEAD:${GITHUB_REF_NAME}"
