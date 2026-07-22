@@ -37,10 +37,19 @@ from .update_manager import DistributionManager
 _install_python_semantic_resolution(IncrementalCodeIntelligenceGraph)
 del _install_python_semantic_resolution
 
-# Stable public names. The compatibility registry delegates language discovery to
-# the universal platform and never revives the removed executable whitelist.
+# Stable public name. This façade preserves the historical status payload while
+# delegating all discovery and execution to the universal evidence-graded core.
 NativeSandboxBroker = HardenedSandboxBroker
-LanguageServiceRegistry = CompatibilityLanguageServiceRegistry
+
+
+class LanguageServiceRegistry(CompatibilityLanguageServiceRegistry):
+    def status(self, root: Path | None = None) -> dict[str, Any]:
+        value = super().status(root)
+        value["claim_boundary"] = (
+            "declared support is not live certification; lexical fallback is universal, while exact semantic "
+            "support requires a validated adapter, hash-pinned analyzer, hash-pinned LSP server, or fresh LSIF/SCIP evidence"
+        )
+        return value
 
 
 class SyntavraPlatform:
@@ -58,7 +67,7 @@ class SyntavraPlatform:
 
         # Backward-compatible public attributes. They are façades over the same
         # universal, evidence-graded model rather than the historical fixed list.
-        self.language_services = CompatibilityLanguageServiceRegistry()
+        self.language_services = LanguageServiceRegistry()
         self.semantic_importer = SemanticIndexImporter(self.graph)
 
         project_id = sha256_bytes(str(self.project).encode("utf-8"))
