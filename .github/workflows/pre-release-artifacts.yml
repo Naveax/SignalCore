@@ -114,7 +114,7 @@ jobs:
           PY
       - name: Attest pre-release artifacts
         if: github.event_name != 'pull_request'
-        uses: actions/attest-build-provenance@v3
+        uses: actions/attest-build-provenance@v4
         with:
           subject-path: |
             dist/*

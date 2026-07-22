@@ -127,7 +127,7 @@ jobs:
           retention-days: 7
       - name: Attest portable runtime
         if: github.event_name != 'pull_request'
-        uses: actions/attest-build-provenance@v3
+        uses: actions/attest-build-provenance@v4
         with:
           subject-path: |
             syntavra-0.0.1-${{ matrix.platform }}-${{ matrix.arch }}${{ matrix.extension }}
