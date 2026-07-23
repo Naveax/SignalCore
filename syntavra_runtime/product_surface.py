@@ -14,6 +14,7 @@ from typing import Any, Iterable, Mapping, Sequence
 
 from .integration_matrix import IntegrationMatrix
 from .release_identity import CHANNEL, VERSION
+from .tool_registry import MCPProfile, MCP_PROFILES
 from .util import atomic_write_json, canonical_json, sha256_bytes
 
 
@@ -44,62 +45,6 @@ MENTAL_MODEL: tuple[ProductMentalModel, ...] = (
 
 
 @dataclass(frozen=True)
-class MCPProfile:
-    name: str
-    exposed_tools: tuple[str, ...]
-    max_active_tools: int
-    tool_description_budget_tokens: int
-    default_timeout_seconds: int
-    require_routing_receipt: bool
-    require_exact_evidence: bool
-    allow_unknown_tools: bool
-
-    def to_dict(self) -> dict[str, Any]:
-        return asdict(self)
-
-
-MCP_PROFILES: dict[str, MCPProfile] = {
-    "minimal": MCPProfile(
-        "minimal",
-        ("syntavra.search", "syntavra.read", "syntavra.run", "syntavra.restore"),
-        4,
-        700,
-        120,
-        True,
-        True,
-        False,
-    ),
-    "balanced": MCPProfile(
-        "balanced",
-        (
-            "syntavra.search", "syntavra.read", "syntavra.run", "syntavra.restore",
-            "syntavra.session", "syntavra.metrics", "syntavra.sandbox", "syntavra.proof",
-        ),
-        8,
-        1400,
-        180,
-        True,
-        True,
-        False,
-    ),
-    "audit": MCPProfile(
-        "audit",
-        (
-            "syntavra.search", "syntavra.read", "syntavra.run", "syntavra.restore",
-            "syntavra.session", "syntavra.metrics", "syntavra.sandbox", "syntavra.proof",
-            "syntavra.evidence", "syntavra.config", "syntavra.backup", "syntavra.migrate",
-        ),
-        12,
-        2600,
-        300,
-        True,
-        True,
-        False,
-    ),
-}
-
-
-@dataclass(frozen=True)
 class PlatformAdapter:
     host: str
     detection_commands: tuple[str, ...]
@@ -112,12 +57,12 @@ class PlatformAdapter:
 
 
 PLATFORM_ADAPTERS: tuple[PlatformAdapter, ...] = (
-    PlatformAdapter("claude-code", ("claude",), ("~/.claude/settings.json", ".claude/settings.json"), "plugin+hooks", True, True, True),
-    PlatformAdapter("codex", ("codex",), ("~/.codex/config.toml", "AGENTS.md"), "skill+mcp", True, False, True),
+    PlatformAdapter("claude-code", ("claude",), ("~/.claude/settings.json", ".claude/settings.json"), "plugin+hooks", True, True, True, "primary-certification-target"),
+    PlatformAdapter("codex", ("codex",), ("~/.codex/config.toml", "AGENTS.md"), "skill+mcp", True, False, True, "primary-certification-target"),
     PlatformAdapter("gemini-cli", ("gemini",), ("~/.gemini/settings.json", "GEMINI.md"), "extension+mcp", True, False, True),
     PlatformAdapter("vscode-copilot", ("code",), (".vscode/mcp.json", ".github/copilot-instructions.md"), "instructions+mcp", True, False, False),
     PlatformAdapter("jetbrains-copilot", (), (".idea/ai-assistant.xml", ".github/copilot-instructions.md"), "instructions+mcp", True, False, False),
-    PlatformAdapter("cursor", ("cursor",), (".cursor/rules/syntavra.mdc", ".cursor/mcp.json"), "rules+mcp", True, False, True),
+    PlatformAdapter("cursor", ("cursor",), (".cursor/rules/syntavra.mdc", ".cursor/mcp.json"), "rules+mcp", True, False, True, "primary-certification-target"),
     PlatformAdapter("windsurf", ("windsurf",), (".windsurfrules", ".codeium/windsurf/mcp_config.json"), "rules+mcp", True, False, True),
     PlatformAdapter("opencode", ("opencode",), ("opencode.json", "~/.config/opencode/opencode.json"), "config+mcp", True, True, True),
     PlatformAdapter("cline", (), (".clinerules", ".vscode/mcp.json"), "rules+mcp", True, False, True),
@@ -173,6 +118,8 @@ class PlatformAdapterRegistry:
             "extra_adapters": extra,
             "mcp_capable": sum(item.supports_mcp for item in PLATFORM_ADAPTERS),
             "continuity_capable": sum(item.supports_session_continuity for item in PLATFORM_ADAPTERS),
+            "primary_certification_targets": sorted(item.host for item in PLATFORM_ADAPTERS if item.maturity == "primary-certification-target"),
+            "evidence_levels": {level: sum(item.maturity == level for item in PLATFORM_ADAPTERS) for level in sorted({item.maturity for item in PLATFORM_ADAPTERS})},
             "live_boundary": "live adapter certification requires external execution receipts",
         }
 
@@ -350,7 +297,7 @@ class ProviderUsageReceipt:
             reasons.append("invalid-quality-score")
         if self.workload not in PROOF_WORKLOADS:
             reasons.append("unsupported-workload")
-        if self.arm not in {"baseline", "syntavra", "token-savior", "context-mode", "headroom", "volt-lcm"}:
+        if self.arm not in {'baseline', 'plain-host', 'syntavra', 'syntavra-minimal', 'syntavra-balanced', 'caveman', 'rtk', 'token-savior', 'jcodemunch', 'full-competitor-pack', 'context-mode', 'headroom', 'volt-lcm', 'recursive'}:
             reasons.append("unsupported-arm")
         if self.repetition < 1:
             reasons.append("invalid-repetition")
@@ -570,6 +517,12 @@ class ProductSurface:
         return {
             "version": VERSION,
             "channel": CHANNEL,
+            "role": "token-and-context-optimization-skill",
+            "not_a_replacement_agent": True,
+            "optimization_surfaces": [
+                "repository-context", "tool-output", "mcp-schema", "session-memory", "provider-cache",
+            ],
+            "measurement_levels": ["PROVIDER_OBSERVED", "LOCALLY_TOKENIZED", "ESTIMATED", "UNKNOWN"],
             "mental_model": [asdict(item) for item in MENTAL_MODEL],
             "default_mcp_profile": MCP_PROFILES[profile].to_dict(),
             "platform_adapters": PlatformAdapterRegistry.validate(),
@@ -583,7 +536,11 @@ class ProductSurface:
             },
             "proof": {
                 "workloads": list(PROOF_WORKLOADS),
-                "measured_fields": ["provider tokens", "provider cost", "wall time", "quality", "success"],
+                "measured_fields": [
+                    "provider fresh/cached/output/reasoning tokens", "provider cost", "wall time",
+                    "quality", "success", "source-level token attribution",
+                ],
+                "primary_metric": "provider-observed cost per verified successful task",
                 "external_claim": "fail-closed",
             },
         }
@@ -658,7 +615,7 @@ def write_receipt_schema(path: Path) -> dict[str, Any]:
             "synthetic": {"type": "boolean"},
             "raw_usage_hash": {"type": "string", "minLength": 32},
             "workload": {"enum": list(PROOF_WORKLOADS)},
-            "arm": {"enum": ["baseline", "syntavra", "token-savior", "context-mode", "headroom", "volt-lcm"]},
+            "arm": {"enum": ['baseline', 'plain-host', 'syntavra', 'syntavra-minimal', 'syntavra-balanced', 'caveman', 'rtk', 'token-savior', 'jcodemunch', 'full-competitor-pack', 'context-mode', 'headroom', 'volt-lcm', 'recursive']},
             "task_id": {"type": "string", "minLength": 1},
             "repetition": {"type": "integer", "minimum": 1},
             "metadata": {"type": "object"},

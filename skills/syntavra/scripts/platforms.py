@@ -123,12 +123,12 @@ def install(platform_id: str, *, scope: str, project: Path, home: Path, force: b
         raise KeyError(f"unknown platform: {platform_id}")
     destination = _resolve_target(item, scope, project, home)
     if dry_run:
-        return {"changed": False, "dry_run": True, "platform": platform_id, "support": item["support"], "target": str(destination)}
+        return {"changed": False, "dry_run": True, "platform": platform_id, "support": item["support"], "evidence_level": item.get("evidence_level", "DECLARED"), "target": str(destination)}
     if item["support"] == "native":
         result = _copy_skill_atomic(destination, force=force)
     else:
         result = _merge_managed_block(destination, dedicated_rule(platform_id), force=force)
-    return {"platform": platform_id, "support": item["support"], "verified": item["verified"], **result}
+    return {"platform": platform_id, "support": item["support"], "verified": item["verified"], "evidence_level": item.get("evidence_level", "DECLARED"), "verified_scope": item.get("verified_scope", "none"), **result}
 
 
 def uninstall(platform_id: str, *, scope: str, project: Path, home: Path) -> dict[str, Any]:
@@ -170,7 +170,7 @@ def status(platform_id: str, *, scope: str, project: Path, home: Path) -> dict[s
     elif destination.is_file():
         text = destination.read_text(encoding="utf-8", errors="replace")
         installed = BEGIN in text and END in text
-    return {"platform": platform_id, "scope": scope, "support": item["support"], "verified": item["verified"], "target": str(destination), "installed": installed}
+    return {"platform": platform_id, "scope": scope, "support": item["support"], "verified": item["verified"], "evidence_level": item.get("evidence_level", "DECLARED"), "verified_scope": item.get("verified_scope", "none"), "target": str(destination), "installed": installed}
 
 
 def detect(project: Path, home: Path) -> list[dict[str, Any]]:

@@ -1,7 +1,7 @@
 {
   "name": "@syntavra/sdk",
   "version": "0.0.1",
-  "description": "TypeScript SDK for Syntavra 0.0.1 pre-release",
+  "description": "TypeScript client and receipt validators for Syntavra 0.0.1 token/context optimization pre-release",
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",

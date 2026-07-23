@@ -6,11 +6,19 @@
     "arm": {
       "enum": [
         "baseline",
+        "plain-host",
         "syntavra",
+        "syntavra-minimal",
+        "syntavra-balanced",
+        "caveman",
+        "rtk",
         "token-savior",
+        "jcodemunch",
+        "full-competitor-pack",
         "context-mode",
         "headroom",
-        "volt-lcm"
+        "volt-lcm",
+        "recursive"
       ]
     },
     "cached_input_tokens": {

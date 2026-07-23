@@ -13,9 +13,11 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, Iterable, Mapping, Sequence
 
+from .command_compactors import CommandCompactorRegistry
 from .host_adapters import KNOWN_HOSTS, host_spec, negotiate
 from .security_scan import scan_text
 from .state import StateDB
+from .tool_registry import BALANCED_TOOLS, MCP_PROFILES, MINIMAL_TOOLS, normalize_profile
 from .util import canonical_json, sha256_bytes
 
 _VOLATILE_FIELDS = {
@@ -87,52 +89,29 @@ class CompactionResult:
     injection_risk: bool
     injection_reasons: tuple[str, ...]
     retained_error_lines: int
+    compactor: str = "generic"
 
 
-CORE_TOOLS = (
-    "syntavra.status",
-    "syntavra.host.detect",
-    "syntavra.context.evaluate",
-    "syntavra.inspect.map",
-    "syntavra.inspect.impact",
-    "syntavra.output.capture",
-    "syntavra.output.search",
-    "syntavra.output.reveal",
-    "syntavra.output.verify",
-    "syntavra.session.open",
-    "syntavra.session.append",
-    "syntavra.session.semantic_context",
-    "syntavra.fabric.profile",
-    "syntavra.fabric.route",
-    "syntavra.fabric.doctor",
-)
+CORE_TOOLS = MINIMAL_TOOLS
 
 PROFILES: dict[str, ToolProfile] = {
-    "tiny": ToolProfile(
-        "tiny",
-        (
-            "syntavra.status", "syntavra.inspect.map", "syntavra.output.capture",
-            "syntavra.output.search", "syntavra.output.reveal",
-            "syntavra.session.semantic_context", "syntavra.fabric.route",
-            "syntavra.fabric.doctor",
-        ),
-        700,
+    "minimal": ToolProfile(
+        "minimal", MINIMAL_TOOLS,
+        MCP_PROFILES["minimal"].tool_description_budget_tokens,
         "Minimal hot-loop surface for small coding tasks.",
     ),
-    "optimized": ToolProfile(
-        "optimized",
-        CORE_TOOLS + (
-            "syntavra.process.submit", "syntavra.process.completions",
-            "syntavra.compress", "syntavra.expand", "syntavra.sandbox.execute",
-            "syntavra.session.search", "syntavra.output.stats",
-            "syntavra.fabric.compact", "syntavra.fabric.cache_align",
-            "syntavra.fabric.insights", "syntavra.fabric.platform_plan",
-        ),
-        1800,
+    "balanced": ToolProfile(
+        "balanced", BALANCED_TOOLS,
+        MCP_PROFILES["balanced"].tool_description_budget_tokens,
         "Default Pareto surface: structural navigation, exact output economy, memory, and safety.",
     ),
-    "full": ToolProfile("full", (), 8000, "Expose every installed Syntavra tool."),
+    "audit": ToolProfile(
+        "audit", (), MCP_PROFILES["audit"].tool_description_budget_tokens,
+        "Expose every installed Syntavra tool for auditing.",
+    ),
 }
+# Compatibility aliases are views over canonical profiles, never independent definitions.
+PROFILES.update({"tiny": PROFILES["minimal"], "optimized": PROFILES["balanced"], "full": PROFILES["audit"]})
 
 _INTENT_TOOLS: tuple[tuple[re.Pattern[str], tuple[str, ...]], ...] = (
     (re.compile(r"(?i)\b(test|pytest|jest|vitest|cargo test|go test|ci|build|lint)\b"),
@@ -166,16 +145,15 @@ class ToolSurfacePlanner:
         requested_profile: str = "auto",
     ) -> dict[str, Any]:
         available = tuple(dict.fromkeys(str(name) for name in available_tools))
-        if requested_profile not in {*PROFILES, "auto"}:
-            raise ValueError(f"unknown tool profile: {requested_profile}")
-        if requested_profile == "auto":
+        requested = requested_profile.strip().casefold()
+        if requested == "auto":
             word_count = len(task.split())
             matched = sum(bool(pattern.search(task)) for pattern, _ in _INTENT_TOOLS)
-            profile_name = "tiny" if word_count <= 12 and matched <= 1 else "optimized"
+            profile_name = "minimal" if word_count <= 12 and matched <= 1 else "balanced"
         else:
-            profile_name = requested_profile
+            profile_name = normalize_profile(requested)
         profile = PROFILES[profile_name]
-        if profile_name == "full":
+        if profile_name == "audit":
             selected = list(available)
         else:
             wanted = set(profile.tools)
@@ -197,7 +175,7 @@ class ToolSurfacePlanner:
             "omitted_count": max(0, len(available) - len(selected)),
             "estimated_manifest_tokens": estimated,
             "manifest_budget": profile.manifest_token_budget,
-            "within_budget": estimated <= profile.manifest_token_budget or profile_name == "full",
+            "within_budget": estimated <= profile.manifest_token_budget or profile_name == "audit",
             "host": host,
             "host_mode": negotiate(host).get("mode"),
             "profile_hash": sha256_bytes(canonical_json({"profile": profile_name, "tools": selected})),
@@ -358,7 +336,11 @@ class SafeCommandRouter:
 
 
 class CommandCompactor:
-    """Deterministic multi-family output compaction with exact-evidence handoff."""
+    """Deterministic command-specific compaction with exact-evidence handoff."""
+
+    def __init__(self, registry: CommandCompactorRegistry | None = None) -> None:
+        self.registry = registry or CommandCompactorRegistry()
+        self.last_compactor = "generic"
 
     @staticmethod
     def _bounded(text: str, budget_bytes: int) -> str:
@@ -403,8 +385,13 @@ class CommandCompactor:
 
         return json.dumps(shrink(value), ensure_ascii=False, sort_keys=True, indent=2)
 
-    def _select(self, family: str, text: str) -> tuple[list[str], int]:
+    def _select(self, command: str | Iterable[str], family: str, text: str) -> tuple[list[str], int]:
         lines = text.splitlines()
+        plugin, selected, retained = self.registry.select(command, lines)
+        if plugin is not None:
+            self.last_compactor = plugin
+            return selected, retained
+        self.last_compactor = f"generic:{family}"
         errors = self._dedup(line for line in lines if _ERROR_RE.search(line) or _LOCATION_RE.search(line))
         if family == "test":
             summaries = self._dedup(line for line in lines if _TEST_SUMMARY_RE.search(line))
@@ -471,9 +458,9 @@ class CommandCompactor:
         if stderr:
             combined += ("\n[stderr]\n" if combined else "[stderr]\n") + stderr
         security = scan_text(combined)
-        selected, retained_errors = self._select(family, security.redacted_text)
+        selected, retained_errors = self._select(command, family, security.redacted_text)
         header = (
-            f"Syntavra compact family={family} lines={len(security.normalized_text.splitlines())} "
+            f"Syntavra compact family={family} compactor={self.last_compactor} lines={len(security.normalized_text.splitlines())} "
             f"secrets={len(security.secret_types)} injection_risk={str(security.injection_risk).lower()}"
         )
         visible = self._bounded(header + "\n" + "\n".join(self._dedup(selected)), budget_bytes)
@@ -490,6 +477,7 @@ class CommandCompactor:
             injection_risk=security.injection_risk,
             injection_reasons=security.injection_reasons,
             retained_error_lines=retained_errors,
+            compactor=self.last_compactor,
         )
 
 
@@ -752,7 +740,7 @@ class CompetitiveContextFabric:
             "compact", family=result.family, host=self.host,
             raw_bytes=result.original_bytes, visible_bytes=result.visible_bytes,
             latency_ms=(time.perf_counter() - started) * 1000,
-            success=True, metadata={"injection_risk": result.injection_risk, "secrets": list(result.secret_types)},
+            success=True, metadata={"injection_risk": result.injection_risk, "secrets": list(result.secret_types), "compactor": result.compactor},
         )
         return result
 

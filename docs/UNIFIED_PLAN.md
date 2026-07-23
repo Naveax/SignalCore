@@ -1,51 +1,41 @@
-# Syntavra Unified Engineering Plan
+# Syntavra Token-Saver Unification Plan
 
-One product, one architecture, one development branch, one pull request and one version identity.
+Syntavra remains one product, one version identity and one evidence boundary: **0.0.1 / pre-release**.
 
-## Integrated workstreams
+## Product role
 
-- Universal Language Platform, Semantic Intelligence and Runtime Evidence
-- Context Compiler, Output Firewall and exact Artifact Store
-- Session Memory and long-context continuity
-- Capability Security, Provider Gateway and Execution Sandbox
-- Coding Agent, headless/remote execution and interactive operations
-- Adapter Platform, provider/framework surfaces and live certification
-- Reliability Laboratory, atomic distribution, rollback and SignalBench
+Syntavra is a local-first Agent Skill and runtime middleware that reduces token and context load for existing AI coding tools. It is not a model, IDE or replacement coding agent.
 
-All workstreams share the same configuration, artifact, receipt, policy, session, semantic and metrics contracts. They are not independent products or separately versioned components.
+## Integrated optimization surfaces
 
-## Universal language completion boundary
+- MCP/tool-schema discovery cost;
+- task-scoped repository context;
+- exact-preserving terminal and tool-output compaction;
+- bounded active context over durable session history;
+- provider cache alignment;
+- token-source attribution and provider usage receipts;
+- capability security, sandboxing and exact recovery;
+- reproducible external-arm measurement through SignalBench.
 
-The language workstream is complete only when all of the following remain true on the same final SHA:
+All surfaces share one tool registry, profile model, artifact store, session lineage, policy boundary and receipt contract.
 
-- no product whitelist is required to index a text language;
-- a never-before-seen language receives safe file, lexical and identifier navigation;
-- ambiguous suffixes cannot silently select an incorrect language;
-- repository descriptors can add a language without executing code;
-- trusted in-process plugins require explicit authorization;
-- external analyzers and LSP servers require executable hashes and explicit authorization;
-- analyzer/LSP execution is time-, memory-, network-, output- and workspace-bounded;
-- LSIF and SCIP imports are atomic, source-owned and commit-aware;
-- stale indexes cannot create exact semantic evidence;
-- binary data cannot be represented as source;
-- local parser nodes cannot be overwritten by imported graph identities;
-- future-language fixtures pass on Linux, Windows and macOS;
-- exact and candidate evidence remain distinguishable through the CLI and receipts.
+## Completion boundary
 
-## Security remediation boundary
+The unification is complete only when:
 
-Existing CodeQL alerts are closed only after:
+1. `minimal`, `balanced` and `audit` are defined by one canonical registry;
+2. `tools/list`, `tools/call`, installation and benchmarks use the same profile hash;
+3. every compacted payload retains an exact recovery handle;
+4. token totals identify whether they are provider-observed, locally tokenized, estimated or unknown;
+5. unsupported or risky calls fail closed;
+6. Codex, Claude Code and Cursor remain primary live-certification targets without claiming live proof prematurely;
+7. competitor arms execute out-of-process under frozen equivalent conditions;
+8. publication candidates are reproducible and cannot publish without explicit environment authorization.
 
-1. source-level remediation;
-2. explicit regression tests;
-3. CodeQL success on the pull-request final SHA;
-4. merge to `main`;
-5. CodeQL analysis on the merged `main` commit showing the alerts fixed.
+## Security boundary
 
-Alerts must not be dismissed to obtain a green dashboard.
+CodeQL alerts are considered fixed only through source remediation, regression tests and default-branch analysis. Alerts must never be dismissed merely to obtain a green dashboard.
 
-## Final merge boundary
+## Claim boundary
 
-The final user-authored SHA must pass unit, integration, cross-platform, package, portable, semantic, session, agent, sandbox, adapter, update, fault, manifest, CodeQL, dependency, version-lock and claim-boundary checks.
-
-Internal or synthetic measurements cannot open external superiority, long-context quality, live integration, daily readiness or public maturity gates.
+Internal tests and synthetic fixtures cannot establish external superiority, real cost savings, live integration, public adoption or product maturity. Those statuses remain closed until valid external receipts pass the published gates.

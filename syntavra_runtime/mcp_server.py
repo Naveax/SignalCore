@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import os
 import sys
 from dataclasses import asdict
 from pathlib import Path
@@ -10,9 +9,11 @@ from typing import Any, TextIO
 from .competitive_fabric import CompetitiveContextFabric, StructuralNavigator
 from .compression import ContentRouter, ReversibleContentStore
 from .context_governor import evaluate
+from .context_pack import TaskContextAssembler
 from .evidence import EvidenceStore
 from .host_adapters import detect_hosts
 from .host_output_pipeline import HostOutputPipeline
+from .mcp_application import MCPApplicationPipeline
 from .output_governor import OutputGovernor
 from .process_broker import ProcessBroker
 from .sandbox import SandboxManager, SandboxPolicy
@@ -30,6 +31,7 @@ class MCPServer:
     """Dependency-free MCP JSON-RPC server for the complete v0.3 runtime plane."""
 
     VERSION = "0.0.1"
+    _syntavra_native_mcp_pipeline = True
 
     def __init__(self, *, project: Path, state_root: Path, skill_root: Path, codex_home: Path, host: str):
         self.project = project.resolve(strict=True)
@@ -58,6 +60,17 @@ class MCPServer:
             state_root / "competitive-fabric.sqlite3", project=self.project, host=self.host
         )
         self.navigator = StructuralNavigator(self.project)
+        self.application = MCPApplicationPipeline(self.state_root)
+
+    @property
+    def product_mcp_policy(self):
+        """Compatibility view over the native application policy."""
+        self.application.refresh()
+        return self.application.policy
+
+    @property
+    def product_mcp_analytics(self):
+        return self.application.analytics
 
     @staticmethod
     def tools() -> list[dict[str, Any]]:
@@ -117,6 +130,16 @@ class MCPServer:
             tool(
                 "syntavra.context.evaluate", "Evaluate context pressure",
                 {"used": {"type": "integer"}, "window": {"type": "integer"}, "churn": {"type": "number"}, "evidence_pressure": {"type": "number"}}, ["used", "window"],
+            ),
+            tool(
+                "syntavra.context.pack", "Build minimum exact task context",
+                {
+                    "query": {"type": "string"},
+                    "changed_paths": {"type": "array", "items": {"type": "string"}},
+                    "token_budget": {"type": "integer"},
+                    "max_depth": {"type": "integer"},
+                },
+                ["query"],
             ),
             tool(
                 "syntavra.compress", "Reversibly compress generic content",
@@ -202,6 +225,24 @@ class MCPServer:
             ),
             tool("syntavra.usage.verify", "Verify the provider usage hash chain and signatures", {"require_hmac": {"type": "boolean"}}),
             tool(
+                "syntavra.usage.attribution.record", "Record source-level token attribution",
+                {
+                    "task_id": {"type": "string"}, "arm_id": {"type": "string"},
+                    "repetition": {"type": "integer"}, "session_id": {"type": "string"},
+                    "provider": {"type": "string"}, "model": {"type": "string"},
+                    "request_id_hash": {"type": "string"}, "provider_receipt_hash": {"type": "string"},
+                    "sources": {"type": "object"}, "confidence": {"type": "object"},
+                    "baseline_tokens": {"type": "integer"}, "baseline_confidence": {"type": "string"},
+                    "metadata": {"type": "object"},
+                },
+                ["task_id", "arm_id", "repetition", "session_id", "provider", "model",
+                 "request_id_hash", "provider_receipt_hash", "sources", "confidence"],
+            ),
+            tool(
+                "syntavra.usage.attribution.summary", "Show token savings by source and confidence",
+                {"session_id": {"type": "string"}},
+            ),
+            tool(
                 "syntavra.session.search", "Semantic and temporal search over exact session events",
                 {"session_id": {"type": "string"}, "query": {"type": "string"}, "limit": {"type": "integer"}, "include_superseded": {"type": "boolean"}}, ["session_id", "query"],
             ),
@@ -241,13 +282,7 @@ class MCPServer:
         ]
 
     def exposed_tools(self) -> list[dict[str, Any]]:
-        catalog = self.tools()
-        requested = os.environ.get("SYNTAVRA_MCP_PROFILE", "optimized").strip().casefold() or "optimized"
-        task = os.environ.get("SYNTAVRA_SESSION_TASK", "")
-        plan = self.fabric.profile(task, (row["name"] for row in catalog), requested_profile=requested)
-        selected = set(plan["selected_tools"])
-        filtered = [row for row in catalog if row["name"] in selected]
-        return filtered or catalog
+        return self.application.list_tools(self.tools())
 
     def _index(self) -> StructuralIndex:
         index = StructuralIndex(
@@ -317,6 +352,14 @@ class MCPServer:
                 int(arguments["used"]), int(arguments["window"]),
                 churn=float(arguments.get("churn", 0)), evidence_pressure=float(arguments.get("evidence_pressure", 0)),
             ))
+        if name == "syntavra.context.pack":
+            assembler = TaskContextAssembler(self._index(), self.navigator)
+            return assembler.assemble(
+                str(arguments["query"]),
+                changed_paths=tuple(arguments.get("changed_paths") or ()),
+                token_budget=int(arguments.get("token_budget", 8_000)),
+                max_depth=int(arguments.get("max_depth", 4)),
+            ).to_dict()
         if name == "syntavra.compress":
             return asdict(self.compressor.compress(
                 str(arguments["text"]), hint=str(arguments.get("hint", "")),
@@ -374,6 +417,20 @@ class MCPServer:
             return asdict(entry)
         if name == "syntavra.usage.verify":
             return self.usage_ledger.verify(require_hmac=bool(arguments.get("require_hmac", False)))
+        if name == "syntavra.usage.attribution.record":
+            return self.usage_ledger.record_attribution(
+                task_id=str(arguments["task_id"]), arm_id=str(arguments["arm_id"]),
+                repetition=int(arguments["repetition"]), session_id=str(arguments["session_id"]),
+                provider=str(arguments["provider"]), model=str(arguments["model"]),
+                request_id_hash=str(arguments["request_id_hash"]),
+                provider_receipt_hash=str(arguments["provider_receipt_hash"]),
+                sources=dict(arguments["sources"]), confidence=dict(arguments["confidence"]),
+                baseline_tokens=(int(arguments["baseline_tokens"]) if arguments.get("baseline_tokens") is not None else None),
+                baseline_confidence=str(arguments.get("baseline_confidence", "UNKNOWN")),
+                metadata=dict(arguments.get("metadata") or {}),
+            ).to_dict()
+        if name == "syntavra.usage.attribution.summary":
+            return self.usage_ledger.attribution_summary(session_id=arguments.get("session_id"))
         if name == "syntavra.session.search":
             return {"hits": self.session_retriever.serializable(self.session_retriever.search(
                 str(arguments["session_id"]), str(arguments["query"]), limit=int(arguments.get("limit", 12)),
@@ -422,10 +479,21 @@ class MCPServer:
                 repeated=bool(arguments.get("repeated", False)),
             ))
         if name == "syntavra.fabric.compact":
-            return asdict(self.fabric.compact(
-                arguments["command"], str(arguments.get("stdout", "")), str(arguments.get("stderr", "")),
-                budget_bytes=int(arguments.get("budget_bytes", 4096)),
+            stdout = str(arguments.get("stdout", ""))
+            stderr = str(arguments.get("stderr", ""))
+            command_value = arguments["command"]
+            command_text = command_value if isinstance(command_value, str) else " ".join(str(item) for item in command_value)
+            artifact = self.externalizer.externalize(ToolPayload(
+                command=command_text, stdout=stdout, stderr=stderr, tool_name="syntavra.fabric.compact",
+                path="", scope_key=str(arguments.get("scope_key", "default")), metadata={"source": "pre-compaction"},
             ))
+            result = asdict(self.fabric.compact(
+                command_value, stdout, stderr, budget_bytes=int(arguments.get("budget_bytes", 4096)),
+            ))
+            result["exact_artifact_id"] = artifact.artifact_id
+            result["exact_output_bytes"] = artifact.original_bytes
+            result["recovery"] = {"tool": "syntavra.output.reveal", "artifact_id": artifact.artifact_id}
+            return result
         if name == "syntavra.fabric.cache_align":
             return asdict(self.fabric.align_cache(
                 list(arguments["messages"]), keep_tail=int(arguments.get("keep_tail", 1)),
@@ -448,29 +516,35 @@ class MCPServer:
         request_id = message.get("id")
         if method == "notifications/initialized":
             return None
-        try:
-            if method == "initialize":
-                result = {
+        if method == "initialize":
+            return {
+                "jsonrpc": "2.0",
+                "id": request_id,
+                "result": {
                     "protocolVersion": message.get("params", {}).get("protocolVersion", "2025-06-18"),
                     "capabilities": {"tools": {}},
                     "serverInfo": {"name": "syntavra", "version": self.VERSION},
-                }
-            elif method == "tools/list":
-                result = {"tools": self.exposed_tools()}
-            elif method == "tools/call":
-                params = message.get("params") or {}
-                tool_name = str(params.get("name"))
-                arguments = params.get("arguments") or {}
-                value = self.call_tool(tool_name, arguments)
-                value = self.output_pipeline.capture_mcp_result(tool_name, arguments, value)
-                result = {"content": [{"type": "text", "text": json.dumps(value, ensure_ascii=False, default=str)}]}
-            elif method == "ping":
-                result = {}
-            else:
-                raise KeyError(f"method-not-found:{method}")
-            return {"jsonrpc": "2.0", "id": request_id, "result": result}
-        except Exception as exc:
-            return {"jsonrpc": "2.0", "id": request_id, "error": {"code": -32000, "message": f"{type(exc).__name__}: {exc}"}}
+                    "instructions": "Token/context optimization with exact recovery and fail-closed tool routing.",
+                },
+            }
+        if method == "tools/list":
+            return {
+                "jsonrpc": "2.0",
+                "id": request_id,
+                "result": {
+                    "tools": self.exposed_tools(),
+                    "_meta": {"syntavra": self.application.manifest()},
+                },
+            }
+        if method == "tools/call":
+            return self.application.call(self, message)
+        if method == "ping":
+            return {"jsonrpc": "2.0", "id": request_id, "result": {}}
+        return {
+            "jsonrpc": "2.0",
+            "id": request_id,
+            "error": {"code": -32601, "message": "Method not found"},
+        }
 
     def serve(self, input_stream: TextIO = sys.stdin, output_stream: TextIO = sys.stdout) -> int:
         for line in input_stream:

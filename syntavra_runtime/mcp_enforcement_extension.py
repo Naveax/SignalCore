@@ -35,6 +35,8 @@ def _sanitized_call_message(message: dict[str, Any], arguments: dict[str, Any]) 
 def install() -> None:
     from .mcp_server import MCPServer
 
+    if getattr(MCPServer, "_syntavra_native_mcp_pipeline", False):
+        return
     if getattr(MCPServer, "_syntavra_v001_mcp_enforcement", False):
         return
 

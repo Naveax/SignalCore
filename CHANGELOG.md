@@ -1,3 +1,15 @@
+## 0.0.1 - Pre-release
+
+### Token-saver product unification
+
+- Repositioned Syntavra as a token and context optimization Agent Skill/runtime middleware, not a replacement coding agent.
+- Added one canonical MCP profile/tool registry, deterministic schema compilation and explicit native authorization/output pipeline.
+- Added token-source attribution with confidence levels and linkage to provider usage receipts.
+- Added twenty command-specific exact-preserving output compactors and task-aware repository context packs.
+- Added evidence-level host metadata with Codex, Claude Code and Cursor as primary live-certification targets.
+- Added fail-closed external adapters and competitor-arm templates for SignalBench.
+- Added manual, provenance-aware npm/PyPI pre-release publication workflow; no registry publication or external result is claimed.
+
 # Changelog
 
 ## 0.0.1 — Current pre-release

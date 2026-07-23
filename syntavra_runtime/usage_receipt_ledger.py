@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any, Mapping
 
 from .signalbench_hardened import HardenedSignalBench, UsageReceipt
+from .token_attribution import TokenAttributionLedger, TokenAttributionReceipt
 
 
 def _canonical(value: Any) -> bytes:
@@ -132,6 +133,7 @@ class UsageReceiptLedger:
         env_key = os.environ.get("SYNTAVRA_RECEIPT_SIGNING_KEY")
         self.signing_key = signing_key if signing_key is not None else (env_key.encode("utf-8") if env_key else None)
         self._initialize()
+        self.attribution = TokenAttributionLedger(self.path)
 
     def _connect(self) -> sqlite3.Connection:
         db = sqlite3.connect(self.path, timeout=30.0, isolation_level=None)
@@ -296,6 +298,13 @@ class UsageReceiptLedger:
             usage_payload=usage,
         )
 
+    def record_attribution(self, **values: Any) -> TokenAttributionReceipt:
+        """Record source-level token attribution linked to a provider receipt."""
+        return self.attribution.record(**values)
+
+    def attribution_summary(self, *, session_id: str | None = None) -> dict[str, Any]:
+        return self.attribution.summary(session_id=session_id)
+
     @staticmethod
     def _receipt_from_row(row: sqlite3.Row) -> UsageReceipt:
         return UsageReceipt(
@@ -400,6 +409,11 @@ class UsageReceiptLedger:
             rows = [dict(row) for row in db.execute("SELECT * FROM usage_receipt_ledger ORDER BY sequence")]
         for row in rows:
             row.pop("raw_usage_json", None)
-        payload = {"schema_version": self.schema_version, "verification": verification, "entries": rows}
+        payload = {
+            "schema_version": self.schema_version,
+            "verification": verification,
+            "entries": rows,
+            "token_attribution": self.attribution.summary(),
+        }
         payload["export_hash"] = _sha256(_canonical(payload))
         return payload

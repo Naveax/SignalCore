@@ -125,6 +125,8 @@ def install() -> None:
         return catalog
 
     def extended_exposed_tools(self: Any) -> list[dict[str, Any]]:
+        if getattr(type(self), "_syntavra_native_mcp_pipeline", False):
+            return list(original_exposed_tools(self))
         selected = list(original_exposed_tools(self))
         profile = os.environ.get("SYNTAVRA_MCP_PROFILE", "optimized").strip().casefold() or "optimized"
         if profile not in {"optimized", "full"}:

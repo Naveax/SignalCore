@@ -29,6 +29,7 @@ from .release_identity import VERSION, identity, validate_repository_identity
 from .session_product import SessionContinuityController
 from .paired_benchmark import CodingCorpusPlanner, PairedSchedule, SuperiorityGate, default_arms
 from .semantic_structure import GraphEdge, GraphNode, SemanticGraph
+from .usage_receipt_ledger import UsageReceiptLedger
 from .util import stable_project_id
 from .zero_friction import ZeroFrictionManager
 
@@ -95,7 +96,7 @@ def _add_benchmark_parser(sub: argparse._SubParsersAction[argparse.ArgumentParse
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="syntavra",
-        description="Syntavra 0.0.1 pre-release AI engineering platform",
+        description="Syntavra 0.0.1 pre-release token and context optimization skill",
         epilog="Product workflow: setup -> status -> run -> prove",
     )
     parser.add_argument("--project", default=".")
@@ -106,9 +107,15 @@ def _parser() -> argparse.ArgumentParser:
     setup.add_argument("--apply", action="store_true")
     setup.add_argument("--all", action="store_true")
     setup.add_argument("--mcp-profile", choices=tuple(MCP_PROFILES), default="minimal")
+    setup.add_argument("--repair", action="store_true", help="repair the existing installation")
 
     status = sub.add_parser("status", help="show health, usage, readiness and evidence gates")
     status.add_argument("--receipts")
+    status.add_argument("--doctor", action="store_true", help="show installation and integration health only")
+    status.add_argument("--savings", action="store_true", help="show token attribution and observed savings")
+    status.add_argument("--profile", action="store_true", help="show the active MCP profile")
+    status.add_argument("--memory", action="store_true", help="show session-memory continuity state")
+    status.add_argument("--evidence", action="store_true", help="show receipt integrity and claim boundaries")
 
     run = sub.add_parser("run", help="execute an enforced platform operation")
     run_sub = run.add_subparsers(dest="action", required=True)
@@ -267,26 +274,65 @@ def main(argv: list[str] | None = None) -> int:
     manager = ZeroFrictionManager(project, state)
 
     if args.command == "setup":
-        value = manager.install(all_hosts=args.all, dry_run=not args.apply, profile=args.mcp_profile)
+        value = manager.repair(apply=args.apply) if args.repair else manager.install(
+            all_hosts=args.all, dry_run=not args.apply, profile=args.mcp_profile
+        )
         _emit(value)
         return 0 if value["ok"] else 2
 
     if args.command == "status":
         receipt_rows = ReceiptValidator.load(Path(args.receipts)) if args.receipts else []
         platform = SyntavraPlatform(project, state / "unified")
-        value = {
-            "product": "Syntavra",
-            "version": VERSION,
-            "channel": "pre-release",
-            "doctor": manager.doctor(),
-            "stats": manager.stats(),
-            "readiness": ProductSurface.readiness(state, receipt_rows),
-            "proxy_presets": ProxyProductRegistry.validate(),
-            "primary_workflow": ["setup", "status", "run", "prove"],
-            "platform": platform.status(),
+        usage = UsageReceiptLedger(state / "usage-receipts.sqlite3")
+        profile_path = state / "mcp-profile.json"
+        try:
+            active_profile = (
+                json.loads(profile_path.read_text(encoding="utf-8"))
+                if profile_path.is_file() else MCP_PROFILES["minimal"].to_dict()
+            )
+        except (OSError, json.JSONDecodeError):
+            active_profile = {"name": "minimal", "invalid_profile_file": True}
+        doctor = manager.doctor()
+        evidence = {
+            "provider_usage": usage.verify(),
+            "token_attribution": usage.attribution_summary(),
+            "claim_boundary": {
+                "external_superiority": "EXTERNAL_SUPERIORITY_NOT_PROVEN",
+                "live_integration": "LIVE_INTEGRATION_CERTIFICATION_NOT_PROVEN",
+                "public_maturity": "PUBLIC_PRODUCT_MATURITY_NOT_PROVEN",
+            },
         }
+        focused: list[tuple[str, Any]] = []
+        if args.doctor:
+            focused.append(("doctor", doctor))
+        if args.savings:
+            focused.append(("savings", evidence["token_attribution"]))
+        if args.profile:
+            focused.append(("profile", active_profile))
+        if args.memory:
+            focused.append(("memory", _session_controller(project, state).status()))
+        if args.evidence:
+            focused.append(("evidence", evidence))
+        if focused:
+            value = {"product": "Syntavra", "version": VERSION, "channel": "pre-release", **dict(focused)}
+        else:
+            value = {
+                "product": "Syntavra",
+                "version": VERSION,
+                "channel": "pre-release",
+                "role": "token-and-context-optimization-skill",
+                "doctor": doctor,
+                "stats": manager.stats(),
+                "savings": evidence["token_attribution"],
+                "profile": active_profile,
+                "readiness": ProductSurface.readiness(state, receipt_rows),
+                "evidence": evidence,
+                "proxy_presets": ProxyProductRegistry.validate(),
+                "primary_workflow": ["setup", "status", "run", "prove"],
+                "platform": platform.status(),
+            }
         _emit(value)
-        return 0 if value["doctor"]["ok"] else 2
+        return 0 if doctor["ok"] else 2
 
     if args.command == "run":
         platform_result = handle_platform(args, project=project, state=state)

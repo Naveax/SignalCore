@@ -1,7 +1,7 @@
 {
   "name": "@syntavra/install",
   "version": "0.0.1",
-  "description": "One-command cross-platform installer for Syntavra 0.0.1 pre-release",
+  "description": "One-command installer for Syntavra 0.0.1 pre-release token and context optimization skill",
   "type": "module",
   "bin": {
     "syntavra-install": "install/index.mjs"

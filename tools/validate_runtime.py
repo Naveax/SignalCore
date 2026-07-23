@@ -37,7 +37,8 @@ REQUIRED = [ROOT / "syntavra_runtime" / name for name in (
     "execution_sandbox.py", "sandbox_runtime.py", "autonomous_agent.py",
     "adapter_platform.py", "adapter_runtime.py", "secretless_gateway.py",
     "headless_runtime.py", "interactive_console.py", "reliability_lab.py",
-    "update_manager.py",
+    "update_manager.py", "tool_registry.py", "mcp_application.py",
+    "token_attribution.py", "command_compactors.py", "context_pack.py",
 )]
 CONTROLS = {name: True for name in (
     "same_prompt", "same_model", "same_reasoning", "same_repository", "same_verifier",

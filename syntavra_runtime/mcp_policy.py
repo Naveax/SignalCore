@@ -4,76 +4,16 @@ import os
 from dataclasses import asdict, dataclass
 from typing import Any, Iterable, Mapping, Sequence
 
-from .product_surface import MCPProfile, MCP_PROFILES
+from .tool_registry import (
+    BALANCED_TOOLS,
+    MINIMAL_TOOLS,
+    MCP_PROFILES,
+    PROFILE_ALIASES,
+    normalize_profile,
+    profile_tools,
+)
 from .release_identity import CHANNEL, VERSION
 from .util import canonical_json, sha256_bytes
-
-
-PROFILE_ALIASES: dict[str, str] = {
-    "minimal": "tiny",
-    "balanced": "optimized",
-    "audit": "full",
-    "tiny": "tiny",
-    "optimized": "optimized",
-    "full": "full",
-    "auto": "auto",
-}
-
-MINIMAL_TOOLS: tuple[str, ...] = (
-    "syntavra.status",
-    "syntavra.inspect.map",
-    "syntavra.output.capture",
-    "syntavra.output.search",
-    "syntavra.output.reveal",
-    "syntavra.session.semantic_context",
-    "syntavra.fabric.route",
-    "syntavra.fabric.doctor",
-)
-
-BALANCED_TOOLS: tuple[str, ...] = (
-    *MINIMAL_TOOLS,
-    "syntavra.host.detect",
-    "syntavra.inspect.impact",
-    "syntavra.inspect.source",
-    "syntavra.inspect.range",
-    "syntavra.context.evaluate",
-    "syntavra.output.verify",
-    "syntavra.output.stats",
-    "syntavra.session.open",
-    "syntavra.session.append",
-    "syntavra.session.search",
-    "syntavra.session.context",
-    "syntavra.session.compact",
-    "syntavra.session.verify",
-    "syntavra.sandbox.plan",
-    "syntavra.sandbox.execute",
-    "syntavra.process.submit",
-    "syntavra.process.completions",
-    "syntavra.fabric.profile",
-    "syntavra.fabric.insights",
-    "syntavra.provider.capabilities",
-    "syntavra.provider.prepare",
-    "syntavra.provider.capture",
-    "syntavra.provider.replay",
-    "syntavra.provider.verify",
-    "syntavra.provider.stats",
-    "syntavra.data.route",
-    "syntavra.ecosystem.capabilities",
-    "syntavra.observability.metrics",
-)
-
-# Keep the public installation metadata identical to the actually enforced runtime.
-MCP_PROFILES.update({
-    "minimal": MCPProfile(
-        "minimal", MINIMAL_TOOLS, len(MINIMAL_TOOLS), 700, 120, True, True, False,
-    ),
-    "balanced": MCPProfile(
-        "balanced", BALANCED_TOOLS, len(BALANCED_TOOLS), 4000, 180, True, True, False,
-    ),
-    "audit": MCPProfile(
-        "audit", ("*",), 128, 16000, 300, True, True, False,
-    ),
-})
 
 
 @dataclass(frozen=True)
@@ -107,6 +47,7 @@ class MCPToolPolicy:
         "syntavra.session.merge",
         "syntavra.output.capture",
         "syntavra.usage.record",
+        "syntavra.usage.attribution.record",
         "syntavra.provider.prepare",
         "syntavra.provider.capture",
         "syntavra.policy.record",
@@ -126,34 +67,21 @@ class MCPToolPolicy:
 
     def __init__(self, profile: str | None = None):
         requested = (profile or os.environ.get("SYNTAVRA_MCP_PROFILE", "minimal")).strip().casefold() or "minimal"
-        if requested not in PROFILE_ALIASES:
-            raise ValueError(f"unknown Syntavra MCP profile: {requested}")
-        self.profile = requested
-        self.legacy_profile = PROFILE_ALIASES[requested]
+        normalized = normalize_profile(requested)
+        self.profile = normalized
+        self.legacy_profile = {"minimal": "tiny", "balanced": "optimized", "audit": "full"}[normalized]
 
     @staticmethod
     def normalize_profile(profile: str) -> str:
-        value = profile.strip().casefold()
-        if value not in PROFILE_ALIASES:
-            raise ValueError(f"unknown Syntavra MCP profile: {profile}")
-        return PROFILE_ALIASES[value]
+        return normalize_profile(profile)
 
     def product_profile(self) -> str:
-        if self.profile in {"minimal", "tiny"}:
-            return "minimal"
-        if self.profile in {"balanced", "optimized"}:
-            return "balanced"
-        if self.profile in {"audit", "full"}:
-            return "audit"
-        return "auto"
+        return self.profile
 
     def filter_catalog(self, catalog: Sequence[dict[str, Any]]) -> list[dict[str, Any]]:
-        mode = self.product_profile()
-        if mode in {"audit", "auto"}:
-            return list(catalog)
-        allowlist = MINIMAL_TOOLS if mode == "minimal" else BALANCED_TOOLS
         by_name = {str(row.get("name")): row for row in catalog}
-        return [by_name[name] for name in allowlist if name in by_name]
+        selected = profile_tools(self.product_profile(), by_name)
+        return [by_name[name] for name in selected]
 
     @staticmethod
     def _authorization(arguments: Mapping[str, Any]) -> tuple[bool, bool, bool]:

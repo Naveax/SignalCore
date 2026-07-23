@@ -4,43 +4,45 @@
 product: Syntavra
 version: 0.0.1
 channel: pre-release
+role: token-and-context-optimization-skill
 surface: setup / status / run / prove
 ```
 
-No component carries an independent product version. Compatibility is represented by schema hashes, migration identifiers and capability sets.
+Syntavra augments existing AI coding agents. It is not a replacement model, IDE or autonomous coding product. Its public purpose is to reduce repository-context, MCP-schema, tool-output and long-session token overhead while keeping exact local recovery and verifier integrity.
 
-## Active universal language foundation
+## Active product guarantees
 
-The active development branch implements a language-agnostic repository intelligence foundation:
+- one canonical `minimal`, `balanced` and `audit` profile registry;
+- fail-closed MCP call authorization independent of discovery filtering;
+- deterministic compact MCP schemas with reversible argument aliases;
+- exact repository definitions, impact paths, tests and verifier-aware context packs;
+- complete tool output stored before bounded views are returned;
+- command-specific compactors with generic safe fallback;
+- bounded active context over exact searchable external session history;
+- provider usage receipts separated from local token-source attribution;
+- checksum-verified, transactional and rollback-capable installation;
+- version remains locked to `0.0.1 / pre-release`.
 
-- every decodable text language can be indexed through a conservative lexical fallback;
-- unknown and future languages do not require a product release for initial navigation;
-- ambiguous suffixes remain candidate-only without stronger evidence;
-- repository language descriptors are data-only;
-- in-process plugins are disabled unless explicitly authorized;
-- hash-pinned analyzers execute through the sandbox and bounded process transport;
-- hash-pinned generic LSP servers use bounded JSON-RPC over stdio;
-- LSIF JSONL and SCIP JSON imports are source-owned and atomically replaceable;
-- stale semantic indexes are rejected by default and cannot remain exact when explicitly allowed;
-- binary SCIP requires an explicit hash-pinned conversion service.
+## Measurement levels
 
-The language foundation does not claim exact type resolution for every language. Exact definitions, references, implementations, overrides and call relations require validated parser, analyzer, LSP, LSIF, SCIP or runtime evidence.
+```text
+PROVIDER_OBSERVED
+LOCALLY_TOKENIZED
+ESTIMATED
+UNKNOWN
+```
 
-Canonical contract: `docs/UNIVERSAL_LANGUAGE_PLATFORM.md`.
+Syntavra must never present locally estimated source attribution as provider-observed billing data. The primary comparative metric is provider-observed cost per verified successful task.
 
-## Security remediation in progress
+## Primary live-certification targets
 
-Code scanning alerts 1, 4 and 5 have root-cause remediations on the active pull request:
+1. Codex
+2. Claude Code
+3. Cursor
 
-- clear-text secret-derived benchmark output was replaced with safe boolean verification fields;
-- HTTP header names and values are validated before transport or response forwarding;
-- CR/LF/NUL/control injection is rejected;
-- client request IDs are not reflected;
-- dynamic process output and execution time are bounded.
+Other host records are contract-tested or declared bridges. A registry entry is not a live-integration receipt.
 
-These alerts are not considered fixed on `main` until the pull request is merged and CodeQL analyzes the resulting `main` commit.
-
-## Evidence gates
+## External gates
 
 ```text
 EXTERNAL_SUPERIORITY_NOT_PROVEN
@@ -51,4 +53,4 @@ DAILY_CODING_AGENT_READINESS_NOT_PROVEN
 PUBLIC_PRODUCT_MATURITY_NOT_PROVEN
 ```
 
-The version and channel may not change without explicit owner instruction.
+These gates require real provider receipts, independently reproducible benchmark arms, live installations, real users and elapsed operational history. Internal fixtures validate the gates but cannot open them.

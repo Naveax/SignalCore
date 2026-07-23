@@ -14,6 +14,7 @@ from .integration_matrix import HOSTS, IntegrationMatrix
 from .product_surface import MCP_PROFILES, PlatformAdapterRegistry, ProductSurface, SessionAnalyticsStore
 from .proxy_product import ProxyProductRegistry
 from .release_identity import CHANNEL, VERSION, ReleaseIdentity
+from .usage_receipt_ledger import UsageReceiptLedger
 from .util import atomic_write_json
 
 
@@ -297,6 +298,8 @@ class ZeroFrictionManager:
             except (OSError, ValueError):
                 install_receipt = {"invalid": True}
         host_results = install_receipt.get("host_results", []) if isinstance(install_receipt, dict) else []
+        usage = UsageReceiptLedger(self.state_root / "usage-receipts.sqlite3")
+        attribution = usage.attribution_summary()
         return {
             "version": VERSION,
             "channel": CHANNEL,
@@ -311,8 +314,10 @@ class ZeroFrictionManager:
                 "claim": "LOCAL_INSTALL_AND_HOST_RECEIPT" if install_receipt else "ONBOARDING_NOT_MEASURED",
             },
             "session_analytics": analytics,
-            "savings_receipts": 0,
-            "receipt_boundary": "real provider usage receipts are required",
+            "savings_receipts": attribution["receipts"],
+            "token_attribution": attribution,
+            "provider_usage_integrity": usage.verify(),
+            "receipt_boundary": "provider-observed usage and source attribution remain distinct",
         }
 
     def repair(self, *, apply: bool = False) -> dict[str, Any]:

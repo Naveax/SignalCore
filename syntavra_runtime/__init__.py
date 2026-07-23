@@ -1,4 +1,4 @@
-"""Syntavra 0.0.1 pre-release unified AI engineering runtime."""
+"""Syntavra 0.0.1 pre-release token and context optimization runtime."""
 
 __version__ = "0.0.1"
 __release_channel__ = "pre-release"
@@ -101,6 +101,10 @@ else:
     from .long_context_quality import LongContextQualityGate, LongContextReceipt
     from .long_session_planner import ContextPlanPolicy, LongSessionPlanner
     from .mcp_policy import MCPAuthorizationDecision, MCPToolPolicy
+    from .tool_registry import MCP_PROFILES, ToolSchemaCompiler
+    from .token_attribution import TokenAttributionLedger, TokenAttributionReceipt, TokenEstimator
+    from .command_compactors import CommandCompactorRegistry
+    from .context_pack import TaskContextAssembler, TaskContextPack
     from .policy_rollout import PolicyRolloutManager, VerifiedPolicyObservation
     from .policy_tuner import AdaptivePolicyTuner, PolicyObservation, PolicyRecommendation
     from .product_maturity import DistributionReceipt, OnboardingReceipt, ProductMaturityGate, ReleaseReceipt
@@ -174,7 +178,10 @@ else:
         "SecretlessProviderGateway", "ServicePlan", "ServiceSpec", "SessionAnalyticsStore",
         "SessionContinuityController", "SessionMemory", "StateBackupManager", "SuperiorityGate",
         "SyntavraClient", "SyntavraPlatform", "TokenPanel", "ToolRouteDecision",
-        "ToolRoutingEnforcer", "UnifiedRuntimePipeline", "UnboundedContextCoordinator",
+        "ToolRoutingEnforcer", "ToolSchemaCompiler", "MCP_PROFILES",
+        "TokenAttributionLedger", "TokenAttributionReceipt", "TokenEstimator",
+        "CommandCompactorRegistry", "TaskContextAssembler", "TaskContextPack",
+        "UnifiedRuntimePipeline", "UnboundedContextCoordinator",
         "UpdateArtifact", "UpdateManifest", "UpdateReceipt", "VerifiedPolicyObservation",
         "VersionLockError", "WorkloadSpec", "ZeroFrictionManager", "platform_manifest",
     ]

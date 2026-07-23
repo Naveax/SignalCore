@@ -172,7 +172,7 @@ class ExternalBenchmarkReceipt:
         ):
             if not getattr(self, field_name):
                 reasons.append(f"missing-{field_name.replace('_', '-')}")
-        if self.arm not in {"baseline", "syntavra", "token-savior", "context-mode", "headroom", "volt-lcm", "recursive"}:
+        if self.arm not in {'baseline', 'plain-host', 'syntavra', 'syntavra-minimal', 'syntavra-balanced', 'caveman', 'rtk', 'token-savior', 'jcodemunch', 'full-competitor-pack', 'context-mode', 'headroom', 'volt-lcm', 'recursive'}:
             reasons.append("unsupported-arm")
         if self.repetition < 1:
             reasons.append("invalid-repetition")

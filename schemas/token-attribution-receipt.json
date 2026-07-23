@@ -1,0 +1,245 @@
+{
+  "$id": "https://syntavra.dev/schemas/token-attribution-receipt-v1.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Syntavra Token Attribution Receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "receipt_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "task_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "arm_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "repetition": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "session_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "provider": {
+      "type": "string",
+      "minLength": 1
+    },
+    "model": {
+      "type": "string",
+      "minLength": 1
+    },
+    "request_id_hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "provider_receipt_hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "sources": {
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "properties": {
+        "system": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "skill_description": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "skill_body": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "tool_schema": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "repository_context": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "tool_output": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "memory": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "conversation_history": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "user_prompt": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "assistant_output": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "reasoning": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "cached": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "confidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "system": {
+          "enum": [
+            "PROVIDER_OBSERVED",
+            "LOCALLY_TOKENIZED",
+            "ESTIMATED",
+            "UNKNOWN"
+          ]
+        },
+        "skill_description": {
+          "enum": [
+            "PROVIDER_OBSERVED",
+            "LOCALLY_TOKENIZED",
+            "ESTIMATED",
+            "UNKNOWN"
+          ]
+        },
+        "skill_body": {
+          "enum": [
+            "PROVIDER_OBSERVED",
+            "LOCALLY_TOKENIZED",
+            "ESTIMATED",
+            "UNKNOWN"
+          ]
+        },
+        "tool_schema": {
+          "enum": [
+            "PROVIDER_OBSERVED",
+            "LOCALLY_TOKENIZED",
+            "ESTIMATED",
+            "UNKNOWN"
+          ]
+        },
+        "repository_context": {
+          "enum": [
+            "PROVIDER_OBSERVED",
+            "LOCALLY_TOKENIZED",
+            "ESTIMATED",
+            "UNKNOWN"
+          ]
+        },
+        "tool_output": {
+          "enum": [
+            "PROVIDER_OBSERVED",
+            "LOCALLY_TOKENIZED",
+            "ESTIMATED",
+            "UNKNOWN"
+          ]
+        },
+        "memory": {
+          "enum": [
+            "PROVIDER_OBSERVED",
+            "LOCALLY_TOKENIZED",
+            "ESTIMATED",
+            "UNKNOWN"
+          ]
+        },
+        "conversation_history": {
+          "enum": [
+            "PROVIDER_OBSERVED",
+            "LOCALLY_TOKENIZED",
+            "ESTIMATED",
+            "UNKNOWN"
+          ]
+        },
+        "user_prompt": {
+          "enum": [
+            "PROVIDER_OBSERVED",
+            "LOCALLY_TOKENIZED",
+            "ESTIMATED",
+            "UNKNOWN"
+          ]
+        },
+        "assistant_output": {
+          "enum": [
+            "PROVIDER_OBSERVED",
+            "LOCALLY_TOKENIZED",
+            "ESTIMATED",
+            "UNKNOWN"
+          ]
+        },
+        "reasoning": {
+          "enum": [
+            "PROVIDER_OBSERVED",
+            "LOCALLY_TOKENIZED",
+            "ESTIMATED",
+            "UNKNOWN"
+          ]
+        },
+        "cached": {
+          "enum": [
+            "PROVIDER_OBSERVED",
+            "LOCALLY_TOKENIZED",
+            "ESTIMATED",
+            "UNKNOWN"
+          ]
+        }
+      }
+    },
+    "baseline_tokens": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 0
+    },
+    "baseline_confidence": {
+      "enum": [
+        "PROVIDER_OBSERVED",
+        "LOCALLY_TOKENIZED",
+        "ESTIMATED",
+        "UNKNOWN"
+      ]
+    },
+    "created_at": {
+      "type": "number",
+      "exclusiveMinimum": 0
+    },
+    "receipt_hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "metadata": {
+      "type": "object"
+    }
+  },
+  "required": [
+    "receipt_id",
+    "task_id",
+    "arm_id",
+    "repetition",
+    "session_id",
+    "provider",
+    "model",
+    "request_id_hash",
+    "provider_receipt_hash",
+    "sources",
+    "confidence",
+    "baseline_tokens",
+    "baseline_confidence",
+    "created_at",
+    "receipt_hash"
+  ]
+}

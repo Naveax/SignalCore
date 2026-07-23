@@ -2,14 +2,13 @@
 name: syntavra
 version: "0.0.1"
 description: >
-  Execute complex coding-agent work through Syntavra's pre-release local runtime:
-  multi-language structural impact, durable zero-poll jobs, secure sandboxing,
-  reversible content compression, native host enforcement, bounded active context
-  over unbounded external history, verifier binding, output governance and
-  fail-closed public comparisons.
+  Reduce token and context overhead for existing AI coding agents through exact
+  repository retrieval, bounded MCP schemas, reversible tool-output externalization,
+  progressive session memory, cache-stable requests and provider-usage receipts.
 compatibility: "Codex, Claude Code, Gemini CLI, Antigravity, Windsurf, OpenCode, VS Code Copilot, MCP clients, Agent Skills hosts, and rule/AGENTS.md bridges."
 metadata:
   author: Naveax
+  role: token-context-optimization-skill
   status: pre-release
   stability: pre-alpha
   version_locked: true
@@ -17,22 +16,30 @@ metadata:
 
 # Syntavra
 
-Syntavra is a local-first runtime-control plane and Agent Skill. Correctness, exact evidence, security boundaries and required verification outrank token reduction.
+Syntavra is a local-first token/context optimization Agent Skill and runtime middleware. It augments the current coding agent; it is not a replacement agent or model. Correctness, exact evidence, security boundaries and required verification outrank token reduction.
 
 ## Activation contract
 
-1. Negotiate real host capabilities and never describe instruction-only operation as enforced runtime operation.
-2. Initialize project-scoped state, exact evidence, broker, structural index, memory and rollout telemetry.
-3. Retrieve exact definitions and transitive impact before broad search or semantic expansion.
-4. Route long commands through the durable broker.
-5. Keep full output in exact content-addressed evidence and inject only bounded summaries with recovery handles.
-6. Keep the active model window bounded while external history grows without forced session restart.
-7. Pack mandatory task, evidence, impact and verifier context before optional material.
-8. Bind verifier reuse to repository tree, environment, dependencies, toolchain and affected paths.
-9. Write immutable history and a canonical summary-DAG root before controlled handoff.
-10. Reject efficiency, maturity or competitor-superiority claims without observed external receipts and a passing gate.
-11. Keep the version at 0.0.1 and the release channel pre-release until the owner explicitly changes them.
+1. Negotiate real host capabilities; never describe instruction-only behavior as runtime enforcement.
+2. Freeze the canonical `minimal`, `balanced` or `audit` profile for the session.
+3. Retrieve exact definitions, transitive impact, tests and verifiers before broad repository reads.
+4. Pack mandatory evidence before likely and optional context; keep omitted paths recoverable.
+5. Route long commands through the durable broker rather than spending model turns polling.
+6. Save complete tool output as exact local evidence and inject only bounded views with recovery handles.
+7. Keep active model context bounded while exact external session history remains searchable.
+8. Treat MCP schema, repository, tool-output, memory and conversation tokens as separate cost sources.
+9. Distinguish provider-observed, locally tokenized, estimated and unknown measurements.
+10. Reuse verification only when repository tree, environment, dependencies, toolchain and affected paths match.
+11. Reject efficiency, maturity or competitor-superiority claims without real external receipts and a passing gate.
+12. Keep the version at 0.0.1 and the release channel pre-release until the owner explicitly changes them.
 
 ## Runtime entry points
 
-Use `python -m syntavra_runtime --help` for the complete runtime surface.
+```text
+syntavra setup
+syntavra status
+syntavra run
+syntavra prove
+```
+
+Use `syntavra status --doctor` before relying on runtime enforcement and `syntavra status --savings` for source-level token attribution.

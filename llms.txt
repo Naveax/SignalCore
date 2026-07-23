@@ -1,13 +1,27 @@
 # Syntavra
 
-Syntavra is a local-first, cross-platform Agent Skill for AI coding agents. It coordinates repository context, exact evidence, SQLite state, conservative posterior routing, provider/tool telemetry, retries, verification, token usage, latency, and cost.
+Syntavra is a local-first token and context optimization Agent Skill for existing AI coding agents. It is not a replacement coding agent, model or IDE.
+
+It reduces five cost surfaces while preserving exact recovery:
+
+1. MCP/tool discovery schemas
+2. repository context and broad file reads
+3. terminal and MCP tool output
+4. long-session memory and conversation history
+5. provider request/cache churn
 
 Canonical repository: https://github.com/Naveax/Syntavra
 Version: 0.0.1 pre-release
 Canonical skill: skills/syntavra/SKILL.md
-Compatibility: COMPATIBILITY.md
-Installer: tools/install.py
+Installer package: @syntavra/install
+Python package: syntavra-runtime
 
-Search terms: AI coding agent skill, Agent Skills, Codex skill, Claude Code skill, Gemini CLI skill, Google Antigravity skill, Windsurf skill, OpenCode skill, VS Code Copilot skill, Cursor rules, Cline rules, Continue rules, AGENTS.md, context engineering, token optimization, tool routing, evidence deduplication, coding agent memory, SQLite WAL, AI developer tools.
+Public workflow: syntavra setup / status / run / prove
+Profiles: minimal / balanced / audit
+Compatibility aliases: tiny / optimized / full
+Primary certification targets: Codex, Claude Code, Cursor
 
-Important: Syntavra does not claim market leadership from local forecasts or internal tests. Use paired external benchmarks for comparative claims.
+Measurement levels: PROVIDER_OBSERVED, LOCALLY_TOKENIZED, ESTIMATED, UNKNOWN.
+Primary benchmark metric: provider-observed cost per verified successful task.
+
+Important: internal fixtures and synthetic receipts do not prove competitor superiority, live integration, public adoption or production maturity.
