@@ -4,6 +4,9 @@ on:
   issue_comment:
     types: [created]
   workflow_dispatch:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
 
 permissions:
   contents: write
@@ -24,17 +27,21 @@ jobs:
   apply:
     if: >-
       github.event_name == 'workflow_dispatch' ||
-      (github.actor == github.repository_owner &&
-      github.event.comment.body == '/syntavra-apply-token-saver-unification')
+      (github.event_name == 'issue_comment' &&
+      github.actor == github.repository_owner &&
+      github.event.comment.body == '/syntavra-apply-token-saver-unification') ||
+      (github.event_name == 'pull_request' &&
+      github.actor == github.repository_owner &&
+      github.head_ref == 'agent/apply-token-saver-unification')
     runs-on: ubuntu-latest
     timeout-minutes: 90
 
     steps:
       - name: Publish run start receipt
-        if: github.event_name == 'issue_comment'
+        if: github.event_name == 'issue_comment' || github.event_name == 'pull_request'
         env:
           GH_TOKEN: ${{ github.token }}
-          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          ISSUE_NUMBER: 1
         shell: bash
         run: |
           gh api --method POST "repos/${GITHUB_REPOSITORY}/issues/${ISSUE_NUMBER}/comments" \
