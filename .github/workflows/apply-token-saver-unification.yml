@@ -32,7 +32,7 @@ jobs:
       github.event.comment.body == '/syntavra-apply-token-saver-unification') ||
       (github.event_name == 'pull_request' &&
       github.actor == github.repository_owner &&
-      github.head_ref == 'agent/apply-token-saver-unification')
+      startsWith(github.head_ref, 'agent/apply-token-saver-unification'))
     runs-on: ubuntu-latest
     timeout-minutes: 90
 
