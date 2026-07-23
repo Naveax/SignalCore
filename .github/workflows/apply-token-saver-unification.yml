@@ -1,0 +1,134 @@
+name: Apply Syntavra token-saver unification
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: write
+  issues: write
+
+env:
+  EXPECTED_BASE_SHA: bb995d26a1894ed21af4f56680bfbd912c8187c4
+  PATCH_BLOB_SHA: 3d6421ebe232ae9f4f452d35233e8d7f6e3967ff
+  EXPECTED_PATCH_B64_SHA256: 58e0016333f1d87deeedeeae20dfdeb87587eb6405fa3a56983eec64aa9ada8a
+  EXPECTED_PATCH_SHA256: b8118a775290f2b765c798857c2fb7fa5ed46c78548b9e259500e95dffb31c60
+  EXPECTED_FINAL_TREE: ed41e2dcfef463a33a6dd4fb53d131a92012bb42
+
+concurrency:
+  group: syntavra-token-saver-unification
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    if: >-
+      github.event.issue.pull_request == null &&
+      github.actor == github.repository_owner &&
+      github.event.comment.body == '/syntavra-apply-token-saver-unification'
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+
+    steps:
+      - name: Check out staged main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            sdk/typescript/package-lock.json
+
+      - name: Retrieve, verify and apply exact implementation patch
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD^)" = "$EXPECTED_BASE_SHA"
+
+          gh api "repos/${GITHUB_REPOSITORY}/git/blobs/${PATCH_BLOB_SHA}" --jq .content |
+            tr -d '\n' |
+            base64 -d > /tmp/syntavra.patch.gz.b64
+          test "$(sha256sum /tmp/syntavra.patch.gz.b64 | awk '{print $1}')" = "$EXPECTED_PATCH_B64_SHA256"
+
+          base64 -d /tmp/syntavra.patch.gz.b64 | gzip -d > /tmp/syntavra.patch
+          test "$(sha256sum /tmp/syntavra.patch | awk '{print $1}')" = "$EXPECTED_PATCH_SHA256"
+          git apply --check /tmp/syntavra.patch
+          git apply --index /tmp/syntavra.patch
+          git rm .github/workflows/apply-token-saver-unification.yml
+          git diff --check --cached
+          test "$(git write-tree)" = "$EXPECTED_FINAL_TREE"
+
+      - name: Validate exact final tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check --upgrade pip
+          python -m pip install --disable-pip-version-check -e . pytest build
+          python -m compileall -q syntavra_runtime signalcore_runtime skills/syntavra/scripts tools tests benchmarks
+          python -m tools.refresh_manifest --check
+          python -m tools.check_repository_hygiene
+          python -m tools.validate
+          python -m tools.validate_runtime
+          python -m tools.validate_release
+          python -m pytest -q
+
+          npm ci --ignore-scripts --no-audit --no-fund
+          npm test
+          npm run pack:check
+
+          npm ci --prefix sdk/typescript --ignore-scripts --no-audit --no-fund
+          npm run ci --prefix sdk/typescript
+
+          git diff --check --cached
+          test "$(git write-tree)" = "$EXPECTED_FINAL_TREE"
+
+      - name: Commit validated final tree
+        id: final
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Unify Syntavra token saver runtime'
+          git push origin HEAD:main
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Remove transport comments and publish receipt
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          FINAL_SHA: ${{ steps.final.outputs.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh api --paginate "repos/${GITHUB_REPOSITORY}/issues/${ISSUE_NUMBER}/comments" --slurp |
+            jq 'add | .[] | select(.body | startswith("SYNTAVRA_PATCH_PART_")) | .id' |
+            while read -r comment_id; do
+              gh api --method DELETE "repos/${GITHUB_REPOSITORY}/issues/comments/${comment_id}"
+            done
+
+          body=$(cat <<EOF
+          ## Token-saver unification completed
+
+          - Final main SHA: \`${FINAL_SHA}\`
+          - Final tree: \`${EXPECTED_FINAL_TREE}\`
+          - Version: \`0.0.1 / pre-release\`
+          - Validation: repository, manifest, runtime, release, full Python tests, installer package, TypeScript SDK and package dry-runs passed
+          - External superiority, live certification, public maturity and provider-cost claims remain fail-closed until real external receipts exist
+
+          Workflow run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}
+          EOF
+          )
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/issues/${ISSUE_NUMBER}/comments" -f body="$body"
