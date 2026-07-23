@@ -3,7 +3,7 @@ name: Export current Syntavra main
 on:
   pull_request:
     branches: [main]
-    types: [opened]
+    types: [opened, synchronize, reopened]
 
 permissions:
   contents: write
@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   export:
-    if: github.actor == github.repository_owner && github.head_ref == 'agent/export-current-main'
+    if: github.actor == github.repository_owner && startsWith(github.head_ref, 'agent/export-current-main')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -24,7 +24,9 @@ jobs:
         run: |
           set -euo pipefail
           git archive --format=tar.gz --prefix=Syntavra/ ce52e42dd6c22001acf366a14b4677c8a9d5c85e -o /tmp/syntavra-main-ce52e42.tar.gz
-          git bundle create /tmp/syntavra-main-ce52e42.bundle ce52e42dd6c22001acf366a14b4677c8a9d5c85e
+          git update-ref refs/heads/export-product ce52e42dd6c22001acf366a14b4677c8a9d5c85e
+          git bundle create /tmp/syntavra-main-ce52e42.bundle refs/heads/export-product
+          git bundle verify /tmp/syntavra-main-ce52e42.bundle
           sha256sum /tmp/syntavra-main-ce52e42.tar.gz /tmp/syntavra-main-ce52e42.bundle > /tmp/SHA256SUMS
       - uses: actions/upload-artifact@v4
         with:
