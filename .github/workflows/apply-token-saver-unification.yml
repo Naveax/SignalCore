@@ -37,9 +37,10 @@ jobs:
         if: github.event_name == 'pull_request'
         env:
           GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
         shell: bash
         run: |
-          gh api --method POST "repos/${GITHUB_REPOSITORY}/issues/1/comments" \
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" \
             -f body="SYNTAVRA_UNIFICATION_RUN: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
 
       - name: Check out staged main
@@ -76,6 +77,7 @@ jobs:
       - name: Diagnose and verify implementation patch
         env:
           GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
         shell: bash
         run: |
           set -uo pipefail
@@ -107,7 +109,7 @@ jobs:
           gzip_note=$(tr '\n' ' ' < /tmp/syntavra-gzip.err | cut -c1-240)
           apply_note=$(tr '\n' ' ' < /tmp/syntavra-apply.err | cut -c1-480)
           diagnostic="SYNTAVRA_TRANSPORT_DIAG: blob=${actual_blob}; base64=${base64_status}; gzip=${gzip_status}; patch=${actual_patch}; apply=${apply_status}; base64_note=${base64_note}; gzip_note=${gzip_note}; apply_note=${apply_note}"
-          gh api --method POST "repos/${GITHUB_REPOSITORY}/issues/1/comments" -f body="$diagnostic"
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" -f body="$diagnostic"
 
           set -e
           test "$actual_blob" = "$EXPECTED_TRANSPORT_BLOB_SHA"
@@ -188,12 +190,6 @@ jobs:
           for branch in "${temporary_branches[@]}"; do
             git push origin --delete "$branch"
           done
-
-          gh api --paginate "repos/${GITHUB_REPOSITORY}/issues/1/comments?per_page=100" --slurp |
-            jq 'add | .[] | select(.body | startswith("SYNTAVRA_PATCH_PART_") or startswith("SYNTAVRA_UNIFICATION_RUN:") or startswith("SYNTAVRA_TRANSPORT_DIAG:")) | .id' |
-            while read -r comment_id; do
-              gh api --method DELETE "repos/${GITHUB_REPOSITORY}/issues/comments/${comment_id}"
-            done
 
           body=$(cat <<EOF
           ## Token-saver unification completed
