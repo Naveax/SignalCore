@@ -77,11 +77,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          actual_blob=$(git hash-object "$TRANSPORT_PATH")
+          actual_blob=$(git rev-parse "HEAD:${TRANSPORT_PATH}")
           echo "transport-blob=${actual_blob}"
           test "$actual_blob" = "$EXPECTED_TRANSPORT_BLOB_SHA"
 
-          base64 -d "$TRANSPORT_PATH" | gzip -d > /tmp/syntavra.patch
+          git cat-file blob "$actual_blob" | base64 -d | gzip -d > /tmp/syntavra.patch
           actual_patch=$(sha256sum /tmp/syntavra.patch | awk '{print $1}')
           echo "patch-sha256=${actual_patch}"
           test "$actual_patch" = "$EXPECTED_PATCH_SHA256"
