@@ -66,9 +66,7 @@ jobs:
             package-lock.json
             sdk/typescript/package-lock.json
 
-      - name: Retrieve, verify and apply exact implementation patch
-        env:
-          GH_TOKEN: ${{ github.token }}
+      - name: Verify staged main boundary
         shell: bash
         run: |
           set -euo pipefail
@@ -76,18 +74,39 @@ jobs:
           unexpected=$(git diff --name-only "$EXPECTED_BASE_SHA"..HEAD | grep -v '^\.github/workflows/apply-token-saver-unification\.yml$' || true)
           test -z "$unexpected"
 
+      - name: Retrieve exact patch blob
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
           gh api "repos/${GITHUB_REPOSITORY}/git/blobs/${PATCH_BLOB_SHA}" --jq .content |
             tr -d '\n' |
             base64 -d > /tmp/syntavra.patch.gz.b64
-          test "$(sha256sum /tmp/syntavra.patch.gz.b64 | awk '{print $1}')" = "$EXPECTED_PATCH_B64_SHA256"
+          actual=$(sha256sum /tmp/syntavra.patch.gz.b64 | awk '{print $1}')
+          echo "patch-b64-sha256=${actual}"
+          test "$actual" = "$EXPECTED_PATCH_B64_SHA256"
 
+      - name: Decode and verify implementation patch
+        shell: bash
+        run: |
+          set -euo pipefail
           base64 -d /tmp/syntavra.patch.gz.b64 | gzip -d > /tmp/syntavra.patch
-          test "$(sha256sum /tmp/syntavra.patch | awk '{print $1}')" = "$EXPECTED_PATCH_SHA256"
+          actual=$(sha256sum /tmp/syntavra.patch | awk '{print $1}')
+          echo "patch-sha256=${actual}"
+          test "$actual" = "$EXPECTED_PATCH_SHA256"
           git apply --check /tmp/syntavra.patch
+
+      - name: Apply exact patch and verify final tree
+        shell: bash
+        run: |
+          set -euo pipefail
           git apply --index /tmp/syntavra.patch
           git rm .github/workflows/apply-token-saver-unification.yml
           git diff --check --cached
-          test "$(git write-tree)" = "$EXPECTED_FINAL_TREE"
+          actual=$(git write-tree)
+          echo "final-tree=${actual}"
+          test "$actual" = "$EXPECTED_FINAL_TREE"
 
       - name: Validate exact final tree
         shell: bash
@@ -128,7 +147,7 @@ jobs:
         if: success()
         env:
           GH_TOKEN: ${{ github.token }}
-          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          ISSUE_NUMBER: 1
           FINAL_SHA: ${{ steps.final.outputs.sha }}
         shell: bash
         run: |
