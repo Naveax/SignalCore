@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import json
+import os
 import re
+import shlex
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Iterable, Sequence
@@ -236,17 +238,94 @@ class CommandCompactorRegistry:
             CommandCompactorPlugin("rustc", ("rustc",), None, _lint),
             CommandCompactorPlugin("powershell", ("pwsh", "powershell"), None, _table),
             CommandCompactorPlugin("package-manager", ("apt", "apt-get", "dnf", "yum", "brew", "winget", "choco", "scoop"), None, _table),
+            CommandCompactorPlugin("git-blame", ("git",), re.compile(r"^blame\b"), _table),
+            CommandCompactorPlugin("git-grep", ("git",), re.compile(r"^grep\b"), _search),
+            CommandCompactorPlugin("git-ls-files", ("git",), re.compile(r"^ls-files\b"), _search),
+            CommandCompactorPlugin("git-reflog", ("git",), re.compile(r"^reflog\b"), _git_log),
+            CommandCompactorPlugin("git-submodule", ("git",), re.compile(r"^submodule\b"), _table),
+            CommandCompactorPlugin("git-config", ("git",), re.compile(r"^config\b"), _table),
+            CommandCompactorPlugin("git-shortlog", ("git",), re.compile(r"^shortlog\b"), _git_log),
+            CommandCompactorPlugin("git-rev-list", ("git",), re.compile(r"^rev-list\b"), _table),
+            CommandCompactorPlugin("git-bisect", ("git",), re.compile(r"^bisect\b"), _table),
+            CommandCompactorPlugin("git-notes", ("git",), re.compile(r"^notes\b"), _table),
+            CommandCompactorPlugin("cargo-tree", ("cargo",), re.compile(r"^tree\b"), _table),
+            CommandCompactorPlugin("cargo-metadata", ("cargo",), re.compile(r"^metadata\b"), _json_or_table),
+            CommandCompactorPlugin("cargo-audit", ("cargo",), re.compile(r"^audit\b"), _json_or_table),
+            CommandCompactorPlugin("cargo-deny", ("cargo",), re.compile(r"^deny\b"), _json_or_table),
+            CommandCompactorPlugin("cargo-nextest", ("cargo",), re.compile(r"^nextest\b"), _test),
+            CommandCompactorPlugin("gofmt", ("gofmt",), None, _lint),
+            CommandCompactorPlugin("golangci-lint", ("golangci-lint",), None, _lint),
+            CommandCompactorPlugin("staticcheck", ("staticcheck",), None, _lint),
+            CommandCompactorPlugin("govulncheck", ("govulncheck",), None, _json_or_table),
+            CommandCompactorPlugin("bun-test", ("bun",), re.compile(r"^(?:test|run\s+test)\b"), _test),
+            CommandCompactorPlugin("bun-install", ("bun",), re.compile(r"^(?:install|add|update|outdated|audit)\b"), _json_or_table),
+            CommandCompactorPlugin("deno-test", ("deno",), re.compile(r"^test\b"), _test),
+            CommandCompactorPlugin("deno-lint", ("deno",), re.compile(r"^(?:lint|check|info)\b"), _lint),
+            CommandCompactorPlugin("mocha", ("mocha",), None, _test),
+            CommandCompactorPlugin("ava", ("ava",), None, _test),
+            CommandCompactorPlugin("tox", ("tox",), None, _test),
+            CommandCompactorPlugin("nox", ("nox",), None, _test),
+            CommandCompactorPlugin("semgrep", ("semgrep",), None, _json_or_table),
+            CommandCompactorPlugin("sqlfluff", ("sqlfluff",), None, _lint),
+            CommandCompactorPlugin("trivy", ("trivy",), None, _json_or_table),
+            CommandCompactorPlugin("snyk", ("snyk",), None, _json_or_table),
+            CommandCompactorPlugin("composer", ("composer",), None, _json_or_table),
+            CommandCompactorPlugin("phpunit", ("phpunit",), None, _test),
+            CommandCompactorPlugin("bundle", ("bundle",), None, _json_or_table),
+            CommandCompactorPlugin("rspec", ("rspec",), None, _test),
+            CommandCompactorPlugin("swift", ("swift",), None, _test),
+            CommandCompactorPlugin("xcodebuild", ("xcodebuild",), None, _test),
+            CommandCompactorPlugin("jq", ("jq",), None, _json_or_table),
+            CommandCompactorPlugin("yq", ("yq",), None, _json_or_table),
+            CommandCompactorPlugin("sqlite3", ("sqlite3",), None, _json_or_table),
+            CommandCompactorPlugin("psql", ("psql",), None, _table),
+            CommandCompactorPlugin("mysql", ("mysql",), None, _table),
+            CommandCompactorPlugin("redis-cli", ("redis-cli",), None, _table),
+            CommandCompactorPlugin("kustomize", ("kustomize",), None, _json_or_table),
+            CommandCompactorPlugin("gh-release", ("gh",), re.compile(r"^release\b"), _json_or_table),
+            CommandCompactorPlugin("gh-workflow", ("gh",), re.compile(r"^workflow\b"), _json_or_table),
+            CommandCompactorPlugin("gh-secret", ("gh",), re.compile(r"^secret\b"), _json_or_table),
+            CommandCompactorPlugin("gh-variable", ("gh",), re.compile(r"^variable\b"), _json_or_table),
+            CommandCompactorPlugin("gh-codespace", ("gh",), re.compile(r"^codespace\b"), _json_or_table),
+            CommandCompactorPlugin("docker-system", ("docker", "podman"), re.compile(r"^system\b"), _json_or_table),
+            CommandCompactorPlugin("docker-volume", ("docker", "podman"), re.compile(r"^volume\b"), _json_or_table),
+            CommandCompactorPlugin("docker-network", ("docker", "podman"), re.compile(r"^network\b"), _json_or_table),
+            CommandCompactorPlugin("podman-compose", ("podman-compose",), None, _table),
+            CommandCompactorPlugin("hadolint", ("hadolint",), None, _lint),
+            CommandCompactorPlugin("shellcheck", ("shellcheck",), None, _lint),
+            CommandCompactorPlugin("bats", ("bats",), None, _test),
+            CommandCompactorPlugin("bazel", ("bazel",), None, _test),
+            CommandCompactorPlugin("buck2", ("buck2",), None, _test),
+            CommandCompactorPlugin("pants", ("pants",), None, _test),
+            CommandCompactorPlugin("msbuild", ("msbuild",), None, _test),
+            CommandCompactorPlugin("nuget", ("nuget",), None, _json_or_table),
         )
 
     @staticmethod
     def _command_parts(command: str | Iterable[str]) -> tuple[str, str]:
         if isinstance(command, str):
-            parts = command.strip().split()
+            try:
+                parts = shlex.split(command, posix=os.name != "nt")
+            except ValueError:
+                return "", ""
         else:
             parts = [str(item) for item in command]
         if not parts:
             return "", ""
-        return Path(parts[0]).name.casefold(), " ".join(parts[1:]).casefold()
+        index = 0
+        while index < len(parts) and re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*=.*", parts[index]):
+            index += 1
+        while index < len(parts) and Path(parts[index]).name.casefold() in {"command", "env", "sudo", "time"}:
+            wrapper = Path(parts[index]).name.casefold()
+            index += 1
+            if wrapper == "env":
+                while index < len(parts) and re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*=.*", parts[index]):
+                    index += 1
+            elif index < len(parts) and parts[index].startswith("-"):
+                return "", ""
+        if index >= len(parts):
+            return "", ""
+        return Path(parts[index]).name.casefold(), " ".join(parts[index + 1:]).casefold()
 
     def select(self, command: str | Iterable[str], lines: Sequence[str]) -> tuple[str | None, list[str], int]:
         executable, arguments = self._command_parts(command)
@@ -261,6 +340,6 @@ class CommandCompactorRegistry:
             "plugins": [plugin.name for plugin in self.plugins],
             "count": len(self.plugins),
             "exact_output_required": True,
-            "target_minimum": 60,
-            "coverage_gate": len(self.plugins) >= 60,
+            "target_minimum": 120,
+            "coverage_gate": len(self.plugins) >= 120,
         }

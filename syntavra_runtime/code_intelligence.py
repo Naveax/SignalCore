@@ -11,10 +11,11 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any, Iterable, Mapping, Sequence
 
-from .util import canonical_json, sha256_bytes
+from .language_parsers import LANGUAGE_BY_SUFFIX, TreeSitterLanguageBackend
+from .util import atomic_write_json, canonical_json, read_json, sha256_bytes
 
 
-_CODE_SUFFIXES = {".py", ".js", ".jsx", ".ts", ".tsx", ".rs", ".go", ".java", ".cs", ".rb", ".php", ".lua", ".luau", ".c", ".h", ".cpp", ".hpp"}
+_CODE_SUFFIXES = set(LANGUAGE_BY_SUFFIX)
 _TEST_MARKERS = ("test", "tests", "spec", "__tests__")
 
 
@@ -34,6 +35,8 @@ class SymbolNode:
     body_hash: str = ""
     complexity: int = 1
     exported: bool = False
+    parser_backend: str = "deterministic-lexical"
+    parse_confidence: float = 0.45
 
 
 @dataclass(frozen=True)
@@ -99,6 +102,7 @@ class _PythonVisitor(ast.NodeVisitor):
             bases=tuple(base for base in bases if base), imports=tuple(sorted(self.imports)),
             body_hash=sha256_bytes(re.sub(r"\s+", " ", body).strip().encode("utf-8")),
             complexity=complexity, exported=not name.startswith("_"),
+            parser_backend="python-ast", parse_confidence=1.0,
         )
         self.symbols.append(item)
         return item
@@ -145,10 +149,12 @@ class CodeIntelligenceIndex:
     def __init__(self, project: Path):
         self.project = Path(project).resolve(strict=True)
         self.graph = CodeGraph()
+        self.tree_sitter = TreeSitterLanguageBackend()
+        self.last_build_stats: dict[str, Any] = {"mode": "none", "parsed_files": 0, "reused_files": 0}
 
     @staticmethod
     def _language(path: Path) -> str:
-        return {".js": "javascript", ".jsx": "javascript", ".ts": "typescript", ".tsx": "typescript", ".rs": "rust", ".go": "go", ".java": "java", ".cs": "csharp", ".rb": "ruby", ".php": "php", ".lua": "lua", ".luau": "luau", ".c": "c", ".h": "c", ".cpp": "cpp", ".hpp": "cpp"}.get(path.suffix.casefold(), "unknown")
+        return LANGUAGE_BY_SUFFIX.get(path.suffix, LANGUAGE_BY_SUFFIX.get(path.suffix.casefold(), "unknown"))
 
     def _files(self) -> Iterable[Path]:
         for path in self.project.rglob("*"):
@@ -175,27 +181,62 @@ class CodeIntelligenceIndex:
                 body_hash=sha256_bytes(re.sub(r"\s+", " ", snippet).strip().encode("utf-8")),
                 complexity=1 + len(re.findall(r"\b(?:if|for|while|switch|match|catch|except|&&|\|\|)\b", snippet)),
                 exported=bool(re.search(r"\b(?:export|pub|public)\b", match.group(0))) or not name.startswith("_"),
+                parser_backend="deterministic-lexical", parse_confidence=0.45,
             ))
         return rows
 
-    def build(self) -> CodeGraph:
-        graph = CodeGraph()
-        for path in self._files():
-            relative = path.relative_to(self.project).as_posix()
-            source = path.read_text(encoding="utf-8", errors="replace")
-            language = "python" if path.suffix.casefold() == ".py" else self._language(path)
-            try:
-                if language == "python":
-                    visitor = _PythonVisitor(relative, source)
-                    visitor.visit(ast.parse(source, filename=relative))
-                    symbols = visitor.symbols
-                else:
+    def _tree_sitter_symbols(self, relative: str, source: str, language: str) -> list[SymbolNode] | None:
+        declarations = self.tree_sitter.parse(source, language)
+        if declarations is None:
+            return None
+        lines = source.splitlines()
+        rows: list[SymbolNode] = []
+        for declaration in declarations:
+            start = max(1, declaration.line)
+            end = max(start, min(len(lines), declaration.end_line))
+            snippet = "\n".join(lines[start - 1:end])
+            rows.append(SymbolNode(
+                id=f"{relative}:{declaration.name}:{start}",
+                name=declaration.name,
+                qualified_name=declaration.name,
+                kind=declaration.kind,
+                path=relative,
+                line=start,
+                end_line=end,
+                language=language,
+                bases=declaration.bases,
+                calls=declaration.calls,
+                imports=declaration.imports,
+                body_hash=sha256_bytes(re.sub(r"\s+", " ", snippet).strip().encode("utf-8")),
+                complexity=1 + len(re.findall(r"\b(?:if|for|while|switch|match|catch|except|&&|\|\|)\b", snippet)),
+                exported=not declaration.name.startswith("_"),
+                parser_backend="tree-sitter",
+                parse_confidence=0.9,
+            ))
+        return rows
+
+    def _parse_file(self, path: Path) -> tuple[str, str, int, str, list[SymbolNode]]:
+        relative = path.relative_to(self.project).as_posix()
+        raw = path.read_bytes()
+        source_hash = sha256_bytes(raw)
+        source = raw.decode("utf-8", errors="replace")
+        language = "python" if path.suffix.casefold() in {".py", ".pyi"} else self._language(path)
+        try:
+            if language == "python":
+                visitor = _PythonVisitor(relative, source)
+                visitor.visit(ast.parse(source, filename=relative))
+                symbols = visitor.symbols
+            else:
+                symbols = self._tree_sitter_symbols(relative, source, language)
+                if symbols is None:
                     symbols = self._generic_symbols(relative, source, language)
-            except (SyntaxError, ValueError):
-                symbols = self._generic_symbols(relative, source, language)
-            graph.files[relative] = {"language": language, "bytes": len(source.encode("utf-8")), "symbols": [item.id for item in symbols]}
-            for item in symbols:
-                graph.symbols[item.id] = item
+        except (SyntaxError, ValueError):
+            symbols = self._generic_symbols(relative, source, language)
+        return relative, language, len(raw), source_hash, symbols
+
+    @staticmethod
+    def _link(graph: CodeGraph) -> None:
+        graph.edges.clear()
         by_name: dict[str, list[str]] = collections.defaultdict(list)
         for item in graph.symbols.values():
             by_name[item.name].append(item.id)
@@ -205,25 +246,86 @@ class CodeIntelligenceIndex:
             stem = target.path.removesuffix(Path(target.path).suffix)
             module_symbols[stem].append(target.id)
         module_names = tuple(module_symbols)
+        seen_edges: set[tuple[str, str, str]] = set()
         for item in graph.symbols.values():
             for call in item.calls:
                 short = call.rsplit(".", 1)[-1]
                 for target in by_name.get(call, by_name.get(short, ())):
-                    if target != item.id:
-                        graph.edges.append(GraphEdge(item.id, target, "call"))
+                    edge = (item.id, target, "call")
+                    if target != item.id and edge not in seen_edges:
+                        graph.edges.append(GraphEdge(*edge)); seen_edges.add(edge)
             for base in item.bases:
                 short = base.rsplit(".", 1)[-1]
                 for target in by_name.get(base, by_name.get(short, ())):
-                    if target != item.id:
-                        graph.edges.append(GraphEdge(item.id, target, "inherits"))
+                    edge = (item.id, target, "inherits")
+                    if target != item.id and edge not in seen_edges:
+                        graph.edges.append(GraphEdge(*edge)); seen_edges.add(edge)
             for imported in item.imports:
                 imported_path = imported.replace(".", "/")
                 for module in module_names:
                     if module.endswith(imported_path):
                         for target_id in module_symbols[module]:
-                            if target_id != item.id:
-                                graph.edges.append(GraphEdge(item.id, target_id, "import"))
+                            edge = (item.id, target_id, "import")
+                            if target_id != item.id and edge not in seen_edges:
+                                graph.edges.append(GraphEdge(*edge)); seen_edges.add(edge)
+
+    def build(self) -> CodeGraph:
+        graph = CodeGraph()
+        parsed = 0
+        for path in self._files():
+            relative, language, size, source_hash, symbols = self._parse_file(path)
+            graph.files[relative] = {"language": language, "bytes": size, "sha256": source_hash, "symbols": [item.id for item in symbols]}
+            for item in symbols:
+                graph.symbols[item.id] = item
+            parsed += 1
+        self._link(graph)
         self.graph = graph
+        self.last_build_stats = {"mode": "full", "parsed_files": parsed, "reused_files": 0, "removed_files": 0}
+        return graph
+
+    def build_incremental(self, cache_path: Path) -> CodeGraph:
+        cache = read_json(cache_path, {}) or {}
+        cached_files = cache.get("files") if isinstance(cache, Mapping) else {}
+        if not isinstance(cached_files, Mapping):
+            cached_files = {}
+        graph = CodeGraph()
+        parsed = 0
+        reused = 0
+        current_paths: set[str] = set()
+        rendered_cache: dict[str, Any] = {}
+        for path in self._files():
+            relative = path.relative_to(self.project).as_posix()
+            current_paths.add(relative)
+            raw = path.read_bytes()
+            source_hash = sha256_bytes(raw)
+            cached = cached_files.get(relative) if isinstance(cached_files, Mapping) else None
+            symbols: list[SymbolNode]
+            if isinstance(cached, Mapping) and cached.get("sha256") == source_hash and isinstance(cached.get("symbols"), list):
+                try:
+                    symbols = [SymbolNode(**dict(row)) for row in cached["symbols"] if isinstance(row, Mapping)]
+                    language = str(cached.get("language") or self._language(path))
+                    size = int(cached.get("bytes") or len(raw))
+                    reused += 1
+                except (TypeError, ValueError):
+                    relative, language, size, source_hash, symbols = self._parse_file(path)
+                    parsed += 1
+            else:
+                relative, language, size, source_hash, symbols = self._parse_file(path)
+                parsed += 1
+            graph.files[relative] = {"language": language, "bytes": size, "sha256": source_hash, "symbols": [item.id for item in symbols]}
+            for item in symbols:
+                graph.symbols[item.id] = item
+            rendered_cache[relative] = {
+                "language": language,
+                "bytes": size,
+                "sha256": source_hash,
+                "symbols": [asdict(item) for item in symbols],
+            }
+        removed = len(set(cached_files) - current_paths)
+        self._link(graph)
+        atomic_write_json(cache_path, {"schema_version": 1, "files": rendered_cache}, mode=0o600)
+        self.graph = graph
+        self.last_build_stats = {"mode": "incremental", "parsed_files": parsed, "reused_files": reused, "removed_files": removed}
         return graph
 
     def _ensure(self) -> CodeGraph:
@@ -415,6 +517,68 @@ class CodeIntelligenceIndex:
             rows.append({"repository":str(Path(path).resolve()),"shared_contracts":[own_exports[name] for name in shared]})
         body={"source_repository":str(self.project),"repositories":rows}; body["contract_hash"]=sha256_bytes(canonical_json(body)); return body
 
+    def implementations(self, query: str) -> dict[str, Any]:
+        graph = self._ensure()
+        reverse = graph.reverse(kinds={"inherits"})
+        matches = [item for item in self.resolve(query) if item.kind in {"class", "interface", "trait", "struct"}]
+        rows = []
+        for item in matches:
+            implementations = [asdict(graph.symbols[node]) for node in sorted(reverse.get(item.id, ()))]
+            rows.append({"contract": asdict(item), "implementations": implementations})
+        return {"query": query, "matches": rows, "implementation_count": sum(len(row["implementations"]) for row in rows)}
+
+    def blast_radius(self, query: str, *, depth: int = 4) -> dict[str, Any]:
+        graph = self._ensure()
+        targets = self.resolve(query)
+        reverse = graph.reverse(kinds={"call", "import", "inherits"})
+        impacted: dict[str, dict[str, Any]] = {}
+        frontier = [(item.id, 0, item.id) for item in targets[:20]]
+        seen = {item.id for item in targets[:20]}
+        while frontier:
+            node, distance, root = frontier.pop(0)
+            item = graph.symbols[node]
+            current = impacted.setdefault(item.path, {"path": item.path, "minimum_depth": distance, "symbols": set(), "roots": set()})
+            current["minimum_depth"] = min(current["minimum_depth"], distance)
+            current["symbols"].add(item.qualified_name)
+            current["roots"].add(root)
+            if distance >= depth:
+                continue
+            for parent in sorted(reverse.get(node, ())):
+                if parent in seen:
+                    continue
+                seen.add(parent)
+                frontier.append((parent, distance + 1, root))
+        rendered = []
+        for row in impacted.values():
+            rendered.append({
+                "path": row["path"],
+                "minimum_depth": row["minimum_depth"],
+                "symbols": sorted(row["symbols"]),
+                "roots": sorted(row["roots"]),
+            })
+        body = {
+            "query": query,
+            "depth": depth,
+            "targets": [asdict(item) for item in targets[:20]],
+            "impacted_paths": sorted(rendered, key=lambda row: (row["minimum_depth"], row["path"])),
+        }
+        body["blast_radius_hash"] = sha256_bytes(canonical_json(body))
+        return body
+
+    def parser_manifest(self) -> dict[str, Any]:
+        graph = self._ensure()
+        backends: dict[str, int] = collections.Counter(item.parser_backend for item in graph.symbols.values())
+        languages: dict[str, int] = collections.Counter(row["language"] for row in graph.files.values())
+        confidences = [item.parse_confidence for item in graph.symbols.values()]
+        return {
+            "declared_language_count": len(set(LANGUAGE_BY_SUFFIX.values())),
+            "indexed_languages": dict(sorted(languages.items())),
+            "backends": dict(sorted(backends.items())),
+            "mean_parse_confidence": sum(confidences) / len(confidences) if confidences else 0.0,
+            "tree_sitter": self.tree_sitter.manifest(),
+            "claim_boundary": "lexical fallback is not represented as exact AST parsing",
+        }
+
     def report(self) -> dict[str, Any]:
         graph=self._ensure(); ranks=self.pagerank()
-        return {"files":len(graph.files),"symbols":len(graph.symbols),"edges":len(graph.edges),"top_symbols":[{"symbol":asdict(graph.symbols[key]),"pagerank":value} for key,value in list(ranks.items())[:30]],"cycles":self.cycles(),"dead_code":self.dead_code(),"untested":self.untested_symbols(),"hotspots":self.hotspots()[:50],"coupling":self.coupling()[:50],"module_boundaries":self.module_boundaries(),"duplicates":self.duplicates(),"anti_patterns":self.anti_patterns()}
+        return {"files":len(graph.files),"symbols":len(graph.symbols),"edges":len(graph.edges),"build_stats":dict(self.last_build_stats),"parser_manifest":self.parser_manifest(),"top_symbols":[{"symbol":asdict(graph.symbols[key]),"pagerank":value} for key,value in list(ranks.items())[:30]],"cycles":self.cycles(),"dead_code":self.dead_code(),"untested":self.untested_symbols(),"hotspots":self.hotspots()[:50],"coupling":self.coupling()[:50],"module_boundaries":self.module_boundaries(),"duplicates":self.duplicates(),"anti_patterns":self.anti_patterns()}

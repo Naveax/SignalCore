@@ -12,6 +12,7 @@ from .competitive_fabric import CompetitiveContextFabric
 from .compression import ContentRouter
 from .command_rewriter import CommandRewriteEngine
 from .optimization_modes import OptimizationModeStore, SavingsLedger, render_statusline
+from .prompt_cache_optimizer import PromptCacheOptimizer
 from .subtask_router import AutomaticSubtaskDelegator
 from .memory_intelligence import MemoryIntelligenceStore
 from .notifications import NotificationFeed
@@ -73,6 +74,7 @@ class HookEngine:
         self.savings = SavingsLedger(active_state)
         self.rewriter = CommandRewriteEngine()
         self.delegator = AutomaticSubtaskDelegator()
+        self.cache_optimizer = PromptCacheOptimizer(active_state)
         self.memory_intelligence = MemoryIntelligenceStore(active_state / "memory-intelligence.sqlite3", notification_feed=NotificationFeed(active_state))
         self.fabric = fabric or CompetitiveContextFabric(
             active_state / "competitive-fabric.sqlite3",
@@ -215,6 +217,7 @@ class HookEngine:
         task = str(payload.get("task") or payload.get("prompt") or "")
         active_mode = self.mode_store.current()
         delegation = self.delegator.plan(task, context_paths=[str(self.project_root)], max_tasks=8) if active_mode.auto_delegate and task else None
+        cache_health = self.cache_optimizer.health()
         return {
             "mode": "activate-runtime",
             "project": str(self.project_root),
@@ -222,6 +225,8 @@ class HookEngine:
             "required_actions": ("runtime-status", "structural-index", "session-open", "competitive-fabric-profile"),
             "optimization_mode": active_mode.name,
             "statusline": render_statusline(self.state_root),
+            "cache_health": cache_health,
+            "cache_action": "refresh-stable-prefix" if cache_health["refresh_due"] or cache_health["expired"] else "preserve-stable-prefix",
             "delegation": asdict(delegation) if delegation else None,
             "timestamp": time.time(),
         }
@@ -242,6 +247,7 @@ class HookEngine:
                 extracted = [asdict(row) for row in self.memory_intelligence.extract(prompt)]
             except Exception as exc:
                 extraction_error = f"{type(exc).__name__}:{exc}"
+        cache_health = self.cache_optimizer.health()
         return {
             "mode": "classify-task",
             "risk": risk,
@@ -250,6 +256,8 @@ class HookEngine:
             "delegation": asdict(delegation) if delegation else None,
             "memory_observations": extracted,
             "memory_extraction_error": extraction_error,
+            "cache_health": cache_health,
+            "cache_action": "refresh-stable-prefix" if cache_health["refresh_due"] or cache_health["expired"] else "preserve-stable-prefix",
         }
 
     @staticmethod

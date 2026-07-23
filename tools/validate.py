@@ -5,11 +5,13 @@ import hashlib
 import json
 import py_compile
 import re
+import sys
 import tomllib
 from pathlib import Path
 from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
 SKILL = ROOT / "skills" / "syntavra"
 EXPECTED_VERSION = "0.0.1"
 EXPECTED_CHANNEL = "pre-release"
@@ -37,6 +39,7 @@ REQUIRED = [
     ROOT / "docs" / "OPERATIONS.md",
     ROOT / "docs" / "TOKEN_SAVER_PLAN_001.md",
     ROOT / "docs" / "COMPLETE_COMPETITIVE_FEATURE_SET_001.md",
+    ROOT / "docs" / "COMPETITIVE_GAP_CLOSURE_001.md",
     ROOT / "benchmarks" / "syntavra_component_benchmark.py",
     ROOT / "benchmarks" / "signalbench" / "README.md",
     ROOT / "benchmarks" / "signalbench" / "tasks.example.json",
@@ -82,6 +85,8 @@ REQUIRED = [
     ROOT / "syntavra_runtime" / "secret_redaction.py",
     ROOT / "syntavra_runtime" / "wire_format.py",
     ROOT / "syntavra_runtime" / "code_intelligence.py",
+    ROOT / "syntavra_runtime" / "language_parsers.py",
+    ROOT / "syntavra_runtime" / "provider_account_pool.py",
     ROOT / "syntavra_runtime" / "memory_intelligence.py",
     ROOT / "syntavra_runtime" / "notifications.py",
     ROOT / "syntavra_runtime" / "adaptive_provider_router.py",
@@ -106,6 +111,7 @@ REQUIRED = [
     SKILL / "profiles" / "roblox_studio" / "profile.json",
     ROOT / "tools" / "validate_runtime.py",
     ROOT / "tools" / "validate_release.py",
+    ROOT / "tools" / "validate_competitive_gap_closure.py",
     ROOT / "tools" / "check_repository_hygiene.py",
 ]
 
@@ -237,8 +243,8 @@ def main() -> int:
     from syntavra_runtime.provider_registry import default_provider_registry
     feature_manifest = competitive_feature_manifest(ROOT)
     checks.append(("competitive_feature_manifest", bool(feature_manifest.get("ok")), json.dumps(feature_manifest.get("gates", {}), sort_keys=True)))
-    checks.append(("pretool_rewrite_coverage", CommandRewriteEngine().manifest()["count"] >= 60, str(CommandRewriteEngine().manifest()["count"])))
-    checks.append(("command_compactor_coverage", CommandCompactorRegistry().manifest()["count"] >= 60, str(CommandCompactorRegistry().manifest()["count"])))
+    checks.append(("pretool_rewrite_coverage", CommandRewriteEngine().manifest()["count"] >= 110, str(CommandRewriteEngine().manifest()["count"])))
+    checks.append(("command_compactor_coverage", CommandCompactorRegistry().manifest()["count"] >= 120, str(CommandCompactorRegistry().manifest()["count"])))
     host_coverage = coverage_report()
     checks.append(("host_installation_coverage", host_coverage["controlled_hosts"] >= 30, json.dumps(host_coverage, sort_keys=True)))
     provider_count = len(default_provider_registry().catalog()["providers"])

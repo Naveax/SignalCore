@@ -15,6 +15,7 @@ from .memory_intelligence import MemoryIntelligenceStore
 from .notifications import NotificationFeed
 from .optimization_modes import OptimizationModeStore, SavingsLedger, render_statusline
 from .prompt_cache_optimizer import PromptCacheOptimizer
+from .provider_account_pool import ProviderAccountPool
 from .repository_watcher import RepositoryWatcher
 from .secret_redaction import SecretRedactor
 from .subtask_router import AutomaticSubtaskDelegator
@@ -66,6 +67,7 @@ class MCPServer:
             policy=ExternalizationPolicy.for_profile("balanced"),
         )
         self.usage_ledger = UsageReceiptLedger(state_root / "usage-receipts.sqlite3")
+        self.provider_accounts = ProviderAccountPool(state_root / "provider-accounts.sqlite3")
         self.output_pipeline = HostOutputPipeline(
             self.externalizer, usage_ledger=self.usage_ledger, sessions=self.sessions
         )
@@ -313,6 +315,7 @@ class MCPServer:
             tool("syntavra.code.intelligence", "Query code graph analytics", {"action": {"type": "string"}, "query": {"type": "string"}, "paths": {"type": "array", "items": {"type": "string"}}, "target_name": {"type": "string"}}, ["action"]),
             tool("syntavra.memory.intelligence", "Extract, rank, search, backfill or export memory", {"action": {"type": "string"}, "text": {"type": "string"}, "query": {"type": "string"}, "path": {"type": "string"}, "limit": {"type": "integer"}}, ["action"]),
             tool("syntavra.provider.route", "Quota, rate-limit and complexity-aware provider routing", {"task": {"type": "string"}, "candidates": {"type": "array", "items": {"type": "object"}}, "changed_files": {"type": "integer"}, "token_estimate": {"type": "integer"}}, ["task", "candidates"]),
+            tool("syntavra.provider.accounts", "Manage credential references, account health, quota and failover", {"action": {"type": "string"}, "provider": {"type": "string"}, "account": {"type": "string"}, "credential_ref": {"type": "string"}, "subscription": {"type": "boolean"}, "priority": {"type": "integer"}, "quota_remaining": {"type": "number"}, "quota_reset_at": {"type": "number"}, "models": {"type": "array", "items": {"type": "string"}}, "model_rows": {"type": "array", "items": {"type": "object"}}, "task": {"type": "string"}, "success": {"type": "boolean"}, "latency_ms": {"type": "number"}, "retry_after_seconds": {"type": "number"}}, ["action"]),
             tool("syntavra.subtask.plan", "Build specialized short-handoff subtasks", {"objective": {"type": "string"}, "context_paths": {"type": "array", "items": {"type": "string"}}, "max_tasks": {"type": "integer"}}, ["objective"]),
             tool("syntavra.repository.watch", "Poll changes and incrementally rebuild code index", {"iterations": {"type": "integer"}, "interval": {"type": "number"}}),
             tool("syntavra.dashboard.snapshot", "Read local dashboard state"),
@@ -359,11 +362,14 @@ class MCPServer:
         if name == "syntavra.wire":
             return self.wire_codec.encode(arguments["value"], min_savings_ratio=float(arguments.get("minimum_savings", .08))) if str(arguments["action"]) == "encode" else self.wire_codec.decode(arguments["value"])
         if name == "syntavra.code.intelligence":
-            index=CodeIntelligenceIndex(self.project); index.build(); action=str(arguments["action"]); query=str(arguments.get("query", "")); paths=list(arguments.get("paths") or [])
+            index=CodeIntelligenceIndex(self.project); index.build_incremental(self.state_root / "code-intelligence-index.json"); action=str(arguments["action"]); query=str(arguments.get("query", "")); paths=list(arguments.get("paths") or [])
             methods={"report":index.report,"dead":index.dead_code,"untested":index.untested_symbols,"pagerank":index.pagerank,"hotspots":index.hotspots,"cycles":index.cycles,"coupling":index.coupling,"boundaries":index.module_boundaries,"duplicates":index.duplicates,"anti-patterns":index.anti_patterns}
             if action in methods: return methods[action]()
             if action == "call": return index.call_hierarchy(query)
             if action == "class": return index.class_hierarchy(query)
+            if action == "implementations": return index.implementations(query)
+            if action == "blast-radius": return index.blast_radius(query, depth=int(arguments.get("depth", 4)))
+            if action == "parser-manifest": return index.parser_manifest()
             if action == "provenance": return index.provenance(query)
             if action == "risk": return index.pr_risk(paths)
             if action == "signal": return index.signal_chain(query)
@@ -383,10 +389,19 @@ class MCPServer:
             raise ValueError(f"unknown memory action: {action}")
         if name == "syntavra.provider.route":
             router=AdaptiveProviderRouter.from_mappings(list(arguments["candidates"])); return asdict(router.route(str(arguments["task"]),changed_files=int(arguments.get("changed_files",0)),token_estimate=int(arguments.get("token_estimate",0))))
+        if name == "syntavra.provider.accounts":
+            action=str(arguments["action"]); provider=str(arguments.get("provider", "")); account=str(arguments.get("account", ""))
+            if action == "add":
+                row=self.provider_accounts.register(provider,account,credential_ref=str(arguments["credential_ref"]),subscription=bool(arguments.get("subscription",False)),priority=int(arguments.get("priority",0)),quota_remaining=float(arguments.get("quota_remaining",1.0)),quota_reset_at=float(arguments.get("quota_reset_at",0.0)),model_allowlist=list(arguments.get("models") or [])); return asdict(row)|{"health_ratio":row.health_ratio}
+            if action == "feedback":
+                row=self.provider_accounts.record_result(provider,account,success=bool(arguments.get("success",False)),latency_ms=float(arguments.get("latency_ms",0.0)),quota_remaining=arguments.get("quota_remaining"),quota_reset_at=arguments.get("quota_reset_at"),retry_after_seconds=float(arguments.get("retry_after_seconds",0.0))); return asdict(row)|{"health_ratio":row.health_ratio}
+            if action == "list": return self.provider_accounts.receipt()
+            if action == "route": return asdict(self.provider_accounts.route(str(arguments["task"]),list(arguments.get("model_rows") or []),changed_files=int(arguments.get("changed_files",0)),token_estimate=int(arguments.get("token_estimate",0))))
+            raise ValueError(f"unknown provider-account action: {action}")
         if name == "syntavra.subtask.plan":
             return asdict(AutomaticSubtaskDelegator().plan(str(arguments["objective"]),context_paths=list(arguments.get("context_paths") or []),max_tasks=int(arguments.get("max_tasks",8))))
         if name == "syntavra.repository.watch":
-            watcher=RepositoryWatcher(self.project,self.state_root); rows=watcher.watch(iterations=int(arguments.get("iterations",1)),interval_seconds=float(arguments.get("interval",1)),callback=lambda changes:{"index":CodeIntelligenceIndex(self.project).build(),"changed":list(changes.changed)}); return {"changes":[asdict(row) for row in rows],"status":watcher.status()}
+            watcher=RepositoryWatcher(self.project,self.state_root); rows=watcher.watch(iterations=int(arguments.get("iterations",1)),interval_seconds=float(arguments.get("interval",1)),callback=lambda changes:{"index":CodeIntelligenceIndex(self.project).build_incremental(self.state_root / "code-intelligence-index.json"),"changed":list(changes.changed)}); return {"changes":[asdict(row) for row in rows],"status":watcher.status()}
         if name == "syntavra.dashboard.snapshot":
             return LocalDashboard(project=self.project,state_root=self.state_root).snapshot()
         if name == "syntavra.status":

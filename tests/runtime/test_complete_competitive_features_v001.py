@@ -22,6 +22,7 @@ from syntavra_runtime.notifications import NotificationFeed
 from syntavra_runtime.optimization_modes import MODES, OptimizationModeStore, SavingsLedger, render_statusline
 from syntavra_runtime.prompt_cache_optimizer import PromptCacheOptimizer
 from syntavra_runtime.provider_gateway import ProviderGateway
+from syntavra_runtime.provider_account_pool import ProviderAccountPool
 from syntavra_runtime.evidence import EvidenceStore
 from syntavra_runtime.usage_receipt_ledger import UsageReceiptLedger
 from syntavra_runtime.mcp_server import MCPServer
@@ -46,13 +47,17 @@ def test_modes_statusline_and_savings(tmp_path: Path) -> None:
 
 def test_pretool_rewrite_is_fail_closed_and_hooked(tmp_path: Path) -> None:
     engine = CommandRewriteEngine()
-    assert engine.manifest()["count"] >= 60
+    assert engine.manifest()["count"] >= 100
     result = engine.rewrite("git status")
     assert result.changed and "--porcelain=v2" in result.rewritten
     unsafe = engine.rewrite("git status | cat")
     assert not unsafe.changed and not unsafe.safe
     explicit = engine.rewrite("git log --format=%H")
     assert not explicit.changed and explicit.safe
+    wrapped = engine.rewrite("env CI=1 git status")
+    assert wrapped.changed and wrapped.rewritten[:2] == ("env", "CI=1")
+    rejected_wrapper = engine.rewrite("sudo -u root git status")
+    assert not rejected_wrapper.changed and not rejected_wrapper.safe
     hook = HookEngine(project_root=tmp_path, state_root=tmp_path / ".state", auto_externalize=False)
     decision = hook.pre_tool({"tool": "bash", "command": "git status", "cwd": str(tmp_path)})
     assert decision.mode == "replace"
@@ -61,10 +66,10 @@ def test_pretool_rewrite_is_fail_closed_and_hooked(tmp_path: Path) -> None:
 
 def test_compactor_registry_has_broad_command_coverage() -> None:
     manifest = CommandCompactorRegistry().manifest()
-    assert manifest["count"] >= 60
+    assert manifest["count"] >= 100
     assert manifest["coverage_gate"] is True
     names = set(manifest["plugins"])
-    for required in {"git-status", "docker-logs", "kubectl-events", "aws", "curl", "gh-pr", "terraform"}:
+    for required in {"git-status", "docker-logs", "kubectl-events", "aws", "curl", "gh-pr", "terraform", "cargo-audit", "semgrep", "shellcheck", "gh-workflow"}:
         assert required in names
 
 
@@ -74,8 +79,8 @@ def test_transcript_miner_detects_pre_and_post_tool_opportunities() -> None:
         {"command": "pytest", "output": "PASSED test_a\n" * 500},
     ]
     result = TranscriptOpportunityMiner().analyze(transcript)
-    assert result["coverage"]["rewrite_rules"] >= 60
-    assert result["coverage"]["compactors"] >= 60
+    assert result["coverage"]["rewrite_rules"] >= 100
+    assert result["coverage"]["compactors"] >= 100
     assert result["estimated_saved_tokens"] > 0
     assert {row["kind"] for row in result["opportunities"]} >= {"pre-tool-rewrite", "post-tool-compaction"}
 
@@ -120,6 +125,19 @@ def test_agent_config_auditor_finds_duplicates_stale_paths_and_injection(tmp_pat
     kinds = {row["kind"] for row in audit["findings"]}
     assert {"duplicate-instruction", "stale-path", "instruction-injection"} <= kinds
     assert audit["audit_hash"]
+
+
+def test_agent_config_auditor_path_scanner_is_linear_and_precise(tmp_path: Path) -> None:
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "present.py").write_text("pass\n", encoding="utf-8")
+    adversarial = ".-/" * 50_000
+    (tmp_path / "AGENTS.md").write_text(
+        "Read src/present.py and missing/deep/file.py.\n" + adversarial + "\n",
+        encoding="utf-8",
+    )
+    audit = AgentConfigAuditor(tmp_path).audit()
+    stale = [row["message"] for row in audit["findings"] if row["kind"] == "stale-path"]
+    assert stale == ["referenced path does not exist: missing/deep/file.py"]
 
 
 def test_watcher_incremental_reindex_and_background_embedding(tmp_path: Path) -> None:
@@ -202,6 +220,11 @@ def test_code_intelligence_full_graph_surface(tmp_path: Path) -> None:
     assert graph.symbols and graph.edges
     assert index.call_hierarchy("helper")["matches"]
     assert index.class_hierarchy("Base")["matches"]
+    assert index.implementations("Base")["implementation_count"] >= 1
+    assert index.blast_radius("helper")["impacted_paths"]
+    parser_manifest = index.parser_manifest()
+    assert parser_manifest["declared_language_count"] >= 25
+    assert parser_manifest["claim_boundary"]
     assert any(row["symbol"]["name"] == "_dead" for row in index.dead_code())
     assert index.pagerank()
     assert isinstance(index.hotspots(), list)
@@ -213,6 +236,34 @@ def test_code_intelligence_full_graph_surface(tmp_path: Path) -> None:
     assert "safe" in index.delete_safe("helper")
     assert index.refactor_plan("helper", target_name="better_helper")["steps"]
     assert isinstance(index.anti_patterns(), list)
+    cache = tmp_path / ".syntavra" / "code-index.json"
+    first_incremental = CodeIntelligenceIndex(tmp_path)
+    first_incremental.build_incremental(cache)
+    second_incremental = CodeIntelligenceIndex(tmp_path)
+    second_incremental.build_incremental(cache)
+    assert second_incremental.last_build_stats["parsed_files"] == 0
+    assert second_incremental.last_build_stats["reused_files"] >= 3
+
+
+def test_provider_account_pool_rotates_without_persisting_secrets(tmp_path: Path) -> None:
+    pool = ProviderAccountPool(tmp_path / "accounts.sqlite3")
+    pool.register("openai", "subscription", credential_ref="env:OPENAI_API_KEY", subscription=True, priority=10)
+    pool.register("openai", "backup", credential_ref="keyring:syntavra/openai-backup", priority=1)
+    try:
+        pool.register("openai", "bad", credential_ref="sk-proj-" + "x" * 30)
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("raw secrets must be rejected")
+    models = [{"provider": "openai", "model": "reasoner", "quality": .9, "max_complexity": "reasoning", "context_window": 200000, "input_cost_per_million": 10, "output_cost_per_million": 30}]
+    first = pool.route("security root cause", models, now=100)
+    assert first.account == "subscription"
+    for offset in range(3):
+        pool.record_result("openai", "subscription", success=False, latency_ms=100, now=100 + offset)
+    second = pool.route("security root cause", models, now=103)
+    assert second.account == "backup"
+    receipt = pool.receipt()
+    assert receipt["receipt_hash"] and "sk-proj" not in json.dumps(receipt)
 
 
 def test_provider_quota_rate_limit_complexity_and_short_handoff() -> None:
@@ -315,7 +366,10 @@ def test_host_installer_new_contract_and_claude_statusline(tmp_path: Path) -> No
     claude = manager.plan("claude-code", scope="project")
     config = next(row["merge"] for row in claude["files"] if row.get("merge"))
     assert config["statusLine"]["command"] == "syntavra run statusline"
-    assert "PreToolUse" in config["hooks"]
+    assert {"PreToolUse", "PostToolUse", "UserPromptSubmit", "PreCompact", "SessionStart", "Stop", "SessionEnd"} <= set(config["hooks"])
+    hook = HookEngine(project_root=project, state_root=tmp_path / "hook-state", auto_externalize=False, host="claude-code")
+    prompt = hook.prompt_submit({"prompt": "security migration"})
+    assert prompt["cache_action"] in {"preserve-stable-prefix", "refresh-stable-prefix"}
 
 
 def test_mcp_audit_surface_executes_new_engines(tmp_path: Path) -> None:
@@ -332,12 +386,17 @@ def test_mcp_audit_surface_executes_new_engines(tmp_path: Path) -> None:
     required = {
         "syntavra.command.rewrite", "syntavra.cache.plan", "syntavra.secret.redact",
         "syntavra.wire", "syntavra.code.intelligence", "syntavra.memory.intelligence",
-        "syntavra.provider.route", "syntavra.subtask.plan", "syntavra.dashboard.snapshot",
+        "syntavra.provider.route", "syntavra.provider.accounts", "syntavra.subtask.plan", "syntavra.dashboard.snapshot",
     }
     assert required <= names
     rewrite = server.call_tool("syntavra.command.rewrite", {"command": "git status"})
     assert rewrite["changed"]
     report = server.call_tool("syntavra.code.intelligence", {"action": "report"})
-    assert report["symbols"] > 0
+    assert report["symbols"] > 0 and report["parser_manifest"]["declared_language_count"] >= 25
+    implementations = server.call_tool("syntavra.code.intelligence", {"action": "implementations", "query": "Base"})
+    assert implementations["implementation_count"] >= 1
+    account = server.call_tool("syntavra.provider.accounts", {"action": "add", "provider": "openai", "account": "primary", "credential_ref": "env:OPENAI_API_KEY", "subscription": True})
+    assert account["subscription"] is True
+    assert server.call_tool("syntavra.provider.accounts", {"action": "list"})["accounts"]
     redacted = server.call_tool("syntavra.secret.redact", {"value": {"token": "ghp_" + "1" * 36}})
     assert redacted["receipt"]["redacted"]

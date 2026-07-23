@@ -2,109 +2,90 @@
 
 Status: **implemented and internally gated**. Release channel: **pre-release**.
 
-This document records the competitive feature expansion without converting implementation evidence into external superiority, adoption, or publication claims.
+This document records technical implementation evidence. It does not convert internal validation into external superiority, adoption, registry-publication, live-provider, or production-maturity claims.
 
 ## Execution-time optimization
 
-- Fail-closed `PreToolUse` command rewriting with at least 60 deterministic rules.
-- At least 60 command-specific exact-preserving compactors; the current registry exposes 70.
-- Destructive-command policy is evaluated against both the original and rewritten command.
+- 118 fail-closed `PreToolUse` rewrite rules.
+- 131 command-specific compactors with exact-output recovery.
+- Safe wrapper handling for environment assignments, `env`, bare `sudo`, bare `time`, and `command`; ambiguous wrapper options fail closed.
+- Destructive-command policy is evaluated against both original and rewritten commands.
 - User-selected output formats, shell composition, redirection, and ambiguous commands disable rewriting rather than guessing.
 - Optimization modes: `full`, `lite`, `ultra`, `commit`, `review`, and `compress`.
-- Live local statusline and source-attributed savings ledger.
+- Live local statusline, source-attributed savings ledger, and transcript opportunity mining.
 
 ```bash
 syntavra run mode ultra
 syntavra run statusline
-syntavra run rewrite -- git status
+syntavra run rewrite -- env CI=1 git status
 syntavra run transcript-mine transcript.jsonl
 ```
 
-## Prompt-cache optimization
+## Prompt-cache and Claude lifecycle
 
-- Stable/volatile message segmentation.
-- Safe stable-prefix normalization for system/developer messages.
-- Provider-specific prompt-cache controls and TTL planning.
-- Refresh and expiry scheduling.
-- Cache write/read amortization and break-even reporting.
-- Provider gateway plans expose cacheable/volatile token estimates and refresh boundaries.
-
-Tool/assistant messages are never reordered automatically because their sequence carries execution semantics.
+- Stable/volatile message segmentation and stable-prefix planning.
+- Refresh, expiry, amortization, and break-even reporting.
+- Cache health/action data in session-start and prompt-submit hooks.
+- Claude lifecycle contracts for `PreToolUse`, `PostToolUse`, `UserPromptSubmit`, `PreCompact`, `SessionStart`, `Stop`, and `SessionEnd`.
+- Tool/assistant messages are not reordered automatically because sequence carries execution semantics.
 
 ## Repository intelligence
 
-- Portable polling watcher and incremental reindex worker.
-- Python AST plus generic multi-language symbol index.
-- Call and class hierarchy.
-- Dead-code and untested-symbol candidates.
-- PageRank importance.
-- Git churn and complexity hotspots.
-- Dependency cycles, coupling, instability, and inferred module boundaries.
-- Signal-chain tracing and duplicate-symbol discovery.
-- Symbol provenance and PR-risk reports.
-- Delete-safe preflight and refactoring plans.
-- Cross-language anti-pattern scanning and cross-repository contract discovery.
+- Portable watcher and deterministic incremental index cache.
+- Python AST backend with confidence `1.0`.
+- Optional `tree-sitter-language-pack` backend with confidence `0.9`.
+- Explicit deterministic lexical fallback with confidence `0.45`; fallback output is not labelled exact AST.
+- A 30-language registry spanning 50+ source suffixes.
+- Call/class hierarchy, implementation discovery, blast radius, dead-code and untested-symbol candidates.
+- PageRank, hotspots, cycles, coupling, inferred module boundaries, signal chains, duplicates, provenance, PR risk, delete-safe preflight, refactor plans, anti-patterns, and cross-repository contracts.
 
 ```bash
 syntavra run watch --iterations 1
 syntavra run worker run --iterations 1
-syntavra run code-intel report
-syntavra run code-intel call --query helper
-syntavra run code-intel risk --paths src/a.py src/b.py
+syntavra run code-intel parser-manifest
+syntavra run code-intel implementations --query Base
+syntavra run code-intel blast-radius --query helper
 ```
 
-## Memory intelligence
+## Provider accounts, routing and delegation
 
-- Heuristic extraction and optional external LLM extraction command.
-- Observation validity, importance, confidence, reuse, outcome, and ROI ranking.
-- Local hashed embeddings combined with BM25 and cosine reranking.
-- Background embedding backfill.
-- Critical observation notification feed.
-- Exact JSONL export.
+- Persistent multi-account provider pool.
+- Only `env:`, `file:`, `keyring:`, and `oauth-profile:` credential references are persisted; raw credentials are rejected.
+- Subscription preference, explicit account priority, model allowlists, quota resets, rate-limit state, latency EWMA, health ratio, and circuit-breaker failover.
+- Adaptive model selection by task complexity, context window, quality, price, quota, latency, and account availability.
+- Automatic capability-specialized short-handoff subtasks with bounded output.
 
-No remote model is silently invoked. LLM extraction activates only through an explicitly configured external command.
+```bash
+syntavra run provider-pool add openai primary env:OPENAI_API_KEY --subscription --priority 10
+syntavra run provider-pool list
+syntavra run provider-pool route providers.json "security migration root cause"
+```
 
-## Security and wire efficiency
+Provider presets and credential references are installation/runtime contracts, not proof that an external account was connected or certified.
 
-- Recursive redaction for provider keys, authorization headers, cloud credentials, JWTs, private keys, credential-bearing URIs, and high-entropy secrets.
-- Exact provider/tool evidence is stored before bounded presentation.
+## Memory, security and wire efficiency
+
+- Hybrid BM25/cosine memory, explicit LLM-or-heuristic extraction, ROI/validity ranking, embedding backfill, notifications, and JSONL export.
+- Recursive redaction for authorization material, cloud credentials, JWTs, private keys, credential-bearing URIs, and high-entropy secrets.
+- Linear-time agent-config path scanning; the former nested-quantifier expression identified by CodeQL alert #6 was removed.
 - Lossless compact MCP wire encoding with integrity hash and minimum-savings gate.
-- The original object is recoverable byte-for-byte after canonical decoding.
-
-## Routing and delegation
-
-- 48 provider gateway presets.
-- Quota, rate-limit, price, latency, quality, context-window, and task-complexity-aware ranking.
-- Ordered fallback chain.
-- Automatic decomposition into capability-specialized short-handoff subtasks.
-- Bounded subtask outputs and explicit dependency edges.
-
-Provider presets are installation contracts, not live provider certifications.
+- Exact provider/tool evidence is stored before bounded presentation.
 
 ## Product surfaces
 
-- Local browser dashboard and installable PWA surface.
+- Local browser dashboard and installable PWA.
 - VS Code extension with status badge, mode switcher, dashboard launcher, and save-triggered reindex.
 - Dependency-free Rust companion source and three-OS build workflow.
-- More than 30 controlled host installation contracts; current registry has 44 host entries.
-- Discord, Telegram, and local JSONL notification channels.
-- npm, PyPI/uvx, VS Code Marketplace, and native artifact publication manifests.
+- 44 controlled host contracts and 48 provider presets.
+- npm, PyPI/uvx, VS Code Marketplace, and native publication workflows are prepared but not claimed as published.
 
-## Benchmark boundary
+## Benchmark and claim boundary
 
-SignalBench accepts provider-observed input, cached-input, output, reasoning, quota-cost, model, request, and receipt hashes. A competitor superiority claim is refused unless:
-
-1. baseline and candidate perform equal verified work;
-2. every repetition has real provider-observed receipts;
-3. no verifier is skipped;
-4. no security regression occurs;
-5. all declared competitor arms complete;
-6. the configured paired confidence gate passes.
-
-The repository does **not** claim that registry publication or provider-billed external benchmark execution has occurred. Those actions require owner credentials, paid provider access, and retained external receipts.
+SignalBench requires equal verified work, real provider-observed receipts, no skipped verifier, no security regression, all declared competitor arms, and the configured paired confidence gate. Missing external execution cannot be replaced with synthetic evidence.
 
 ```text
 EXTERNAL_SUPERIORITY_NOT_PROVEN
+MEASURED_AGENT_BENCHMARK_NOT_PROVEN
 LIVE_INTEGRATION_CERTIFICATION_NOT_PROVEN
 PUBLIC_PRODUCT_MATURITY_NOT_PROVEN
 REGISTRY_PUBLICATION_NOT_PERFORMED

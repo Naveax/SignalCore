@@ -104,6 +104,10 @@ else:
     from .tool_registry import MCP_PROFILES, ToolSchemaCompiler
     from .token_attribution import TokenAttributionLedger, TokenAttributionReceipt, TokenEstimator
     from .command_compactors import CommandCompactorRegistry
+    from .adaptive_provider_router import AdaptiveProviderRouter, ProviderCandidate, ProviderRoute
+    from .code_intelligence import CodeIntelligenceIndex
+    from .language_parsers import TreeSitterLanguageBackend
+    from .provider_account_pool import ProviderAccount, ProviderAccountPool
     from .context_pack import TaskContextAssembler, TaskContextPack
     from .policy_rollout import PolicyRolloutManager, VerifiedPolicyObservation
     from .policy_tuner import AdaptivePolicyTuner, PolicyObservation, PolicyRecommendation
@@ -146,11 +150,11 @@ else:
     __all__ = [
         "__version__", "__release_channel__", "ADAPTERS", "ActiveContextPlan",
         "AdapterContract", "AdapterMaturity", "AdapterPlatformRuntime", "AdapterReceipt",
-        "AdapterRegistry", "AdaptivePolicyTuner", "AgentAttempt", "AgentMode", "AgentRunReceipt",
+        "AdapterRegistry", "AdaptivePolicyTuner", "AdaptiveProviderRouter", "AgentAttempt", "AgentMode", "AgentRunReceipt",
         "AgentState", "AgentTask", "ArmExecutionPolicy", "ArmRunReceipt", "ArtifactStore",
         "Authorizer", "AutonomousCodingAgent", "BackupResult", "BetaReceipt",
         "CallablePatchProvider", "CanonicalRequestEnvelope", "CapabilityDecision",
-        "CapabilitySecurity", "CapabilityTokenIssuer", "CodingAgent", "CodingCorpusPlanner",
+        "CapabilitySecurity", "CapabilityTokenIssuer", "CodeIntelligenceIndex", "CodingAgent", "CodingCorpusPlanner",
         "ConfigManager", "ConfigSnapshot", "ConsoleSnapshot", "ContextCompiler", "ContextIRItem",
         "ContextPack", "ContextPlanPolicy", "DataRoutePolicy", "DataRouteResult", "DataRouter",
         "DistributionManager", "DistributionReceipt", "DurableJobScheduler", "EvidenceEdge",
@@ -169,7 +173,7 @@ else:
         "PairedSchedule", "PatchProposal", "PatchProvider", "PlatformAdapter",
         "PlatformAdapterRegistry", "PolicyObservation", "PolicyRecommendation",
         "PolicyRolloutManager", "Principal", "ProductMaturityGate", "ProductSurface",
-        "ProviderProxyServiceManager", "ProviderUsageReceipt", "ProxyPreset", "ProxyProductRegistry",
+        "ProviderAccount", "ProviderAccountPool", "ProviderCandidate", "ProviderProxyServiceManager", "ProviderRoute", "ProviderUsageReceipt", "ProxyPreset", "ProxyProductRegistry",
         "PublicProofGate", "ReceiptValidator", "RecursiveExecutionEngine", "RecursiveTask",
         "ReleaseIdentity", "ReleaseReceipt", "ReliabilityLaboratory", "ReliabilityReport",
         "RuntimeEvidenceGraph", "SCIPJSONImporter", "SDKInvocation", "SandboxBackend",
@@ -179,7 +183,7 @@ else:
         "SessionContinuityController", "SessionMemory", "StateBackupManager", "SuperiorityGate",
         "SyntavraClient", "SyntavraPlatform", "TokenPanel", "ToolRouteDecision",
         "ToolRoutingEnforcer", "ToolSchemaCompiler", "MCP_PROFILES",
-        "TokenAttributionLedger", "TokenAttributionReceipt", "TokenEstimator",
+        "TokenAttributionLedger", "TokenAttributionReceipt", "TokenEstimator", "TreeSitterLanguageBackend",
         "CommandCompactorRegistry", "TaskContextAssembler", "TaskContextPack",
         "UnifiedRuntimePipeline", "UnboundedContextCoordinator",
         "UpdateArtifact", "UpdateManifest", "UpdateReceipt", "VerifiedPolicyObservation",

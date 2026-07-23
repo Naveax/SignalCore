@@ -15,9 +15,9 @@ def manifest(project: Path | None = None) -> dict[str, Any]:
     feature_groups = {
         "pre_execution": ["pretool-command-rewrite", "instant-optimization-modes", "prompt-cache-layout", "prompt-cache-expiry"],
         "output": ["exact-first-externalization", "command-specific-compaction", "secret-redaction", "lossless-wire-format"],
-        "repository": ["live-watcher", "incremental-reindex", "call-hierarchy", "class-hierarchy", "dead-code", "untested-symbols", "pagerank", "hotspots", "cycles", "coupling", "module-boundaries", "signal-chain", "duplicates", "provenance", "pr-risk", "delete-safe", "refactor-plan", "cross-language-anti-patterns", "cross-repo-contracts"],
+        "repository": ["live-watcher", "incremental-reindex", "optional-tree-sitter-backend", "parser-confidence-receipts", "call-hierarchy", "class-hierarchy", "dead-code", "untested-symbols", "pagerank", "hotspots", "cycles", "coupling", "module-boundaries", "signal-chain", "duplicates", "provenance", "pr-risk", "delete-safe", "refactor-plan", "cross-language-anti-patterns", "cross-repo-contracts"],
         "memory": ["llm-or-heuristic-extraction", "validity-roi-ranking", "bm25-cosine-rerank", "embedding-backfill", "jsonl-export", "critical-notifications"],
-        "routing": ["quota-aware-fallback", "rate-limit-switching", "complexity-model-routing", "automatic-subtask-delegation", "short-handoff-subagents", "provider-gateway-presets"],
+        "routing": ["provider-account-pool", "credential-reference-only-storage", "subscription-priority", "circuit-breaker-failover", "quota-aware-fallback", "rate-limit-switching", "complexity-model-routing", "automatic-subtask-delegation", "short-handoff-subagents", "provider-gateway-presets"],
         "experience": ["host-statusline", "live-savings-badge", "local-web-dashboard", "pwa-dashboard", "vscode-extension", "native-rust-companion", "agent-config-auditor", "transcript-opportunity-miner"],
         "evidence": ["provider-billed-signalbench", "provider-receipt-gate", "registry-publication-readiness", "fail-closed-public-claims"],
     }
@@ -25,6 +25,9 @@ def manifest(project: Path | None = None) -> dict[str, Any]:
         "vscode_extension": root / "integrations/vscode-syntavra/package.json",
         "native_binary": root / "native/syntavra-native/Cargo.toml",
         "publish_readiness": root / "release/publish-readiness.json",
+        "language_parsers": root / "syntavra_runtime/language_parsers.py",
+        "provider_account_pool": root / "syntavra_runtime/provider_account_pool.py",
+        "competitive_gap_validator": root / "tools/validate_competitive_gap_closure.py",
     }
     providers = default_provider_registry().catalog()["providers"]
     body = {
@@ -46,8 +49,8 @@ def manifest(project: Path | None = None) -> dict[str, Any]:
         },
     }
     body["ok"] = bool(
-        body["rewrite_rules"] >= 60
-        and body["compactors"] >= 60
+        body["rewrite_rules"] >= 110
+        and body["compactors"] >= 120
         and body["hosts"] >= 30
         and body["provider_presets"] >= 40
         and all(body["artifacts"].values())

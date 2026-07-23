@@ -14,6 +14,9 @@ authors = [{name = "Naveax"}]
 keywords = ["token-saver", "context-optimization", "agent-skill", "coding-agent", "mcp", "tool-output", "exact-recovery"]
 classifiers = ["Development Status :: 2 - Pre-Alpha", "Programming Language :: Python :: 3", "Programming Language :: Python :: 3.11", "Programming Language :: Python :: 3.12", "Programming Language :: Python :: 3.13", "License :: OSI Approved :: MIT License", "Operating System :: OS Independent"]
 
+[project.optional-dependencies]
+code-intelligence = ["tree-sitter-language-pack>=0.9"]
+
 [project.scripts]
 syntavra = "syntavra_runtime.unified_cli:main"
 

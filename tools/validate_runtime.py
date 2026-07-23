@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import py_compile
+import subprocess
 import sys
 import tempfile
 from pathlib import Path
@@ -48,6 +49,7 @@ REQUIRED = [ROOT / "syntavra_runtime" / name for name in (
     "prompt_cache_optimizer.py", "repository_watcher.py", "background_workers.py",
     "worker_entry.py", "dashboard.py", "agent_config_auditor.py",
     "secret_redaction.py", "wire_format.py", "code_intelligence.py",
+    "language_parsers.py", "provider_account_pool.py",
     "memory_intelligence.py", "notifications.py", "adaptive_provider_router.py",
     "subtask_router.py", "competitive_features.py",
 )]
@@ -80,12 +82,22 @@ def main() -> int:
     checks.append(("integration_targets", integration["ok"] and integration["providers"] >= 10 and integration["frameworks"] >= 15 and integration["hosts"] >= 18))
     features = competitive_feature_manifest(ROOT)
     checks.append(("competitive_feature_manifest", bool(features.get("ok"))))
-    checks.append(("pretool_rewrite_coverage", CommandRewriteEngine().manifest()["count"] >= 60))
-    checks.append(("command_compactor_coverage", CommandCompactorRegistry().manifest()["count"] >= 60))
+    checks.append(("pretool_rewrite_coverage", CommandRewriteEngine().manifest()["count"] >= 110))
+    checks.append(("command_compactor_coverage", CommandCompactorRegistry().manifest()["count"] >= 120))
     checks.append(("live_host_contract_coverage", coverage_report()["controlled_hosts"] >= 30))
     checks.append(("provider_gateway_coverage", len(default_provider_registry().catalog()["providers"]) >= 40))
     checks.append(("native_companion", (ROOT / "native/syntavra-native/Cargo.toml").is_file() and (ROOT / "native/syntavra-native/src/main.rs").is_file()))
     checks.append(("vscode_extension", (ROOT / "integrations/vscode-syntavra/package.json").is_file() and (ROOT / "integrations/vscode-syntavra/extension.js").is_file()))
+    gap_validation = subprocess.run(
+        [sys.executable, str(ROOT / "tools" / "validate_competitive_gap_closure.py")],
+        cwd=ROOT,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        timeout=120,
+        check=False,
+    )
+    checks.append(("competitive_gap_closure", gap_validation.returncode == 0))
     tasks = CodingCorpusPlanner.generate_slots()
     schedule = PairedSchedule(tasks, default_arms(), repetitions=30)
     checks.append(("signalbench_schedule", len(tasks) == 150 and schedule.count == 27000))

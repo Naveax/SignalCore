@@ -599,8 +599,11 @@ class PlatformPlanBuilder:
                 config["hooks"] = {
                     "PreToolUse": [{"type": "command", "command": "syntavra hook pre"}],
                     "PostToolUse": [{"type": "command", "command": "syntavra hook post"}],
+                    "UserPromptSubmit": [{"type": "command", "command": "syntavra hook prompt"}],
                     "PreCompact": [{"type": "command", "command": "syntavra hook pre-compact"}],
                     "SessionStart": [{"type": "command", "command": "syntavra hook session-start"}],
+                    "Stop": [{"type": "command", "command": "syntavra hook stop"}],
+                    "SessionEnd": [{"type": "command", "command": "syntavra hook session-end"}],
                 }
             files.append({"path": spec.config_path, "merge": config})
         if spec.skill_path:

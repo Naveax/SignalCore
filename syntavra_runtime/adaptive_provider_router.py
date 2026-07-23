@@ -21,6 +21,8 @@ class ProviderCandidate:
     max_complexity: str = "reasoning"
     context_window: int = 0
     account: str = "default"
+    subscription: bool = False
+    priority: int = 0
 
 
 @dataclass(frozen=True)
@@ -79,10 +81,20 @@ class AdaptiveProviderRouter:
             blended_cost = row.input_cost_per_million + row.output_cost_per_million * 2
             score = row.quality * 60 - blended_cost * 2 - row.latency_ms / 1000
             score += min(20.0, row.quota_remaining * 20)
-            if prefer_subscription and blended_cost == 0:
+            priority_score = max(-20, min(20, int(row.priority))) * 0.5
+            score += priority_score
+            if prefer_subscription and row.subscription:
                 score += 15
-                reasons.append("subscription-or-free-quota")
-            reasons.extend((f"quality={row.quality:.3f}", f"quota={row.quota_remaining:.3f}", f"latency_ms={row.latency_ms:.1f}", f"cost_index={blended_cost:.4f}"))
+                reasons.append("subscription-account")
+            elif blended_cost == 0:
+                reasons.append("zero-priced-model")
+            reasons.extend((
+                f"quality={row.quality:.3f}",
+                f"quota={row.quota_remaining:.3f}",
+                f"priority={row.priority}",
+                f"latency_ms={row.latency_ms:.1f}",
+                f"cost_index={blended_cost:.4f}",
+            ))
             ranked.append((score, row, tuple(reasons)))
         if not ranked:
             raise RuntimeError("no provider satisfies availability, quota, rate-limit, context and complexity constraints")

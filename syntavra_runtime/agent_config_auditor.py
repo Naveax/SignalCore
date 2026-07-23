@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Iterable
+from typing import Iterable, Iterator
 
 from .util import canonical_json, sha256_bytes
 
@@ -13,7 +13,37 @@ CONFIG_CANDIDATES = (
     ".github/copilot-instructions.md", ".windsurfrules", ".continue/rules",
     ".cursor/rules", ".roo/rules", ".kilocode/rules", ".qwen/rules",
 )
-_PATH_RE = re.compile(r"(?<![\w.-])(?:\.?[\w.-]+/)+(?:[\w.-]+)(?![\w.-])")
+
+
+def _iter_path_candidates(line: str) -> Iterator[str]:
+    """Yield relative POSIX-style path tokens in linear time.
+
+    This deliberately avoids nested regular-expression quantifiers because agent
+    instructions are untrusted text and may contain adversarial repetition.
+    """
+    start: int | None = None
+    for index, character in enumerate(line + "\0"):
+        allowed = character.isalnum() or character in "_./-"
+        if allowed:
+            if start is None:
+                start = index
+            continue
+        if start is None:
+            continue
+        candidate = line[start:index].rstrip(".")
+        start = None
+        if not candidate or "/" not in candidate:
+            continue
+        if candidate.startswith("/") or candidate.endswith("/") or "//" in candidate:
+            continue
+        parts = candidate.split("/")
+        if len(parts) < 2 or any(not part for part in parts):
+            continue
+        if not any(character.isalnum() or character == "_" for character in parts[-1]):
+            continue
+        yield candidate
+
+
 _SYMBOL_RE = re.compile(r"`([A-Za-z_][A-Za-z0-9_.:]{2,})`")
 
 
@@ -67,8 +97,7 @@ class AgentConfigAuditor:
                         findings.append(ConfigFinding(relative, "warning", "duplicate-instruction", f"duplicates {previous[0]}:{previous[1]}", number, max(1, len(line) // 4)))
                     else:
                         normalized_seen[normalized] = (relative, number)
-                for match in _PATH_RE.finditer(line):
-                    raw = match.group(0).rstrip(".,:;)")
+                for raw in _iter_path_candidates(line):
                     target = (self.project / raw).resolve(strict=False)
                     try:
                         target.relative_to(self.project)

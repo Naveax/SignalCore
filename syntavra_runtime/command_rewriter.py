@@ -107,6 +107,59 @@ RULES: tuple[RewriteRule, ...] = (
     _rule("gradle-test", "gradle", r".*", append=("--console=plain", "--warning-mode=summary"), blocked=("--console", "--info", "--debug")),
     _rule("cmake", "cmake", r".*", append=("--log-level=WARNING",), blocked=("--log-level", "--trace")),
     _rule("ctest", "ctest", r".*", append=("--output-on-failure", "--no-tests=error"), blocked=("--verbose", "-V")),
+    _rule("git-grep", "git", r"^grep(?:\s|$)", append=("-n",), blocked=("-n", "--line-number", "--column")),
+    _rule("git-reflog", "git", r"^reflog(?:\s|$)", append=("--oneline", "-n", "40"), blocked=("--format", "--pretty", "--oneline", "-n", "--max-count")),
+    _rule("git-shortlog", "git", r"^shortlog(?:\s|$)", append=("-sne",), blocked=("-s", "-n", "-e", "--summary", "--numbered", "--email")),
+    _rule("cargo-tree", "cargo", r"^tree(?:\s|$)", append=("--depth", "3"), blocked=("--depth", "--prefix", "--format")),
+    _rule("cargo-metadata", "cargo", r"^metadata(?:\s|$)", append=("--format-version", "1", "--no-deps"), blocked=("--format-version", "--no-deps", "--filter-platform")),
+    _rule("cargo-audit", "cargo", r"^audit(?:\s|$)", append=("--json",), blocked=("--json", "--quiet")),
+    _rule("cargo-deny", "cargo", r"^deny(?:\s|$)", append=("--format", "json"), blocked=("--format",)),
+    _rule("cargo-nextest", "cargo", r"^nextest\s+run(?:\s|$)", append=("--status-level", "fail", "--final-status-level", "fail"), blocked=("--status-level", "--final-status-level")),
+    _rule("go-vet", "go", r"^vet(?:\s|$)", append=("-json",), blocked=("-json", "-v")),
+    _rule("go-list", "go", r"^list(?:\s|$)", append=("-json",), blocked=("-json", "-f", "-template")),
+    _rule("golangci-lint", "golangci-lint", r"^(?:run)?(?:\s|$)", append=("--out-format=line-number",), blocked=("--out-format", "--output")),
+    _rule("govulncheck", "govulncheck", r".*", append=("-json",), blocked=("-json", "-mode")),
+    _rule("bun-test", "bun", r"^(?:test|run\s+test)(?:\s|$)", append=("--reporter=dot",), blocked=("--reporter", "--verbose")),
+    _rule("bun-install", "bun", r"^(?:install|add|update)(?:\s|$)", append=("--silent",), blocked=("--silent", "--verbose")),
+    _rule("deno-test", "deno", r"^test(?:\s|$)", append=("--quiet",), blocked=("--quiet", "--reporter")),
+    _rule("deno-lint", "deno", r"^lint(?:\s|$)", append=("--json",), blocked=("--json", "--compact")),
+    _rule("mocha", "mocha", r".*", append=("--reporter", "dot"), blocked=("--reporter", "-R")),
+    _rule("ava", "ava", r".*", append=("--tap",), blocked=("--tap", "--verbose")),
+    _rule("tox", "tox", r".*", append=("-q",), blocked=("-q", "--quiet", "-v", "--verbose")),
+    _rule("semgrep", "semgrep", r".*", append=("--json", "--quiet"), blocked=("--json", "--quiet", "--text")),
+    _rule("sqlfluff", "sqlfluff", r"^(?:lint|parse)(?:\s|$)", append=("--format", "json"), blocked=("--format", "-f")),
+    _rule("trivy", "trivy", r".*", append=("--format", "json", "--quiet"), blocked=("--format", "-f", "--quiet")),
+    _rule("snyk", "snyk", r"^(?:test|code\s+test|container\s+test)(?:\s|$)", append=("--json",), blocked=("--json", "--sarif")),
+    _rule("composer-show", "composer", r"^show(?:\s|$)", append=("--format=json",), blocked=("--format", "-f")),
+    _rule("phpunit", "phpunit", r".*", append=("--colors=never",), blocked=("--colors", "--testdox")),
+    _rule("rspec", "rspec", r".*", append=("--format", "progress", "--no-color"), blocked=("--format", "-f", "--color", "--no-color")),
+    _rule("swift-test", "swift", r"^test(?:\s|$)", append=("--quiet",), blocked=("--quiet", "--verbose")),
+    _rule("xcodebuild", "xcodebuild", r".*", append=("-quiet",), blocked=("-quiet", "-verbose")),
+    _rule("jq", "jq", r".*", append=("-c",), blocked=("-c", "--compact-output", "-r", "--raw-output")),
+    _rule("yq", "yq", r".*", append=("-o=json", "-I=0"), blocked=("-o", "--output-format", "-I", "--indent")),
+    _rule("sqlite3", "sqlite3", r".*", append=("-json",), blocked=("-json", "-csv", "-table", "-line")),
+    _rule("psql", "psql", r".*", append=("--csv", "--quiet"), blocked=("--csv", "--quiet", "-q", "--tuples-only")),
+    _rule("mysql", "mysql", r".*", append=("--batch", "--skip-column-names"), blocked=("--batch", "-B", "--skip-column-names", "-N")),
+    _rule("redis-cli", "redis-cli", r".*", append=("--raw",), blocked=("--raw", "--json", "--csv")),
+    _rule("gh-release", "gh", r"^release\s+list(?:\s|$)", append=("--json", "tagName,name,isDraft,isPrerelease,publishedAt"), blocked=("--json", "--web")),
+    _rule("gh-workflow", "gh", r"^workflow\s+list(?:\s|$)", append=("--json", "id,name,state"), blocked=("--json", "--web")),
+    _rule("gh-secret", "gh", r"^secret\s+list(?:\s|$)", append=("--json", "name,updatedAt"), blocked=("--json",)),
+    _rule("gh-variable", "gh", r"^variable\s+list(?:\s|$)", append=("--json", "name,value,updatedAt"), blocked=("--json",)),
+    _rule("gh-codespace", "gh", r"^codespace\s+list(?:\s|$)", append=("--json", "name,state,repository"), blocked=("--json",)),
+    _rule("docker-system", "docker", r"^system\s+df(?:\s|$)", append=("--format={{json .}}",), blocked=("--format", "-v", "--verbose")),
+    _rule("docker-volume", "docker", r"^volume\s+ls(?:\s|$)", append=("--format={{json .}}",), blocked=("--format", "-q", "--quiet")),
+    _rule("docker-network", "docker", r"^network\s+ls(?:\s|$)", append=("--format={{json .}}",), blocked=("--format", "-q", "--quiet")),
+    _rule("hadolint", "hadolint", r".*", append=("--format", "json"), blocked=("--format", "-f")),
+    _rule("shellcheck", "shellcheck", r".*", append=("--format", "json1"), blocked=("--format", "-f")),
+    _rule("bats", "bats", r".*", append=("--formatter", "tap"), blocked=("--formatter", "-F")),
+    _rule("bazel", "bazel", r"^(?:test|build)(?:\s|$)", append=("--noshow_progress", "--ui_event_filters=-info"), blocked=("--show_progress", "--noshow_progress", "--ui_event_filters")),
+    _rule("buck2", "buck2", r"^(?:test|build)(?:\s|$)", append=("--console=simple",), blocked=("--console",)),
+    _rule("pants", "pants", r".*", append=("--level=warn",), blocked=("--level",)),
+    _rule("msbuild", "msbuild", r".*", append=("-nologo", "-verbosity:minimal"), blocked=("-nologo", "-verbosity", "/verbosity")),
+    _rule("terraform-validate", "terraform", r"^validate(?:\s|$)", append=("-json",), blocked=("-json", "-no-color")),
+    _rule("helm-list", "helm", r"^list(?:\s|$)", append=("-o", "json"), blocked=("-o", "--output")),
+    _rule("helm-status", "helm", r"^status(?:\s|$)", append=("-o", "json"), blocked=("-o", "--output")),
+    _rule("kubectl-config", "kubectl", r"^config\s+get-contexts(?:\s|$)", append=("-o", "name"), blocked=("-o", "--output")),
 )
 
 
@@ -123,6 +176,24 @@ class CommandRewriteEngine:
             except ValueError:
                 return tuple(command.split()), True
         return tuple(str(item) for item in command), False
+
+    @staticmethod
+    def _executable_index(argv: Sequence[str]) -> int | None:
+        index = 0
+        assignment = re.compile(r"[A-Za-z_][A-Za-z0-9_]*=.*")
+        while index < len(argv) and assignment.fullmatch(argv[index]):
+            index += 1
+        while index < len(argv):
+            wrapper = Path(argv[index]).name.casefold()
+            if wrapper not in {"command", "env", "sudo", "time"}:
+                break
+            index += 1
+            if wrapper == "env":
+                while index < len(argv) and assignment.fullmatch(argv[index]):
+                    index += 1
+            if index < len(argv) and argv[index].startswith("-"):
+                return None
+        return index if index < len(argv) else None
 
     @staticmethod
     def _arguments(argv: Sequence[str]) -> str:
@@ -142,22 +213,26 @@ class CommandRewriteEngine:
             return RewriteResult(argv, argv, False, None, False, "empty command")
         if unsafe:
             return RewriteResult(argv, argv, False, None, False, "shell composition is not rewritten")
-        executable = Path(argv[0]).name.casefold()
-        args = self._arguments(argv)
+        executable_index = self._executable_index(argv)
+        if executable_index is None:
+            return RewriteResult(argv, argv, False, None, False, "wrapper options are not rewritten")
+        command_argv = argv[executable_index:]
+        executable = Path(command_argv[0]).name.casefold()
+        args = self._arguments(command_argv)
         for rule in self.rules:
             if executable != rule.executable or not rule.argument_pattern.search(args):
                 continue
-            if self._has_blocked(argv, rule.blocked_flags):
+            if self._has_blocked(command_argv, rule.blocked_flags):
                 return RewriteResult(argv, argv, False, rule.name, True, "explicit user format preserved")
-            rewritten = list(argv)
+            rewritten_command = list(command_argv)
             for before, after in rule.replace:
                 try:
-                    index = rewritten.index(before)
+                    index = rewritten_command.index(before)
                 except ValueError:
                     continue
-                rewritten[index:index + 1] = shlex.split(after)
-            rewritten.extend(rule.append)
-            result = tuple(rewritten)
+                rewritten_command[index:index + 1] = shlex.split(after)
+            rewritten_command.extend(rule.append)
+            result = tuple([*argv[:executable_index], *rewritten_command])
             return RewriteResult(argv, result, result != argv, rule.name, True, rule.reason)
         return RewriteResult(argv, argv, False, None, True, "no matching rewrite rule")
 
@@ -167,4 +242,7 @@ class CommandRewriteEngine:
             "count": len(self.rules),
             "fail_closed": True,
             "shell_composition_rewritten": False,
+            "safe_wrappers": ["command", "env", "sudo", "time"],
+            "target_minimum": 110,
+            "coverage_gate": len(self.rules) >= 110,
         }

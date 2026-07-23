@@ -17,6 +17,7 @@ from .memory_intelligence import MemoryIntelligenceStore
 from .notifications import NotificationFeed
 from .optimization_modes import MODES, OptimizationModeStore, SavingsLedger, render_statusline
 from .prompt_cache_optimizer import PromptCacheOptimizer
+from .provider_account_pool import ProviderAccountPool
 from .repository_watcher import RepositoryWatcher
 from .secret_redaction import SecretRedactor
 from .subtask_router import AutomaticSubtaskDelegator
@@ -236,6 +237,22 @@ def _parser() -> argparse.ArgumentParser:
     provider_route.add_argument("candidates", help="JSON list or path")
     provider_route.add_argument("--changed-files", type=int, default=0)
     provider_route.add_argument("--tokens", type=int, default=0)
+    provider_pool = run_sub.add_parser("provider-pool")
+    provider_pool.add_argument("pool_action", choices=("add", "feedback", "list", "route"))
+    provider_pool.add_argument("provider", nargs="?", default="")
+    provider_pool.add_argument("account", nargs="?", default="")
+    provider_pool.add_argument("value", nargs="?", default="")
+    provider_pool.add_argument("--subscription", action="store_true")
+    provider_pool.add_argument("--priority", type=int, default=0)
+    provider_pool.add_argument("--quota", type=float)
+    provider_pool.add_argument("--quota-reset-at", type=float)
+    provider_pool.add_argument("--model", action="append", default=[])
+    provider_pool.add_argument("--success", action="store_true")
+    provider_pool.add_argument("--failure", action="store_true")
+    provider_pool.add_argument("--latency-ms", type=float, default=0.0)
+    provider_pool.add_argument("--retry-after", type=float, default=0.0)
+    provider_pool.add_argument("--changed-files", type=int, default=0)
+    provider_pool.add_argument("--tokens", type=int, default=0)
     delegate = run_sub.add_parser("delegate")
     delegate.add_argument("objective")
     delegate.add_argument("--context-path", action="append", default=[])
@@ -247,7 +264,7 @@ def _parser() -> argparse.ArgumentParser:
     wire.add_argument("source", help="JSON value or path")
     wire.add_argument("--minimum-savings", type=float, default=.08)
     code = run_sub.add_parser("code-intel")
-    code.add_argument("intel_action", choices=("report","call","class","dead","untested","provenance","risk","pagerank","hotspots","cycles","coupling","boundaries","signal","duplicates","delete","refactor","anti-patterns","cross-repo"))
+    code.add_argument("intel_action", choices=("report","call","class","implementations","blast-radius","parser-manifest","dead","untested","provenance","risk","pagerank","hotspots","cycles","coupling","boundaries","signal","duplicates","delete","refactor","anti-patterns","cross-repo"))
     code.add_argument("query", nargs="?", default="")
     code.add_argument("--path", action="append", default=[])
     code.add_argument("--target-name", default="")
@@ -395,7 +412,7 @@ def _handle_competitive_run(args: argparse.Namespace, *, project: Path, state: P
         return True, TranscriptOpportunityMiner().analyze(Path(args.source) if Path(args.source).is_file() else args.source), 0
     if action == "watch":
         watcher = RepositoryWatcher(project, state)
-        callback = None if args.no_index else lambda changes: {"index": CodeIntelligenceIndex(project).build(), "changed": list(changes.changed)}
+        callback = None if args.no_index else lambda changes: {"index": CodeIntelligenceIndex(project).build_incremental(state / "code-intelligence-index.json"), "changed": list(changes.changed)}
         rows = watcher.watch(interval_seconds=args.interval, iterations=args.iterations, callback=callback)
         return True, {"changes": [asdict(row) for row in rows], "status": watcher.status()}, 0
     if action == "dashboard":
@@ -440,6 +457,22 @@ def _handle_competitive_run(args: argparse.Namespace, *, project: Path, state: P
         rows=_load_json_argument(args.candidates)
         if not isinstance(rows,list): raise ValueError("provider candidates must be a JSON list")
         return True, asdict(AdaptiveProviderRouter.from_mappings(rows).route(args.task,changed_files=args.changed_files,token_estimate=args.tokens)), 0
+    if action == "provider-pool":
+        pool=ProviderAccountPool(state / "provider-accounts.sqlite3")
+        if args.pool_action == "add":
+            if not args.provider or not args.account or not args.value: raise ValueError("add requires provider account credential_ref")
+            value=pool.register(args.provider,args.account,credential_ref=args.value,subscription=args.subscription,priority=args.priority,quota_remaining=1.0 if args.quota is None else args.quota,quota_reset_at=0.0 if args.quota_reset_at is None else args.quota_reset_at,model_allowlist=args.model)
+            return True,asdict(value)|{"health_ratio":value.health_ratio},0
+        if args.pool_action == "feedback":
+            if args.success == args.failure: raise ValueError("feedback requires exactly one of --success or --failure")
+            value=pool.record_result(args.provider,args.account,success=args.success,latency_ms=args.latency_ms,quota_remaining=args.quota,quota_reset_at=args.quota_reset_at,retry_after_seconds=args.retry_after)
+            return True,asdict(value)|{"health_ratio":value.health_ratio},0
+        if args.pool_action == "list": return True,pool.receipt(),0
+        if args.pool_action == "route":
+            rows=_load_json_argument(args.value)
+            if not isinstance(rows,list): raise ValueError("route requires model JSON list/path as value")
+            return True,asdict(pool.route(args.provider,rows,changed_files=args.changed_files,token_estimate=args.tokens)),0
+        raise RuntimeError(args.pool_action)
     if action == "delegate":
         return True, asdict(AutomaticSubtaskDelegator().plan(args.objective,context_paths=args.context_path,max_tasks=args.max_tasks)), 0
     if action == "redact":
@@ -453,10 +486,13 @@ def _handle_competitive_run(args: argparse.Namespace, *, project: Path, state: P
         codec=LosslessWireCodec()
         return True, codec.encode(value,min_savings_ratio=args.minimum_savings) if args.wire_action=="encode" else codec.decode(value),0
     if action == "code-intel":
-        index=CodeIntelligenceIndex(project); index.build(); name=args.intel_action
+        index=CodeIntelligenceIndex(project); index.build_incremental(state / "code-intelligence-index.json"); name=args.intel_action
         if name=="report": value=index.report()
         elif name=="call": value=index.call_hierarchy(args.query)
         elif name=="class": value=index.class_hierarchy(args.query)
+        elif name=="implementations": value=index.implementations(args.query)
+        elif name=="blast-radius": value=index.blast_radius(args.query)
+        elif name=="parser-manifest": value=index.parser_manifest()
         elif name=="dead": value=index.dead_code()
         elif name=="untested": value=index.untested_symbols()
         elif name=="provenance": value=index.provenance(args.query)

@@ -57,7 +57,7 @@ Normal daily work still happens in the existing coding agent. Syntavra is intend
 
 ## Competitive feature set
 
-Syntavra 0.0.1 now includes a fail-closed pre-tool command rewriter, 70 command-specific compactors, six instant optimization modes, a live savings statusline, prompt-cache layout/expiry planning, transcript opportunity mining, incremental repository watching, local browser/PWA dashboard, agent-config auditing, secret redaction, lossless MCP wire encoding, hybrid memory search, deep code-graph analytics, adaptive provider fallback, short-handoff delegation, a VS Code extension, and a dependency-free Rust companion source.
+Syntavra 0.0.1 now includes a fail-closed pre-tool command rewriter, 131 command-specific compactors, six instant optimization modes, a live savings statusline, prompt-cache layout/expiry planning, transcript opportunity mining, incremental repository watching, local browser/PWA dashboard, agent-config auditing, secret redaction, lossless MCP wire encoding, hybrid memory search, deep code-graph analytics, adaptive provider fallback, short-handoff delegation, a VS Code extension, and a dependency-free Rust companion source.
 
 ```bash
 syntavra run mode ultra
@@ -69,7 +69,7 @@ syntavra run memory-search "cache decision"
 syntavra run provider-route "security migration" providers.json
 ```
 
-The implementation registry currently covers at least 60 rewrite/compaction surfaces, more than 30 controlled host contracts, and more than 40 provider presets. Installation contracts are not described as live certifications. Registry publication and provider-billed competitor results remain external, credential-gated actions. See `docs/COMPLETE_COMPETITIVE_FEATURE_SET_001.md`.
+The implementation registry currently exposes 118 fail-closed rewrite rules, 131 command-specific compactors, 44 controlled host contracts, 48 provider presets, a credential-reference-only provider account pool, and a 30-language parser registry with optional tree-sitter support. Installation contracts are not described as live certifications. Registry publication and provider-billed competitor results remain external, credential-gated actions. See `docs/COMPLETE_COMPETITIVE_FEATURE_SET_001.md`.
 
 ## Exact-recovery rule
 
@@ -121,6 +121,7 @@ Missing competitors, provider usage or verifier output fail closed; they are nev
 - `docs/001_PRE_RELEASE.md`
 - `docs/ARCHITECTURE.md`
 - `docs/TOKEN_SAVER_PLAN_001.md`
+- `docs/COMPETITIVE_GAP_CLOSURE_001.md`
 - `docs/SECURITY_MODEL.md`
 - `docs/ADAPTER_PLATFORM.md`
 - `docs/SIGNALBENCH.md`
