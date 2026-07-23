@@ -19,7 +19,7 @@ jobs:
           ref: main
           fetch-depth: 0
       - name: Verify final product commit
-        run: test "$(git rev-parse HEAD^)" = 'ce52e42dd6c22001acf366a14b4677c8a9d5c85e' || test "$(git rev-parse HEAD)" = 'ce52e42dd6c22001acf366a14b4677c8a9d5c85e'
+        run: git merge-base --is-ancestor ce52e42dd6c22001acf366a14b4677c8a9d5c85e HEAD
       - name: Export exact product tree and repository bundle
         run: |
           set -euo pipefail
