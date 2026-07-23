@@ -1,0 +1,50 @@
+name: Final temporary branch cleanup
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened]
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+jobs:
+  cleanup:
+    if: >-
+      github.actor == github.repository_owner &&
+      startsWith(github.head_ref, 'agent/syntavra-final-cleanup')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Close temporary PRs and delete temporary branches
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh api --paginate "repos/${GITHUB_REPOSITORY}/pulls?state=open&per_page=100" --slurp |
+            jq 'add | .[] | select(.head.ref | startswith("agent/apply-token-saver-unification") or startswith("agent/transport-token-saver-patch") or startswith("agent/syntavra-final-cleanup")) | .number' |
+            while read -r pr_number; do
+              gh api --method PATCH "repos/${GITHUB_REPOSITORY}/pulls/${pr_number}" -f state=closed
+            done
+
+          mapfile -t branches < <(
+            git ls-remote --heads origin |
+              awk '{sub("refs/heads/", "", $2); print $2}' |
+              grep -E '^(agent/apply-token-saver-unification|agent/transport-token-saver-patch|agent/syntavra-final-cleanup)' || true
+          )
+          for branch in "${branches[@]}"; do
+            git push origin --delete "$branch"
+          done
+
+          remaining=$(git ls-remote --heads origin | awk '{sub("refs/heads/", "", $2); print $2}' | sort)
+          printf '%s\n' "$remaining"
+          test "$remaining" = main
+
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/issues/1/comments" \
+            -f body="Temporary token-saver staging PRs and branches removed. Canonical branch: main. Final product commit remains ce52e42dd6c22001acf366a14b4677c8a9d5c85e. Cleanup run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
