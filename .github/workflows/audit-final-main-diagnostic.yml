@@ -1,0 +1,101 @@
+name: Diagnose Final Main Workflow Metadata
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  actions: read
+  security-events: read
+
+jobs:
+  diagnose:
+    if: github.head_ref == 'audit/final-main-security-verification'
+    runs-on: ubuntu-latest
+    env:
+      TARGET_MAIN_SHA: 0dad1718e228191abc0135aaaea8929c453f90c9
+    steps:
+      - name: Export workflow and alert metadata
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import urllib.parse
+          import urllib.request
+          from pathlib import Path
+
+          repository = os.environ["GITHUB_REPOSITORY"]
+          token = os.environ["GITHUB_TOKEN"]
+          target_sha = os.environ["TARGET_MAIN_SHA"]
+          headers = {
+              "Accept": "application/vnd.github+json",
+              "Authorization": f"Bearer {token}",
+              "X-GitHub-Api-Version": "2022-11-28",
+              "User-Agent": "syntavra-final-main-diagnostic",
+          }
+
+          def get_json(url):
+              request = urllib.request.Request(url, headers=headers)
+              with urllib.request.urlopen(request, timeout=30) as response:
+                  return json.load(response)
+
+          query = urllib.parse.urlencode({"head_sha": target_sha, "per_page": 100})
+          target_runs = get_json(
+              f"https://api.github.com/repos/{repository}/actions/runs?{query}"
+          ).get("workflow_runs") or []
+          triage_runs = get_json(
+              f"https://api.github.com/repos/{repository}/actions/workflows/security-alert-triage.yml/runs?per_page=100"
+          ).get("workflow_runs") or []
+          alert = get_json(
+              f"https://api.github.com/repos/{repository}/code-scanning/alerts/6"
+          )
+          value = {
+              "target_main_sha": target_sha,
+              "target_runs": [
+                  {
+                      "id": run.get("id"),
+                      "name": run.get("name"),
+                      "event": run.get("event"),
+                      "status": run.get("status"),
+                      "conclusion": run.get("conclusion"),
+                      "head_branch": run.get("head_branch"),
+                      "head_sha": run.get("head_sha"),
+                      "created_at": run.get("created_at"),
+                      "updated_at": run.get("updated_at"),
+                      "html_url": run.get("html_url"),
+                  }
+                  for run in target_runs
+              ],
+              "security_triage_runs": [
+                  {
+                      "id": run.get("id"),
+                      "name": run.get("name"),
+                      "event": run.get("event"),
+                      "status": run.get("status"),
+                      "conclusion": run.get("conclusion"),
+                      "head_branch": run.get("head_branch"),
+                      "head_sha": run.get("head_sha"),
+                      "created_at": run.get("created_at"),
+                      "updated_at": run.get("updated_at"),
+                      "html_url": run.get("html_url"),
+                  }
+                  for run in triage_runs[:25]
+              ],
+              "alert_6": alert,
+          }
+          Path("final-main-diagnostic.json").write_text(
+              json.dumps(value, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
+          print(json.dumps(value, indent=2, sort_keys=True))
+          PY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: syntavra-final-main-diagnostic
+          path: final-main-diagnostic.json
+          if-no-files-found: error
+          retention-days: 7
