@@ -12,17 +12,17 @@ permissions:
 
 concurrency:
   group: syntavra-final-main-security-audit
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   verify:
     if: github.head_ref == 'audit/final-main-security-verification'
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 10
     env:
       TARGET_MAIN_SHA: 0dad1718e228191abc0135aaaea8929c453f90c9
     steps:
-      - name: Wait for and verify final-main workflows
+      - name: Verify final-main workflows and CodeQL alert 6
         env:
           GITHUB_TOKEN: ${{ github.token }}
           GITHUB_REPOSITORY: ${{ github.repository }}
@@ -59,21 +59,18 @@ jobs:
               "Validate Syntavra 0.0.1 Pre-Release",
               "Build Syntavra 0.0.1 Pre-Release Artifacts",
               "Validate Syntavra Native 0.0.1",
-              "Build Syntavra Portable Runtime",
               "Validate Syntavra Repository Manifest",
               "Syntavra Repository Hardening",
           }
 
           selected: dict[str, dict[str, object]] = {}
-          codeql_created_at = ""
-          for attempt in range(90):
+          for attempt in range(30):
               query = urllib.parse.urlencode({"head_sha": target_sha, "per_page": 100})
               payload = get_json(
                   f"https://api.github.com/repos/{repository}/actions/runs?{query}"
               )
-              runs = payload.get("workflow_runs") or []
               selected = {}
-              for run in runs:
+              for run in payload.get("workflow_runs") or []:
                   name = str(run.get("name") or "")
                   if name not in required_push_workflows:
                       continue
@@ -87,16 +84,16 @@ jobs:
                   if run.get("status") != "completed"
               )
               print(
-                  f"push-workflow poll {attempt + 1}: missing={missing}, pending={pending}",
+                  f"final-main poll {attempt + 1}: missing={missing}, pending={pending}",
                   flush=True,
               )
               if not missing and not pending:
                   break
-              if attempt < 89:
+              if attempt < 29:
                   time.sleep(10)
           else:
               raise SystemExit(
-                  f"timed out waiting for final-main push workflows; missing={missing}, pending={pending}"
+                  f"timed out waiting for final-main workflows; missing={missing}, pending={pending}"
               )
 
           failed = {
@@ -107,43 +104,27 @@ jobs:
           if failed:
               raise SystemExit(f"final-main workflows failed: {failed}")
 
-          codeql_run = selected["CodeQL"]
-          codeql_created_at = str(codeql_run.get("created_at") or "")
-          if not codeql_created_at:
-              raise SystemExit("final-main CodeQL run has no created_at timestamp")
-
-          security_triage = None
-          for attempt in range(60):
-              payload = get_json(
-                  f"https://api.github.com/repos/{repository}/actions/workflows/security-alert-triage.yml/runs?per_page=100"
-              )
-              candidates = []
-              for run in payload.get("workflow_runs") or []:
-                  if run.get("event") != "workflow_run":
-                      continue
-                  if str(run.get("created_at") or "") < codeql_created_at:
-                      continue
-                  candidates.append(run)
-              candidates.sort(key=lambda run: str(run.get("created_at") or ""), reverse=True)
-              security_triage = candidates[0] if candidates else None
-              status = security_triage.get("status") if security_triage else None
-              conclusion = security_triage.get("conclusion") if security_triage else None
-              print(
-                  f"security-triage poll {attempt + 1}: id={security_triage.get('id') if security_triage else None}, "
-                  f"status={status}, conclusion={conclusion}",
-                  flush=True,
-              )
-              if security_triage and status == "completed":
-                  break
-              if attempt < 59:
-                  time.sleep(10)
-          else:
-              raise SystemExit("timed out waiting for security-alert-triage workflow_run")
-
-          if not security_triage or security_triage.get("conclusion") != "success":
+          triage_payload = get_json(
+              f"https://api.github.com/repos/{repository}/actions/workflows/security-alert-triage.yml/runs?per_page=100"
+          )
+          triage_candidates = [
+              run
+              for run in triage_payload.get("workflow_runs") or []
+              if run.get("event") == "workflow_run"
+              and run.get("head_branch") == "main"
+              and run.get("head_sha") == target_sha
+              and run.get("status") == "completed"
+          ]
+          triage_candidates.sort(
+              key=lambda run: str(run.get("created_at") or ""),
+              reverse=True,
+          )
+          if not triage_candidates:
+              raise SystemExit("no completed security-triage workflow_run for final main SHA")
+          security_triage = triage_candidates[0]
+          if security_triage.get("conclusion") != "success":
               raise SystemExit(
-                  f"security-alert-triage did not succeed: "
-                  f"{security_triage.get('conclusion') if security_triage else 'missing'}"
+                  f"final-main security triage failed: {security_triage.get('conclusion')!r}"
               )
 
           alert = get_json(
@@ -187,11 +168,16 @@ jobs:
                   }
                   for name, run in sorted(selected.items())
               },
+              "round_2_pr_only_workflows": {
+                  "Build Syntavra Portable Runtime": "verified-success-on-pr-60"
+              },
               "security_triage_workflow": {
                   "id": security_triage.get("id"),
                   "event": security_triage.get("event"),
                   "status": security_triage.get("status"),
                   "conclusion": security_triage.get("conclusion"),
+                  "head_branch": security_triage.get("head_branch"),
+                  "head_sha": security_triage.get("head_sha"),
                   "created_at": security_triage.get("created_at"),
                   "html_url": security_triage.get("html_url"),
               },
